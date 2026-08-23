@@ -1,0 +1,36 @@
+[
+  {
+    "epoch": 1,
+    "train": {
+      "total_loss": 7.6805955632527665,
+      "residual_nll": 7.064365200042724,
+      "pid_cross_entropy": 3.0811517492930096,
+      "pid_accuracy": 0.09383333333333334,
+      "examples_per_second": 82640.64406599836
+    },
+    "validation": {
+      "total_loss": 6.386358267466227,
+      "residual_nll": 5.8122816645304365,
+      "pid_cross_entropy": 2.870383020401001,
+      "pid_accuracy": 0.12866666666666668,
+      "examples_per_second": 271053.7376962084
+    }
+  },
+  {
+    "epoch": 2,
+    "train": {
+      "total_loss": 6.116612579345703,
+      "residual_nll": 5.573193195343017,
+      "pid_cross_entropy": 2.717096818288167,
+      "pid_accuracy": 0.162,
+      "examples_per_second": 192013.8249218379
+    },
+    "validation": {
+      "total_loss": 5.44356297938029,
+      "residual_nll": 4.93420970026652,
+      "pid_cross_entropy": 2.546766671816508,
+      "pid_accuracy": 0.178,
+      "examples_per_second": 225246.36290892606
+    }
+  }
+]

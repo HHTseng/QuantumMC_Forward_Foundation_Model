@@ -1,0 +1,39 @@
+project:
+  name: clas12-forward-fm-step1
+  seed: 20260822
+data:
+  parquet_glob: /Users/huan-hsintseng/Downloads/QuantumMC_Simulations/phase-space_parquet-Aug17-26/particle_responses/*.parquet
+  split_modulus: 10000
+  train_boundary: 8000
+  validation_boundary: 9000
+  max_rows_per_species:
+    train: 2000
+    validation: 500
+    test: 500
+  selection:
+    theta_max_deg: 33.0
+    vz_min_cm: -5.5
+    vz_max_cm: -0.5
+    require_reciprocal_match: true
+    reject_rec_pid_zero: true
+    reject_beta_sentinel: true
+    max_abs_delta_p_gev: 10.0
+model:
+  hidden_width: 32
+  hidden_layers: 2
+  pid_embedding_dim: 8
+  mixture_components: 3
+  dropout: 0.05
+training:
+  epochs: 2
+  batch_size: 512
+  learning_rate: 0.001
+  weight_decay: 1.0e-05
+  pid_loss_weight: 0.2
+  gradient_clip_norm: 5.0
+  early_stopping_patience: 2
+  num_workers: 0
+  torch_threads: 4
+  device: auto
+output:
+  run_dir: runs/smoke

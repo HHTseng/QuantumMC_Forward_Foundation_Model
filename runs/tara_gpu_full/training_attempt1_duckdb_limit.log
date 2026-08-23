@@ -1,0 +1,40 @@
+device=cuda:0 run_dir=/home/htseng/QuantumMC_Simulations/step1/runs/tara_gpu_full
+loading deterministic, event-disjoint data splits...
+Traceback (most recent call last):
+  File "/home/htseng/QuantumMC_Simulations/step1/train.py", line 151, in <module>
+    main()
+  File "/home/htseng/QuantumMC_Simulations/step1/train.py", line 82, in main
+    splits, feature_scaler, target_scaler, rec_pid_vocabulary, audit = load_all_splits(config)
+                                                                       ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/htseng/QuantumMC_Simulations/step1/forwardfm_step1/data.py", line 300, in load_all_splits
+    frames = {name: _load_frame(con, name, config) for name in ("train", "validation", "test")}
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/htseng/QuantumMC_Simulations/step1/forwardfm_step1/data.py", line 218, in _load_frame
+    frame = con.execute(query).fetch_df()
+            ^^^^^^^^^^^^^^^^^^
+_duckdb.InvalidInputException: Invalid Input Error: Invalid input for arg_min/arg_max: n value must be < 1000000
+ERROR conda.cli.main_run:execute(49): `conda run python -u train.py --config configs/tara_gpu_full.yaml` failed. (See above for error)
+Command exited with non-zero status 1
+	Command being timed: "/usr/local/anaconda3/bin/conda run --no-capture-output -n QuantumMC python -u train.py --config configs/tara_gpu_full.yaml"
+	User time (seconds): 9.46
+	System time (seconds): 3.89
+	Percent of CPU this job got: 407%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:03.27
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 768096
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 192246
+	Voluntary context switches: 39364
+	Involuntary context switches: 427
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 104
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 1

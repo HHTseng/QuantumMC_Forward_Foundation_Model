@@ -1,0 +1,52 @@
+device=cuda:0 run_dir=/home/htseng/QuantumMC_Simulations/step1/runs/tara_gpu_full
+loading deterministic, event-disjoint data splits...
+loaded train=1,270,698, validation=159,558, test=158,985 in 3.57s
+trainable_parameters=222,324
+epoch=01 train_loss=0.68759 val_loss=-2.23150 val_nll=-2.45550 val_pid_acc=0.6619
+epoch=02 train_loss=-1.79051 val_loss=-3.03631 val_nll=-3.26147 val_pid_acc=0.6713
+epoch=03 train_loss=-2.60174 val_loss=-3.52024 val_nll=-3.74947 val_pid_acc=0.6718
+epoch=04 train_loss=-3.12013 val_loss=-3.65619 val_nll=-3.89742 val_pid_acc=0.6733
+epoch=05 train_loss=-3.43884 val_loss=-3.93257 val_nll=-4.18032 val_pid_acc=0.6688
+epoch=06 train_loss=-3.65932 val_loss=-4.02452 val_nll=-4.27698 val_pid_acc=0.6117
+epoch=07 train_loss=-3.82816 val_loss=-4.11324 val_nll=-4.36810 val_pid_acc=0.5807
+epoch=08 train_loss=-3.96660 val_loss=-3.97727 val_nll=-4.23175 val_pid_acc=0.5730
+epoch=09 train_loss=-4.07008 val_loss=-4.21034 val_nll=-4.46470 val_pid_acc=0.5623
+epoch=10 train_loss=-4.14062 val_loss=-4.12214 val_nll=-4.37584 val_pid_acc=0.5581
+epoch=11 train_loss=-4.20346 val_loss=-4.28024 val_nll=-4.53332 val_pid_acc=0.5650
+epoch=12 train_loss=-4.23857 val_loss=-4.30930 val_nll=-4.56076 val_pid_acc=0.5742
+epoch=13 train_loss=-4.27277 val_loss=-4.32845 val_nll=-4.57805 val_pid_acc=0.5973
+epoch=14 train_loss=-4.34174 val_loss=-4.44172 val_nll=-4.68783 val_pid_acc=0.6153
+epoch=15 train_loss=-4.37911 val_loss=-4.20051 val_nll=-4.44301 val_pid_acc=0.6555
+epoch=16 train_loss=-4.38648 val_loss=-4.52162 val_nll=-4.75691 val_pid_acc=0.6730
+epoch=17 train_loss=-4.43677 val_loss=-4.32214 val_nll=-4.55099 val_pid_acc=0.6758
+epoch=18 train_loss=-4.43227 val_loss=-3.95234 val_nll=-4.17451 val_pid_acc=0.6764
+epoch=19 train_loss=-4.46455 val_loss=-4.24112 val_nll=-4.45889 val_pid_acc=0.6766
+epoch=20 train_loss=-4.48149 val_loss=-4.48366 val_nll=-4.69874 val_pid_acc=0.6764
+epoch=21 train_loss=-4.51127 val_loss=-4.48353 val_nll=-4.69642 val_pid_acc=0.6767
+early stopping after epoch 21; best epoch was 16
+test_nll=-4.758140
+test_pid_accuracy=0.6722
+checkpoint=/home/htseng/QuantumMC_Simulations/step1/runs/tara_gpu_full/model.pt
+	Command being timed: "/usr/local/anaconda3/bin/conda run --no-capture-output -n QuantumMC python -u train.py --config configs/tara_gpu_full.yaml"
+	User time (seconds): 349.03
+	System time (seconds): 31.82
+	Percent of CPU this job got: 120%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 5:15.04
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 2622400
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 10
+	Minor (reclaiming a frame) page faults: 3115099
+	Voluntary context switches: 1193476
+	Involuntary context switches: 1476
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 2568
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
