@@ -216,10 +216,6 @@ The sampled reconstructed PID comes from the categorical head. The sampler
 flags nonphysical draws such as $p_{\mathrm{rec}}\leq0$ or
 $\theta_{\mathrm{rec}}\notin[0,\pi]$ instead of silently clipping them.
 
-For the exact equation-to-function mapping, see
-[PHYSICS_TO_CODE.md](PHYSICS_TO_CODE.md). The staged roadmap is in
-[PSEUDOCODE.md](PSEUDOCODE.md).
-
 ## Dataset and selection
 
 The Aug17-26 phase-space sample contains **20,000,000 particle rows** from
@@ -379,8 +375,6 @@ docs/figures/            Process diagrams and held-out result figures
 runs/                    Versioned metrics, plots, audits, and model cards
 train.py                 Training entry point
 sample.py                Conditional stochastic inference entry point
-PHYSICS_TO_CODE.md       Physics-equation to implementation mapping
-PSEUDOCODE.md            Staged modeling plan
 ```
 
 ## Scope, limitations, and next milestones
