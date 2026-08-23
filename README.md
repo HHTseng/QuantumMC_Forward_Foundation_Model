@@ -72,7 +72,7 @@ $$
 $$
 \theta_i=\cos^{-1}\!\left(\frac{p_{z,i}}{p_i}\right),
 \qquad
-\phi_i=\operatorname{atan2}(p_{y,i},p_{x,i}),
+\phi_i=\mathrm{atan2}\,(p_{y,i},p_{x,i}),
 $$
 
 where $s_i$ is the PDG particle identity. For a complete generated event
@@ -118,7 +118,7 @@ $$
 
 $$
 \Delta\phi
-=\operatorname{wrap}(\phi_{\mathrm{rec}}-\phi_{\mathrm{gen}})
+=\mathrm{wrap}\,(\phi_{\mathrm{rec}}-\phi_{\mathrm{gen}})
 =\bigl((\phi_{\mathrm{rec}}-\phi_{\mathrm{gen}}+\pi)\bmod 2\pi\bigr)-\pi.
 $$
 
@@ -170,7 +170,7 @@ models particle identification,
 
 $$
 P_\vartheta(\widehat{s}=c\mid x)
-=\operatorname{softmax}(a(x))_c.
+=\mathrm{softmax}\,(a(x))_c.
 $$
 
 Training minimizes residual negative log likelihood plus reconstructed-PID
@@ -192,7 +192,7 @@ For each generated particle, inference draws a mixture component and random
 noise,
 
 $$
-k\sim\operatorname{Categorical}(\pi(x)),
+k\sim\mathrm{Categorical}\,(\pi(x)),
 \qquad
 \epsilon\sim\mathcal{N}(0,I),
 \qquad
@@ -209,7 +209,7 @@ $$
 
 $$
 \phi_{\mathrm{rec}}
-=\operatorname{wrap}(\phi_{\mathrm{gen}}+\Delta\phi).
+=\mathrm{wrap}\,(\phi_{\mathrm{gen}}+\Delta\phi).
 $$
 
 The sampled reconstructed PID comes from the categorical head. The sampler
@@ -304,8 +304,8 @@ Each heatmap cell is
 
 $$
 \text{width ratio}
-=\frac{\operatorname{Std}(\Delta)_{\mathrm{model}}}
-{\operatorname{Std}(\Delta)_{\mathrm{full\ simulation}}}.
+=\frac{\mathrm{Std}\,(\Delta)_{\mathrm{model}}}
+{\mathrm{Std}\,(\Delta)_{\mathrm{full\ simulation}}}.
 $$
 
 The ideal value is one; aggregate ratios span 0.940–1.065.
