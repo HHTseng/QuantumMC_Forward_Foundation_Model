@@ -124,9 +124,9 @@ conditioned on $T=1$.
 
 The composite event identifier is
 
-$$
-(\mathtt{source\_file\_id},\mathtt{event\_id}),
-$$
+```text
+(source_file_id, event_id)
+```
 
 because `event_id` alone is only locally unique within a source file. All
 particles from the same event are assigned to the same train, validation, or
@@ -348,10 +348,10 @@ delta_phi   = physical_residuals[:, 2]  # rad
 
 ### 5.2 Reconstructed PID target
 
-`rec_pid_index` contains one integer class label per particle:
+`rec_pid_index` contains one integer class label per particle, taking values in
 
 $$
-\mathtt{rec\_pid\_index}\in\{0,\ldots,C-1\}^{B}.
+\{0,\ldots,C-1\}^{B}.
 $$
 
 It therefore has shape `[B]`, not `[B, C]`:
