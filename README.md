@@ -125,7 +125,7 @@ conditioned on $T=1$.
 The composite event identifier is
 
 $$
-(\texttt{source\_file\_id},\texttt{event\_id}),
+(\mathtt{source\_file\_id},\mathtt{event\_id}),
 $$
 
 because `event_id` alone is only locally unique within a source file. All
@@ -233,7 +233,7 @@ $$
 For a minibatch of size $B$, the continuous input is therefore
 
 $$
-\texttt{continuous}\in\mathbb R^{B\times4}.
+\mathtt{continuous}\in\mathbb R^{B\times4}.
 $$
 
 For the development configuration, $B=2048$:
@@ -272,7 +272,7 @@ Hence
 For a batch,
 
 $$
-\texttt{species\_index}\in\{0,1,2\}^{B}.
+\mathtt{species\_index}\in\{0,1,2\}^{B}.
 $$
 
 The network maps this integer to a learned embedding
@@ -296,7 +296,7 @@ receives 20.
 The actual model input is therefore the pair
 
 $$
-(\texttt{continuous},\texttt{species\_index})
+(\mathtt{continuous},\mathtt{species\_index})
 \in\mathbb R^{B\times4}\times\{0,1,2\}^{B},
 $$
 
@@ -317,7 +317,7 @@ $$
 Thus
 
 $$
-\texttt{targets}\in\mathbb R^{B\times3}.
+\mathtt{targets}\in\mathbb R^{B\times3}.
 $$
 
 For example:
@@ -351,7 +351,7 @@ delta_phi   = physical_residuals[:, 2]  # rad
 `rec_pid_index` contains one integer class label per particle:
 
 $$
-\texttt{rec\_pid\_index}\in\{0,\ldots,C-1\}^{B}.
+\mathtt{rec\_pid\_index}\in\{0,\ldots,C-1\}^{B}.
 $$
 
 It therefore has shape `[B]`, not `[B, C]`:
@@ -463,9 +463,9 @@ $$
 where
 
 $$
-\pi=\mathrm{softmax}\,(\texttt{mixture\_logits}),
+\pi=\mathrm{softmax}\,(\mathtt{mixture\_logits}),
 \qquad
-\sigma=\exp(\texttt{log\_scales}).
+\sigma=\exp(\mathtt{log\_scales}).
 $$
 
 The component covariance matrices are diagonal. Dependence among the three
@@ -479,7 +479,7 @@ The categorical probabilities are
 
 $$
 q_\vartheta(\widehat s=c\mid z_x,s)
-=\mathrm{softmax}\,(\texttt{pid\_logits})_c.
+=\mathrm{softmax}\,(\mathtt{pid\_logits})_c.
 $$
 
 For the displayed development batch,
