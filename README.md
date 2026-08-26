@@ -40,28 +40,28 @@ reconstructed event Y
 
 The eventual forward foundation model should approximate the expensive map
 
-\[
+$$
 K(Y\mid X)=P(\text{reconstructed event }Y\mid\text{truth event }X).
-\]
+$$
 
 ![Real experiment, full computer simulation, and learned forward-model shortcut](docs/figures/real_simulation_forward_model.png)
 
 The current Step 1 network learns only the highlighted conditional response
 factor for selected FD hadrons:
 
-\[
+$$
 P(\Delta_i,\widehat s_i
 \mid x_i,T=1,C_i=\mathrm{FD},F_i=1).
-\]
+$$
 
 Here:
 
-- \(x_i\) is the generated truth state of hadron \(i\);
-- \(T\in\{0,1\}\) is the event-level valid-trigger-electron outcome;
-- \(C_i\) is the particle reconstruction outcome or detector region;
-- \(F_i\) denotes the current fiducial and data-quality selection;
-- \(\Delta_i\) is the reconstructed-minus-generated kinematic residual;
-- \(\widehat s_i\) is the PID assigned by reconstruction.
+- $x_i$ is the generated truth state of hadron $i$;
+- $T\in\{0,1\}$ is the event-level valid-trigger-electron outcome;
+- $C_i$ is the particle reconstruction outcome or detector region;
+- $F_i$ denotes the current fiducial and data-quality selection;
+- $\Delta_i$ is the reconstructed-minus-generated kinematic residual;
+- $\widehat s_i$ is the PID assigned by reconstruction.
 
 ![CLAS12 particle paths and current forward-model scope](docs/figures/clas12_detector_forward_model_scope.png)
 
@@ -80,17 +80,17 @@ The Aug17-26 phase-space sample contains 5,000,000 generated events and
 20,000,000 generated-particle rows. In this production, each event contains
 exactly four generated particles:
 
-\[
+$$
 e^-,\qquad \pi^+,\qquad \pi^-,\qquad p.
-\]
+$$
 
 Thus one event contributes four rows:
 
 | Row in one event | Generated PID | Particle |
 |---|---:|---|
 | 1 | 11 | electron |
-| 2 | 211 | \(\pi^+\) |
-| 3 | -211 | \(\pi^-\) |
+| 2 | 211 | $\pi^+$ |
+| 3 | -211 | $\pi^-$ |
 | 4 | 2212 | proton |
 
 Consequently, the statement “one generated event gives one generated-electron
@@ -101,32 +101,32 @@ A trigger electron is a reconstructed electron candidate satisfying the
 experiment's trigger-related detector and quality conditions. At the data-model
 level,
 
-\[
+$$
 T=
 \begin{cases}
 1,&\text{a valid trigger electron is present},\\
 0,&\text{no valid trigger electron is present}.
 \end{cases}
-\]
+$$
 
 This is a supervised label because a future model must learn the trigger
 efficiency
 
-\[
+$$
 P(T=1\mid x_e),
-\]
+$$
 
-using both triggered and untriggered generated events. If only \(T=1\) events
+using both triggered and untriggered generated events. If only $T=1$ events
 were retained, the denominator of the efficiency would be absent.
 
 Step 1 does not train this trigger model. Its hadron rows are already
-conditioned on \(T=1\).
+conditioned on $T=1$.
 
 The composite event identifier is
 
-\[
+$$
 (\texttt{source\_file\_id},\texttt{event\_id}),
-\]
+$$
 
 because `event_id` alone is only locally unique within a source file. All
 particles from the same event are assigned to the same train, validation, or
@@ -139,44 +139,44 @@ reconstructed FD candidate. It is not a complete event.
 
 The physical truth state is
 
-\[
+$$
 x_i^{\mathrm{phys}}
 =(p_i^{\mathrm{gen}},\theta_i^{\mathrm{gen}},
 \phi_i^{\mathrm{gen}},s_i^{\mathrm{gen}})
 \in
 (0,\infty)\times[0,\pi]\times S^1\times\mathcal S,
-\]
+$$
 
 where
 
-\[
+$$
 \mathcal S=\{-211,211,2212\}
 =\{\pi^-,\pi^+,p\}.
-\]
+$$
 
 The physical response label is
 
-\[
+$$
 \Delta_i^{\mathrm{phys}}
 =(\Delta p_i,\Delta\theta_i,\Delta\phi_i)\in\mathbb R^3,
-\]
+$$
 
 with
 
-\[
+$$
 \Delta p_i=p_i^{\mathrm{rec}}-p_i^{\mathrm{gen}},
 \qquad
 \Delta\theta_i=\theta_i^{\mathrm{rec}}-
 \theta_i^{\mathrm{gen}},
-\]
+$$
 
-\[
+$$
 \Delta\phi_i=
-\operatorname{wrap}_{[-\pi,\pi)}
+\mathrm{wrap}_{[-\pi,\pi)}\,
 (\phi_i^{\mathrm{rec}}-\phi_i^{\mathrm{gen}}).
-\]
+$$
 
-The reconstructed PID label \(\widehat s_i\) is allowed to differ from the
+The reconstructed PID label $\widehat s_i$ is allowed to differ from the
 generated PID. Such rows describe physical/reconstruction contamination and
 must not automatically be deleted as corrupted data.
 
@@ -189,17 +189,17 @@ The code does **not** pass the raw tuple
 
 The raw kinematics are mapped to
 
-\[
+$$
 \Phi(p,\theta,\phi)
 =\left[
 \log(1+p),\ \theta,\ \sin\phi,\ \cos\phi
 \right]\in\mathbb R^4.
-\]
+$$
 
 In the data, momentum is numerically stored in GeV and angles in radians. The
 logarithm compresses the momentum range. The pair
-\((\sin\phi,\cos\phi)\) respects the circular topology of azimuth and removes
-the artificial discontinuity between \(-\pi\) and \(+\pi\).
+$(\sin\phi,\cos\phi)$ respects the circular topology of azimuth and removes
+the artificial discontinuity between $-\pi$ and $+\pi$.
 
 The implementation is:
 
@@ -225,18 +225,18 @@ def _feature_matrix(frame):
 
 Each feature is standardized using training-set statistics only:
 
-\[
+$$
 z_j=\frac{\Phi_j-\mu_j^{\mathrm{train}}}
 {\sigma_j^{\mathrm{train}}}.
-\]
+$$
 
-For a minibatch of size \(B\), the continuous input is therefore
+For a minibatch of size $B$, the continuous input is therefore
 
-\[
+$$
 \texttt{continuous}\in\mathbb R^{B\times4}.
-\]
+$$
 
-For the development configuration, \(B=2048\):
+For the development configuration, $B=2048$:
 
 ```python
 continuous.shape
@@ -265,21 +265,21 @@ Hence
 
 | `species_index` | Generated PID | Particle |
 |---:|---:|---|
-| 0 | -211 | \(\pi^-\) |
-| 1 | 211 | \(\pi^+\) |
+| 0 | -211 | $\pi^-$ |
+| 1 | 211 | $\pi^+$ |
 | 2 | 2212 | proton |
 
 For a batch,
 
-\[
+$$
 \texttt{species\_index}\in\{0,1,2\}^{B}.
-\]
+$$
 
 The network maps this integer to a learned embedding
 
-\[
+$$
 E_s:\{0,1,2\}\longrightarrow\mathbb R^{d_s}
-\]
+$$
 
 and concatenates it with the continuous features:
 
@@ -289,16 +289,16 @@ network_input = torch.cat([continuous, species], dim=-1)
 # shape: [B, 4 + d_s]
 ```
 
-For the seed configuration, \(d_s=8\), so the first backbone layer receives
-12 numbers per particle. For the full configuration, \(d_s=16\), so it
+For the seed configuration, $d_s=8$, so the first backbone layer receives
+12 numbers per particle. For the full configuration, $d_s=16$, so it
 receives 20.
 
 The actual model input is therefore the pair
 
-\[
+$$
 (\texttt{continuous},\texttt{species\_index})
 \in\mathbb R^{B\times4}\times\{0,1,2\}^{B},
-\]
+$$
 
 not a single raw four-vector called `x`.
 
@@ -308,17 +308,17 @@ not a single raw four-vector called `x`.
 
 The three raw residuals are standardized using training-only statistics:
 
-\[
+$$
 z_{\Delta,j}
 =\frac{\Delta_j-\mu_{\Delta,j}^{\mathrm{train}}}
 {\sigma_{\Delta,j}^{\mathrm{train}}}.
-\]
+$$
 
 Thus
 
-\[
+$$
 \texttt{targets}\in\mathbb R^{B\times3}.
-\]
+$$
 
 For example:
 
@@ -331,9 +331,9 @@ targets[0]
 ```
 
 The three columns are standardized
-\((\Delta p,\Delta\theta,\Delta\phi)\), not reconstructed
-\((p,\theta,\phi)\) and not values directly in GeV/radians. The first example
-means that its \(\Delta p\) lies 2.7308 training standard deviations below the
+$(\Delta p,\Delta\theta,\Delta\phi)$, not reconstructed
+$(p,\theta,\phi)$ and not values directly in GeV/radians. The first example
+means that its $\Delta p$ lies 2.7308 training standard deviations below the
 training mean, and similarly for the two angles.
 
 Physical residuals are recovered through the inverse affine map:
@@ -350,9 +350,9 @@ delta_phi   = physical_residuals[:, 2]  # rad
 
 `rec_pid_index` contains one integer class label per particle:
 
-\[
+$$
 \texttt{rec\_pid\_index}\in\{0,\ldots,C-1\}^{B}.
-\]
+$$
 
 It therefore has shape `[B]`, not `[B, C]`:
 
@@ -381,14 +381,14 @@ For the saved full run discussed in this repository, the observed mapping is:
 | Class index | Raw reconstructed PID | Interpretation |
 |---:|---:|---|
 | 0 | -2212 | antiproton |
-| 1 | -321 | \(K^-\) |
-| 2 | -211 | \(\pi^-\) |
+| 1 | -321 | $K^-$ |
+| 2 | -211 | $\pi^-$ |
 | 3 | -11 | positron |
 | 4 | 11 | electron |
 | 5 | 22 | photon |
 | 6 | 45 | deuteron code used by the reconstruction convention |
-| 7 | 211 | \(\pi^+\) |
-| 8 | 321 | \(K^+\) |
+| 7 | 211 | $\pi^+$ |
+| 8 | 321 | $K^+$ |
 | 9 | 2112 | neutron |
 | 10 | 2212 | proton |
 | 11 | `OTHER` | PID absent from the training vocabulary |
@@ -431,10 +431,10 @@ It returns parameters of two probability distributions:
 
 Let
 
-- \(B\) be batch size;
-- \(K\) be the number of Gaussian-mixture components;
-- \(D=3\) be the residual dimension;
-- \(C\) be the number of reconstructed-PID classes.
+- $B$ be batch size;
+- $K$ be the number of Gaussian-mixture components;
+- $D=3$ be the residual dimension;
+- $C$ be the number of reconstructed-PID classes.
 
 The returned object is
 
@@ -449,24 +449,24 @@ class ModelOutput:
 
 ### 6.1 Residual distribution head
 
-For standardized residuals \(z_\Delta\in\mathbb R^3\), the implemented MDN is
+For standardized residuals $z_\Delta\in\mathbb R^3$, the implemented MDN is
 
-\[
+$$
 q_\vartheta(z_\Delta\mid z_x,s)
 =\sum_{k=1}^{K}\pi_k(z_x,s)
 \prod_{j=1}^{3}
 \mathcal N\!\left(
 z_{\Delta,j};\mu_{kj}(z_x,s),\sigma_{kj}^2(z_x,s)
 \right),
-\]
+$$
 
 where
 
-\[
-\pi=\operatorname{softmax}(\texttt{mixture\_logits}),
+$$
+\pi=\mathrm{softmax}\,(\texttt{mixture\_logits}),
 \qquad
 \sigma=\exp(\texttt{log\_scales}).
-\]
+$$
 
 The component covariance matrices are diagonal. Dependence among the three
 residual coordinates can nevertheless be represented through shared mixture
@@ -477,10 +477,10 @@ flow-based components.
 
 The categorical probabilities are
 
-\[
+$$
 q_\vartheta(\widehat s=c\mid z_x,s)
-=\operatorname{softmax}(\texttt{pid\_logits})_c.
-\]
+=\mathrm{softmax}\,(\texttt{pid\_logits})_c.
+$$
 
 For the displayed development batch,
 
@@ -549,8 +549,8 @@ log_scales       [2048, 5, 3]
 pid_logits       [2048, 12]
 ```
 
-For the full configuration, \(B=8192\) and \(K=8\). Because the loader uses
-`drop_last=False`, the final batch of an epoch can contain fewer than \(B\)
+For the full configuration, $B=8192$ and $K=8$. Because the loader uses
+`drop_last=False`, the final batch of an epoch can contain fewer than $B$
 rows.
 
 `device="mps:0"` only means that the tensor is stored on the first Apple Metal
@@ -561,18 +561,18 @@ device. It is not a tensor dimension and has no physics interpretation.
 The current network uses a shared backbone followed by two separate heads. Its
 implemented factorization is
 
-\[
+$$
 q_\vartheta(z_\Delta,c\mid z_x,s,T=1,C=\mathrm{FD},F=1)
 =q_\vartheta(z_\Delta\mid z_x,s)
 q_\vartheta(c\mid z_x,s).
-\]
+$$
 
 This is a conditional-independence assumption:
 
-\[
+$$
 z_\Delta\perp c\mid(z_x,s)
 \quad\text{within the output parameterization}.
-\]
+$$
 
 The two predictions share learned hidden features, but after conditioning on
 those features, residual sampling and PID sampling are independent. Therefore,
@@ -581,11 +581,11 @@ misidentification class may have a different residual distribution.
 
 A more expressive future model could use
 
-\[
+$$
 q(c\mid z_x,s)\,q(z_\Delta\mid z_x,s,c),
-\]
+$$
 
-or a single joint generative model for \((z_\Delta,c)\).
+or a single joint generative model for $(z_\Delta,c)$.
 
 This distinction is central: the model outputs distribution parameters, then
 sampling produces one reconstructed-like outcome.
@@ -622,14 +622,14 @@ loss = nll + pid_loss_weight * pid_ce
 
 Mathematically,
 
-\[
+$$
 \mathcal L(\vartheta)
 =-\frac1B\sum_{i=1}^{B}
 \log q_\vartheta(z_{\Delta,i}\mid z_{x,i},s_i)
 -\frac{\lambda_{\mathrm{PID}}}{B}
 \sum_{i=1}^{B}
 \log q_\vartheta(c_i\mid z_{x,i},s_i),
-\]
+$$
 
 with `pid_loss_weight = 0.20` in the supplied configurations.
 
@@ -640,22 +640,22 @@ pid_logits:     floating tensor [B, C]
 rec_pid_index:  integer tensor  [B]
 ```
 
-and for row \(i\) selects the log-probability at class
+and for row $i$ selects the log-probability at class
 `rec_pid_index[i]`.
 
 ## 9. Sampling reconstructed-like particles
 
 Inference first samples a mixture component and standardized residual:
 
-\[
-k_i\sim\operatorname{Categorical}(\pi_i),
+$$
+k_i\sim\mathrm{Categorical}\,(\pi_i),
 \qquad
 \epsilon_i\sim\mathcal N(0,I_3),
-\]
+$$
 
-\[
+$$
 z_{\Delta,i}=\mu_{i,k_i}+\sigma_{i,k_i}\odot\epsilon_i.
-\]
+$$
 
 The code then inverts target standardization and samples reconstructed PID:
 
@@ -674,46 +674,46 @@ with torch.no_grad():
 
 Finally,
 
-\[
+$$
 p^{\mathrm{sample}}_{\mathrm{rec}}
 =p_{\mathrm{gen}}+\Delta p,
-\]
+$$
 
-\[
+$$
 \theta^{\mathrm{sample}}_{\mathrm{rec}}
 =\theta_{\mathrm{gen}}+\Delta\theta,
-\]
+$$
 
-\[
+$$
 \phi^{\mathrm{sample}}_{\mathrm{rec}}
-=\operatorname{wrap}_{[-\pi,\pi)}
+=\mathrm{wrap}_{[-\pi,\pi)}\,
 (\phi_{\mathrm{gen}}+\Delta\phi).
-\]
+$$
 
-The sampler flags draws with \(p_{\mathrm{rec}}\leq0\) or
-\(\theta_{\mathrm{rec}}\notin[0,\pi]\) rather than silently clipping them.
+The sampler flags draws with $p_{\mathrm{rec}}\leq0$ or
+$\theta_{\mathrm{rec}}\notin[0,\pi]$ rather than silently clipping them.
 
 ## 10. Dataset selection and scope
 
 The source Parquet data are not stored in this repository. The current response
 sample selects
 
-\[
+$$
 T=1,\qquad C=\mathrm{FD},\qquad
 \theta_{\mathrm{rec}}<33^\circ,
-\]
+$$
 
-\[
+$$
 -5.5<z_{\mathrm{gen}}<-0.5\ \mathrm{cm},
-\]
+$$
 
 together with reciprocal matching and explicit PID, beta, and residual-quality
 requirements.
 
 | Generated species | PDG code | Selected rows |
 |---|---:|---:|
-| \(\pi^-\) | -211 | 458,373 |
-| \(\pi^+\) | 211 | 571,241 |
+| $\pi^-$ | -211 | 458,373 |
+| $\pi^+$ | 211 | 571,241 |
 | proton | 2212 | 559,627 |
 | **Total** |  | **1,589,241** |
 
@@ -727,7 +727,7 @@ These counts describe particle rows, not event counts.
 
 ## 11. Held-out results
 
-The saved full experiment used one NVIDIA H100 GPU, \(K=8\) mixture
+The saved full experiment used one NVIDIA H100 GPU, $K=8$ mixture
 components, a four-layer width-256 backbone, and 222,324 trainable parameters.
 
 | Metric | Development seed | Full training |
@@ -736,7 +736,7 @@ components, a four-layer width-256 backbone, and 222,324 trainable parameters.
 | Reconstructed-PID cross entropy | 1.2794 | **1.1774** |
 | Reconstructed-PID top-1 accuracy | 66.62% | **67.22%** |
 | Maximum PID marginal discrepancy | 0.692% | **0.426%** |
-| Physical sampled \((p,\theta)\) fraction | 95.67% | **97.13%** |
+| Physical sampled $(p,\theta)$ fraction | 95.67% | **97.13%** |
 | Test evaluation throughput | -- | **112,434 examples/s** |
 
 Negative log likelihood evaluates a conditional density, so its absolute sign
@@ -751,10 +751,10 @@ comparing models evaluated under the same target transformation.
 
 Each heatmap cell is
 
-\[
-\frac{\operatorname{Std}(\Delta)_{\mathrm{model}}}
-{\operatorname{Std}(\Delta)_{\mathrm{full\ simulation}}}.
-\]
+$$
+\frac{\mathrm{Std}\,(\Delta)_{\mathrm{model}}}
+{\mathrm{Std}\,(\Delta)_{\mathrm{full\ simulation}}}.
+$$
 
 ![Residual-width closure heatmap](docs/figures/full_training_width_closure.png)
 
@@ -847,8 +847,8 @@ sample.py                stochastic inference entry point
    event are not generated jointly.
 
 3. **Residual/PID conditional independence.** Separate output heads implement
-   \(q(\Delta\mid x)q(\widehat s\mid x)\), not
-   \(q(\Delta,\widehat s\mid x)\) with explicit coupling.
+   $q(\Delta\mid x)q(\widehat s\mid x)$, not
+   $q(\Delta,\widehat s\mid x)$ with explicit coupling.
 
 4. **Diagonal components.** Each Gaussian mixture component has diagonal
    covariance. Mixture membership provides some joint structure but may be
@@ -873,37 +873,37 @@ sample.py                stochastic inference entry point
 
 The intended event-level factorization is
 
-\[
+$$
 P(Y\mid X)
 =P(T\mid x_e)
 \prod_{i\in\mathrm{hadrons}}
 P(C_i\mid x_i,T)
 P(R_i\mid x_i,C_i,T),
-\]
+$$
 
-where \(R_i\) contains reconstructed kinematics and PID when a response exists.
+where $R_i$ contains reconstructed kinematics and PID when a response exists.
 
 ### Stage A: trigger-electron factor
 
 Train
 
-\[
+$$
 P(T\mid x_e)
-\]
+$$
 
 using one generated-electron row from every generated event, including both
-\(T=1\) and \(T=0\). Validate efficiency as a function of generated electron
+$T=1$ and $T=0$. Validate efficiency as a function of generated electron
 momentum, direction, and vertex.
 
 ### Stage B: particle reconstruction outcome
 
 Train
 
-\[
+$$
 P(C_i\mid x_i,T),
 \qquad
 C_i\in\{\text{unreconstructed},\mathrm{FD},\mathrm{CD},\mathrm{FT},\ldots\},
-\]
+$$
 
 using every generated particle, including failures. Central Detector
 reconstruction must be a distinct outcome, not labeled as failure.
@@ -912,9 +912,9 @@ reconstruction must be a distinct outcome, not labeled as failure.
 
 Extend the present model to
 
-\[
+$$
 P(R_i\mid x_i,C_i,T)
-\]
+$$
 
 for FD, CD, and other relevant regions. Couple PID and kinematic response when
 closure shows that the present conditional-independence approximation is
