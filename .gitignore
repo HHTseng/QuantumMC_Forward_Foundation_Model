@@ -2,4 +2,6 @@
 __pycache__/
 *.pyc
 runs/*/model.pt
-
+!runs/smoke/model.pt
+!runs/fd_response_seed/model.pt
+!runs/tara_gpu_full/model.pt
