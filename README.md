@@ -180,6 +180,24 @@ The reconstructed PID label $\widehat s_i$ is allowed to differ from the
 generated PID. Such rows describe physical/reconstruction contamination and
 must not automatically be deleted as corrupted data.
 
+The opt-in beta baseline adds the continuous timing response
+
+$$
+\beta_{\mathrm{gen}}
+=\frac{p_{\mathrm{gen}}}{\sqrt{p_{\mathrm{gen}}^2+m_s^2}},
+\qquad
+\Delta\beta=\beta_{\mathrm{rec}}-\beta_{\mathrm{gen}},
+$$
+
+so its response vector is
+
+$$
+(\Delta p,\Delta\theta,\Delta\phi,\Delta\beta)\in\mathbb R^4.
+$$
+
+The beta model still predicts reconstructed PID with the categorical head; it
+does not replace PID with a hand-written beta cut.
+
 ## 4. Correct computational input to the network
 
 The code does **not** pass the raw tuple
@@ -306,7 +324,7 @@ not a single raw four-vector called `x`.
 
 ### 5.1 Continuous response target
 
-The three raw residuals are standardized using training-only statistics:
+The raw response targets are standardized using training-only statistics:
 
 $$
 z_{\Delta,j}
@@ -314,11 +332,20 @@ z_{\Delta,j}
 {\sigma_{\Delta,j}^{\mathrm{train}}}.
 $$
 
-Thus
+Thus the original model uses
 
 $$
 \mathtt{targets}\in\mathbb R^{B\times3}.
 $$
+
+The opt-in beta configuration uses
+
+$$
+\mathtt{targets}\in\mathbb R^{B\times4}
+$$
+
+with ordered columns
+$(\Delta p,\Delta\theta,\Delta\phi,\Delta\beta)$.
 
 For example:
 
@@ -433,7 +460,7 @@ Let
 
 - $B$ be batch size;
 - $K$ be the number of Gaussian-mixture components;
-- $D=3$ be the residual dimension;
+- $D=3$ for the original residual model or $D=4$ when beta is enabled;
 - $C$ be the number of reconstructed-PID classes.
 
 The returned object is
@@ -442,19 +469,19 @@ The returned object is
 @dataclass
 class ModelOutput:
     mixture_logits: torch.Tensor  # [B, K]
-    means: torch.Tensor           # [B, K, 3]
-    log_scales: torch.Tensor      # [B, K, 3]
+    means: torch.Tensor           # [B, K, D]
+    log_scales: torch.Tensor      # [B, K, D]
     pid_logits: torch.Tensor      # [B, C]
 ```
 
 ### 6.1 Residual distribution head
 
-For standardized residuals $z_\Delta\in\mathbb R^3$, the implemented MDN is
+For standardized response $z_\Delta\in\mathbb R^D$, the implemented MDN is
 
 $$
 q_\vartheta(z_\Delta\mid z_x,s)
 =\sum_{k=1}^{K}\pi_k(z_x,s)
-\prod_{j=1}^{3}
+\prod_{j=1}^{D}
 \mathcal N\!\left(
 z_{\Delta,j};\mu_{kj}(z_x,s),\sigma_{kj}^2(z_x,s)
 \right),
@@ -598,7 +625,7 @@ The DataLoader produces tensors in the following order:
 TensorDataset(
     continuous,       # [B, 4]
     species_index,    # [B]
-    targets,          # [B, 3]
+    targets,          # [B, D]
     rec_pid_index,    # [B]
 )
 ```
@@ -650,7 +677,7 @@ Inference first samples a mixture component and standardized residual:
 $$
 k_i\sim\mathrm{Categorical}\,(\pi_i),
 \qquad
-\epsilon_i\sim\mathcal N(0,I_3),
+\epsilon_i\sim\mathcal N(0,I_D),
 $$
 
 $$
@@ -693,6 +720,16 @@ $$
 The sampler flags draws with $p_{\mathrm{rec}}\leq0$ or
 $\theta_{\mathrm{rec}}\notin[0,\pi]$ rather than silently clipping them.
 
+For a beta-enabled checkpoint, inference also reconstructs
+
+$$
+\beta^{\mathrm{sample}}_{\mathrm{rec}}
+=\beta_{\mathrm{gen}}+\Delta\beta
+$$
+
+and flags whether the draw lies inside the fitted beta domain without clipping
+the sampled value.
+
 ## 10. Dataset selection and scope
 
 The source Parquet data are not stored in this repository. The current response
@@ -724,6 +761,12 @@ requirements.
 | Test | 158,985 |
 
 These counts describe particle rows, not event counts.
+
+The beta baseline applies the additional explicit teacher-domain rule
+$0<\beta_{\mathrm{rec}}\le1.2$. It removes rare pathological timing values
+without clipping and leaves 1,266,603/159,072/158,482 rows in the
+train/validation/test partitions. The exact per-species cutflow is saved in
+`runs/gpu_beta_baseline/data_audit.json`.
 
 ## 11. Held-out results
 
@@ -761,6 +804,43 @@ $$
 Aggregate agreement is necessary but not sufficient. Physics validation must
 also examine conditional response versus generated kinematics, PID confusion,
 residual correlations, tails, and eventually event-level observables.
+
+### Beta-response baseline
+
+The `feature/beta-response-baseline` branch adds $\Delta\beta$ as a fourth
+joint continuous target while retaining the categorical PID head. The full run
+selected epoch 14 on 158,482 held-out particles. Checkpoint SHA-256:
+
+```text
+31e2c65ac417081123c87edf3fc7d874e618739b8b7cdd061c2ef3f92a102078
+```
+
+| Generated species | Beta W1 | Absolute mean difference | Sampled/observed width |
+|---|---:|---:|---:|
+| $\pi^-$ | 0.006462 | 0.000356 | 0.9884 |
+| $\pi^+$ | 0.006624 | 0.001191 | 1.0181 |
+| proton | 0.002578 | 0.000032 | 1.0096 |
+
+![Beta response closure versus generated momentum](runs/gpu_beta_baseline/beta_response_vs_gen_p.png)
+
+![Observed and sampled beta versus reconstructed momentum](runs/gpu_beta_baseline/beta_vs_reconstructed_p.png)
+
+On the exact same beta-valid test rows, the original model's worst fixed-bin
+PID total-variation distance is 0.466220; the beta multitask model's worst bin
+is 0.121610. Integrated correct-class responses are:
+
+| Generated species | COATJAVA | Original FM | Beta FM |
+|---|---:|---:|---:|
+| $\pi^-$ | 0.549971 | 0.546963 | 0.550227 |
+| $\pi^+$ | 0.590640 | 0.406701 | 0.582493 |
+| proton | 0.814299 | 0.577392 | 0.813916 |
+
+![Conditional correct-PID closure for the beta multitask checkpoint](runs/gpu_beta_baseline/pid_correct_response_vs_gen_p.png)
+
+This improvement is evidence from one seeded multitask baseline, not proof of
+causation. A repeat-seed study and a three-target same-selection ablation are
+needed. The complete interpretation and artifact inventory are in
+[`BETA_BASELINE_REPORT.md`](runs/gpu_beta_baseline/BETA_BASELINE_REPORT.md).
 
 ## 12. Installation and execution
 
@@ -800,6 +880,12 @@ Full selected-population training:
 
 ```bash
 CUDA_VISIBLE_DEVICES=0 python train.py --config configs/gpu_full.yaml
+```
+
+Beta-response baseline training:
+
+```bash
+CUDA_VISIBLE_DEVICES=0 python train.py --config configs/gpu_beta_baseline.yaml
 ```
 
 Sample conditional FD response from generated hadrons:
@@ -868,6 +954,10 @@ sample.py                stochastic inference entry point
 8. **Physical support is not enforced by construction.** Invalid sampled
    momentum or polar angle is flagged after sampling; a constrained
    parameterization would be preferable for a production model.
+
+9. **Beta-derived PID is not yet defined.** The beta branch learns continuous
+   timing response and direct categorical PID together, but it does not invent
+   a COATJAVA-equivalent decision rule from sampled $(p_{\mathrm{rec}},\beta)$.
 
 ## 15. Roadmap to the full forward foundation model
 

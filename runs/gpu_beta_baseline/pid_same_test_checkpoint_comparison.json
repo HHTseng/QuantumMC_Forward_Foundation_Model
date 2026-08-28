@@ -1,0 +1,69 @@
+{
+  "definition": "Both PID heads evaluated on the beta baseline's exact held-out rows; teacher fractions are identical and predictions are mean softmax probabilities.",
+  "test_rows": 158482,
+  "original_checkpoint": {
+    "path": "runs/tara_gpu_full/model.pt",
+    "sha256": "22dde8fe78c5bec337e5014be46e4c8037673015bc88d4fbe812c05bebcffe11"
+  },
+  "beta_metrics": "runs/gpu_beta_baseline/metrics.json",
+  "integrated_correct_id": [
+    {
+      "generated_pid": -211,
+      "generated_species": "pi-",
+      "n": 45817,
+      "coatjava_correct_fraction": 0.5499705349542746,
+      "original_fm_mean_probability": 0.5469634532928467,
+      "beta_fm_mean_probability": 0.5502274036407471,
+      "original_absolute_error": 0.003007081661427935,
+      "beta_absolute_error": 0.00025686868647245564
+    },
+    {
+      "generated_pid": 211,
+      "generated_species": "pi+",
+      "n": 56774,
+      "coatjava_correct_fraction": 0.5906400817275513,
+      "original_fm_mean_probability": 0.4067009389400482,
+      "beta_fm_mean_probability": 0.5824933052062988,
+      "original_absolute_error": 0.18393914278750312,
+      "beta_absolute_error": 0.008146776521252508
+    },
+    {
+      "generated_pid": 2212,
+      "generated_species": "proton",
+      "n": 55891,
+      "coatjava_correct_fraction": 0.8142992610617094,
+      "original_fm_mean_probability": 0.5773922801017761,
+      "beta_fm_mean_probability": 0.813916027545929,
+      "original_absolute_error": 0.23690698095993323,
+      "beta_absolute_error": 0.0003832335157804012
+    }
+  ],
+  "original_worst_total_variation_bin": {
+    "generated_pid": 211,
+    "generated_species": "pi+",
+    "bin_index": 0,
+    "p_low_gev": 0.0,
+    "p_high_gev": 1.0,
+    "upper_edge_inclusive": false,
+    "n": 3116,
+    "total_variation_distance": 0.4662197044431838,
+    "max_absolute_class_difference": 0.4635021773732443,
+    "worst_reconstructed_pid": 211,
+    "coatjava_row_sum": 0.9999999999999999,
+    "fm_row_sum": 0.9999999995488954
+  },
+  "beta_worst_total_variation_bin": {
+    "generated_pid": -211,
+    "generated_species": "pi-",
+    "bin_index": 0,
+    "p_low_gev": 0.0,
+    "p_high_gev": 1.0,
+    "upper_edge_inclusive": false,
+    "n": 1551,
+    "total_variation_distance": 0.12161033544129986,
+    "max_absolute_class_difference": 0.12161033488161557,
+    "worst_reconstructed_pid": 2112,
+    "coatjava_row_sum": 1.0,
+    "fm_row_sum": 1.0000000011193684
+  }
+}

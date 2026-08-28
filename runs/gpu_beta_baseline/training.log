@@ -1,0 +1,27 @@
+device=cuda:0 run_dir=runs/gpu_beta_baseline
+loading deterministic, event-disjoint data splits...
+loaded train=1,266,603, validation=159,072, test=158,482 in 6.71s
+trainable_parameters=226,436
+epoch=01 train_loss=1.01749 val_loss=-2.80331 val_nll=-3.02838 val_pid_acc=0.6586
+epoch=02 train_loss=-2.47428 val_loss=-3.74376 val_nll=-3.96744 val_pid_acc=0.6660
+epoch=03 train_loss=-3.33890 val_loss=-4.18578 val_nll=-4.40482 val_pid_acc=0.6712
+epoch=04 train_loss=-3.84042 val_loss=-4.48065 val_nll=-4.69620 val_pid_acc=0.6726
+epoch=05 train_loss=-4.14035 val_loss=-4.63836 val_nll=-4.85131 val_pid_acc=0.6735
+epoch=06 train_loss=-4.33473 val_loss=-4.56135 val_nll=-4.77269 val_pid_acc=0.6741
+epoch=07 train_loss=-4.48670 val_loss=-4.75290 val_nll=-4.96288 val_pid_acc=0.6746
+epoch=08 train_loss=-4.60692 val_loss=-4.74482 val_nll=-4.95353 val_pid_acc=0.6748
+epoch=09 train_loss=-4.69170 val_loss=-4.57578 val_nll=-4.78332 val_pid_acc=0.6750
+epoch=10 train_loss=-4.77053 val_loss=-4.75613 val_nll=-4.96253 val_pid_acc=0.6752
+epoch=11 train_loss=-4.83819 val_loss=-4.89108 val_nll=-5.09673 val_pid_acc=0.6754
+epoch=12 train_loss=-4.89419 val_loss=-4.75746 val_nll=-4.96241 val_pid_acc=0.6756
+epoch=13 train_loss=-4.94593 val_loss=-4.92512 val_nll=-5.12955 val_pid_acc=0.6760
+epoch=14 train_loss=-4.98322 val_loss=-5.04470 val_nll=-5.24868 val_pid_acc=0.6762
+epoch=15 train_loss=-5.02280 val_loss=-4.70498 val_nll=-4.90854 val_pid_acc=0.6763
+epoch=16 train_loss=-5.05091 val_loss=-4.67294 val_nll=-4.87625 val_pid_acc=0.6767
+epoch=17 train_loss=-5.07074 val_loss=-4.80577 val_nll=-5.00881 val_pid_acc=0.6769
+epoch=18 train_loss=-5.09709 val_loss=-4.95403 val_nll=-5.15665 val_pid_acc=0.6771
+epoch=19 train_loss=-5.11977 val_loss=-4.75902 val_nll=-4.96127 val_pid_acc=0.6772
+early stopping after epoch 19; best epoch was 14
+test_nll=-5.260970
+test_pid_accuracy=0.6752
+checkpoint=runs/gpu_beta_baseline/model.pt
