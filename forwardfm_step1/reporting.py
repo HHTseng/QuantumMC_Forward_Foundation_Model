@@ -34,6 +34,10 @@ def write_model_card(
         for row in closure
     )
     test = metrics["test"]
+    worst_pid_bin = max(
+        metrics["pid_conditional_closure"]["bin_summary"],
+        key=lambda row: row["total_variation_distance"],
+    )
     text = f"""# Model card: CLAS12 Forward FM step-one FD response seed
 
 ## Intended use
@@ -76,12 +80,18 @@ Selected population before deterministic training subsampling:
 - Reconstructed-PID cross entropy: {test['pid_cross_entropy']:.6f}
 - Reconstructed-PID top-1 accuracy: {test['pid_accuracy']:.4%}
 - PID maximum marginal probability discrepancy: {metrics['pid']['max_absolute_fraction_difference']:.4%}
+- Worst fixed-bin conditional PID total-variation distance: {worst_pid_bin['total_variation_distance']:.4f} ({worst_pid_bin['generated_species']}, {worst_pid_bin['p_low_gev']:g}-{worst_pid_bin['p_high_gev']:g} GeV)
 - Physical sampled `(p, theta)` fraction: {metrics['joint_and_physical']['physical_sample_fraction']:.4%}
 - Sampled reconstructed-theta fraction inside the conditioned 33-degree selection: {metrics['joint_and_physical']['sampled_rec_theta_below_33deg_fraction']:.4%}
 
 One-dimensional sampled closure:
 
 {closure_summary}
+
+The fixed-bin PID closure compares observed reconstructed-class fractions with
+the mean PID-head softmax probabilities for the same held-out particles. It is
+not top-1 classification accuracy. Full class-by-class values and uncertainties
+are saved in `pid_response_fixed_bins.csv`.
 
 ## Known limitations
 

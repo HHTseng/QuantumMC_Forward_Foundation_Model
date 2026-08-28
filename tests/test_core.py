@@ -6,6 +6,10 @@ import numpy as np
 import torch
 
 from forwardfm_step1.data import PreparedSplit, Standardizer, assert_event_disjoint
+from forwardfm_step1.evaluation import (
+    conditional_pid_response_rows,
+    integrated_correct_pid_response,
+)
 from forwardfm_step1.model import ConditionalMDN, mixture_nll, sample_standardized_residuals
 
 
@@ -78,6 +82,74 @@ class ModelTests(unittest.TestCase):
         sample = sample_standardized_residuals(output)
         self.assertEqual(tuple(sample.shape), (11, 3))
         self.assertTrue(torch.isfinite(sample).all())
+
+
+class ConditionalPIDClosureTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.generated_species = np.asarray([211, 211, 211, 211, 2212])
+        # The points at 1 and 2 GeV test [low,high) and final-edge-inclusive handling.
+        self.generated_momentum = np.asarray([0.0, 0.5, 1.0, 2.0, 0.5])
+        self.observed_pid_index = np.asarray([0, 1, 1, 0, 1])
+        self.probabilities = np.asarray(
+            [
+                [0.8, 0.2],
+                [0.4, 0.6],
+                [0.1, 0.9],
+                [0.7, 0.3],
+                [0.2, 0.8],
+            ]
+        )
+        self.labels: list[int | str] = [211, 2212]
+
+    def test_fixed_bins_use_mean_softmax_and_no_boundary_double_count(self) -> None:
+        rows, summaries = conditional_pid_response_rows(
+            self.generated_species,
+            self.generated_momentum,
+            self.observed_pid_index,
+            self.probabilities,
+            self.labels,
+            np.asarray([0.0, 1.0, 2.0]),
+        )
+        pi_summaries = [row for row in summaries if row["generated_pid"] == 211]
+        self.assertEqual([row["n"] for row in pi_summaries], [2, 2])
+        first_pi = next(
+            row
+            for row in rows
+            if row["generated_pid"] == 211
+            and row["bin_index"] == 0
+            and row["reconstructed_pid"] == 211
+        )
+        self.assertAlmostEqual(first_pi["coatjava_fraction"], 0.5)
+        self.assertAlmostEqual(first_pi["fm_mean_probability"], 0.6)
+        self.assertAlmostEqual(pi_summaries[0]["total_variation_distance"], 0.1)
+        for summary in summaries:
+            self.assertAlmostEqual(summary["coatjava_row_sum"], 1.0)
+            self.assertAlmostEqual(summary["fm_row_sum"], 1.0)
+
+    def test_integrated_correct_response_uses_diagonal_class_probability(self) -> None:
+        rows = integrated_correct_pid_response(
+            self.generated_species,
+            self.observed_pid_index,
+            self.probabilities,
+            self.labels,
+        )
+        pi_row = next(row for row in rows if row["generated_pid"] == 211)
+        proton_row = next(row for row in rows if row["generated_pid"] == 2212)
+        self.assertAlmostEqual(pi_row["coatjava_correct_fraction"], 0.5)
+        self.assertAlmostEqual(pi_row["fm_correct_mean_probability"], 0.5)
+        self.assertAlmostEqual(proton_row["coatjava_correct_fraction"], 1.0)
+        self.assertAlmostEqual(proton_row["fm_correct_mean_probability"], 0.8)
+
+    def test_misaligned_inputs_fail(self) -> None:
+        with self.assertRaises(ValueError):
+            conditional_pid_response_rows(
+                self.generated_species[:-1],
+                self.generated_momentum,
+                self.observed_pid_index,
+                self.probabilities,
+                self.labels,
+                np.asarray([0.0, 1.0]),
+            )
 
 
 if __name__ == "__main__":
