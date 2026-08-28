@@ -24,7 +24,7 @@ import torch
 import yaml
 
 from forwardfm_step1.config import apply_smoke_overrides, load_config, resolve_run_dir
-from forwardfm_step1.data import CONTINUOUS_FEATURES, SPECIES, TARGET_COLUMNS, load_all_splits
+from forwardfm_step1.data import CONTINUOUS_FEATURES, SPECIES, load_all_splits
 from forwardfm_step1.evaluation import evaluate_and_write
 from forwardfm_step1.model import ConditionalMDN, count_parameters
 from forwardfm_step1.reporting import write_history, write_json, write_model_card
@@ -87,6 +87,7 @@ def main() -> None:
     )
 
     model_config = config["model"]
+    target_names = splits["train"].target_names
     model = ConditionalMDN(
         n_continuous=len(CONTINUOUS_FEATURES),
         n_species=len(SPECIES),
@@ -95,7 +96,7 @@ def main() -> None:
         hidden_layers=int(model_config["hidden_layers"]),
         pid_embedding_dim=int(model_config["pid_embedding_dim"]),
         mixture_components=int(model_config["mixture_components"]),
-        target_dim=len(TARGET_COLUMNS),
+        target_dim=len(target_names),
         dropout=float(model_config["dropout"]),
     )
     print(f"trainable_parameters={count_parameters(model):,}")
@@ -106,7 +107,8 @@ def main() -> None:
         "model_state": {key: value.cpu() for key, value in model.state_dict().items()},
         "architecture": model.architecture_dict(),
         "feature_names": list(CONTINUOUS_FEATURES),
-        "target_names": list(TARGET_COLUMNS),
+        "target_names": list(target_names),
+        "beta_response": config["data"].get("beta_response", {"enabled": False}),
         "species_pids": list(SPECIES),
         "rec_pid_vocabulary": rec_pid_vocabulary,
         "feature_scaler": feature_scaler.as_dict(),

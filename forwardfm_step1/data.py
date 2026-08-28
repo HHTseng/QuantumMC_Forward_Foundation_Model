@@ -6,10 +6,11 @@ For one generated hadron the truth state is
 
 and, for a successfully reconstructed FD particle, the response target is
 
-    Delta = (Delta p, Delta theta, Delta phi)
+    Delta = (Delta p, Delta theta, Delta phi[, Delta beta])
           = (p_rec - p_gen,
              theta_rec - theta_gen,
-             wrap(phi_rec - phi_gen)).
+             wrap(phi_rec - phi_gen)[,
+             beta_rec - p_gen/sqrt(p_gen^2 + m_s^2)]).
 
 This module constructs samples for only the conditional factor
 
@@ -25,6 +26,7 @@ from __future__ import annotations
 import glob
 import hashlib
 import json
+from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -35,8 +37,12 @@ import pandas as pd
 
 
 CONTINUOUS_FEATURES = ("log1p_gen_p", "gen_theta", "sin_gen_phi", "cos_gen_phi")
-TARGET_COLUMNS = ("delta_p", "delta_theta", "delta_phi")
+BASE_TARGET_COLUMNS = ("delta_p", "delta_theta", "delta_phi")
+# Backward-compatible public name used by the original three-response model.
+TARGET_COLUMNS = BASE_TARGET_COLUMNS
+BETA_TARGET_COLUMN = "delta_beta"
 SPECIES = (-211, 211, 2212)
+PARTICLE_MASS_GEV = {-211: 0.13957039, 211: 0.13957039, 2212: 0.93827208816}
 REQUIRED_COLUMNS = {
     "source_file_id",
     "event_id",
@@ -101,6 +107,7 @@ class PreparedSplit:
     targets: np.ndarray
     rec_pid_index: np.ndarray
     raw_species: np.ndarray
+    target_names: tuple[str, ...] = TARGET_COLUMNS
 
     def __len__(self) -> int:
         return len(self.targets)
@@ -167,6 +174,19 @@ def selection_sql(config: dict[str, Any]) -> str:
         terms.append("rec_pid <> 0")
     if selection["reject_beta_sentinel"]:
         terms.append("rec_beta > -99")
+    beta_config = config["data"].get("beta_response", {})
+    if beta_config.get("enabled", False):
+        beta_min = float(beta_config["rec_beta_min_exclusive"])
+        beta_max = float(beta_config["rec_beta_max_inclusive"])
+        if beta_min >= beta_max:
+            raise ValueError("beta response bounds must satisfy min < max")
+        terms.extend(
+            [
+                "isfinite(rec_beta)",
+                f"rec_beta > {beta_min}",
+                f"rec_beta <= {beta_max}",
+            ]
+        )
     max_abs_dp = selection.get("max_abs_delta_p_gev")
     if max_abs_dp is not None:
         terms.append(f"abs(delta_p) <= {float(max_abs_dp)}")
@@ -217,7 +237,7 @@ def _load_frame(
     query = f"""
     SELECT source_file_id, event_id, mcindex, gen_pid,
            gen_p, gen_theta, gen_phi,
-           delta_p, delta_theta, delta_phi, rec_pid
+           delta_p, delta_theta, delta_phi, rec_pid, rec_beta
     FROM particles
     WHERE {selection_sql(config)}
       AND {split_predicate(split, config)}
@@ -263,12 +283,58 @@ def discover_rec_pid_vocabulary(frame: pd.DataFrame) -> list[int]:
     return sorted(int(value) for value in frame["rec_pid"].unique())
 
 
+def response_target_names(config: dict[str, Any]) -> tuple[str, ...]:
+    """Return the ordered continuous response vector selected by the config."""
+    beta_config = config["data"].get("beta_response", {})
+    beta_enabled = beta_config.get("enabled", False)
+    if beta_enabled and beta_config.get("target") != BETA_TARGET_COLUMN:
+        raise ValueError("The supported beta response target is 'delta_beta'")
+    return (*BASE_TARGET_COLUMNS, BETA_TARGET_COLUMN) if beta_enabled else TARGET_COLUMNS
+
+
+def generated_beta(gen_p: np.ndarray, gen_pid: np.ndarray) -> np.ndarray:
+    """Relativistic truth reference beta=p/sqrt(p^2+m_s^2), with c=1.
+
+    Momenta and masses use GeV units. The explicit generated-species check
+    prevents silently applying an incorrect mass hypothesis.
+    """
+    momentum = np.asarray(gen_p, dtype=np.float64)
+    pid = np.asarray(gen_pid, dtype=np.int64)
+    if momentum.shape != pid.shape:
+        raise ValueError("gen_p and gen_pid must have identical shapes")
+    unsupported = sorted(
+        set(int(value) for value in np.unique(pid)).difference(PARTICLE_MASS_GEV)
+    )
+    if unsupported:
+        raise ValueError(f"No mass hypothesis configured for generated PIDs: {unsupported}")
+    masses = np.asarray([PARTICLE_MASS_GEV[int(value)] for value in pid.flat]).reshape(pid.shape)
+    return momentum / np.sqrt(momentum**2 + masses**2)
+
+
+def _target_matrix(frame: pd.DataFrame, target_names: tuple[str, ...]) -> np.ndarray:
+    """Construct Delta=(Delta p,Delta theta,Delta phi[,Delta beta])."""
+    columns = [frame[name].to_numpy(dtype=np.float64) for name in BASE_TARGET_COLUMNS]
+    if BETA_TARGET_COLUMN in target_names:
+        beta_gen = generated_beta(
+            frame["gen_p"].to_numpy(dtype=np.float64),
+            frame["gen_pid"].to_numpy(dtype=np.int64),
+        )
+        # Detector timing response around the relativistic mass hypothesis:
+        # Delta beta = beta_rec - p_gen/sqrt(p_gen^2+m_s^2).
+        columns.append(frame["rec_beta"].to_numpy(dtype=np.float64) - beta_gen)
+    supported_targets = (BASE_TARGET_COLUMNS, (*BASE_TARGET_COLUMNS, BETA_TARGET_COLUMN))
+    if tuple(target_names) not in supported_targets:
+        raise ValueError(f"Unsupported target ordering: {target_names}")
+    return np.column_stack(columns).astype(np.float32)
+
+
 def prepare_split(
     frame: pd.DataFrame,
     split: str,
     feature_scaler: Standardizer,
     target_scaler: Standardizer,
     rec_pid_vocabulary: list[int],
+    target_names: tuple[str, ...] = TARGET_COLUMNS,
 ) -> PreparedSplit:
     """Encode x, Delta, generated species, and reconstructed PID labels.
 
@@ -284,7 +350,7 @@ def prepare_split(
     unknown_index = len(rec_pid_vocabulary)
     raw_species = frame["gen_pid"].to_numpy(dtype=np.int64)
     species_index = np.asarray([species_to_index[int(pid)] for pid in raw_species], dtype=np.int64)
-    raw_targets = frame.loc[:, TARGET_COLUMNS].to_numpy(dtype=np.float32)
+    raw_targets = _target_matrix(frame, target_names)
     rec_pid_index = np.asarray(
         [rec_pid_to_index.get(int(pid), unknown_index) for pid in frame["rec_pid"]],
         dtype=np.int64,
@@ -297,6 +363,7 @@ def prepare_split(
         targets=target_scaler.transform(raw_targets),
         rec_pid_index=rec_pid_index,
         raw_species=raw_species,
+        target_names=target_names,
     )
 
 
@@ -308,13 +375,21 @@ def load_all_splits(
     columns = assert_schema(con)
     frames = {name: _load_frame(con, name, config) for name in ("train", "validation", "test")}
 
+    target_names = response_target_names(config)
     train_features = _feature_matrix(frames["train"])
-    train_targets = frames["train"].loc[:, TARGET_COLUMNS].to_numpy(dtype=np.float32)
+    train_targets = _target_matrix(frames["train"], target_names)
     feature_scaler = Standardizer.fit(train_features)
     target_scaler = Standardizer.fit(train_targets)
     rec_pid_vocabulary = discover_rec_pid_vocabulary(frames["train"])
     splits = {
-        name: prepare_split(frame, name, feature_scaler, target_scaler, rec_pid_vocabulary)
+        name: prepare_split(
+            frame,
+            name,
+            feature_scaler,
+            target_scaler,
+            rec_pid_vocabulary,
+            target_names,
+        )
         for name, frame in frames.items()
     }
     assert_event_disjoint(splits)
@@ -380,6 +455,42 @@ def build_audit(
         """
     ).fetch_df()
 
+    target_names = response_target_names(config)
+    beta_config = config["data"].get("beta_response", {})
+    beta_response_audit: dict[str, Any] = {"enabled": bool(beta_config.get("enabled", False))}
+    if beta_response_audit["enabled"]:
+        beta_min = float(beta_config["rec_beta_min_exclusive"])
+        beta_max = float(beta_config["rec_beta_max_inclusive"])
+        pre_beta_config = deepcopy(config)
+        pre_beta_config["data"]["beta_response"]["enabled"] = False
+        pre_beta_selection = selection_sql(pre_beta_config)
+        beta_cutflow = con.execute(
+            f"""
+            SELECT gen_pid,
+                   count(*) AS rows_before_beta_validity,
+                   count(*) FILTER (WHERE NOT isfinite(rec_beta)) AS nonfinite_beta,
+                   count(*) FILTER (WHERE rec_beta <= {beta_min}) AS beta_at_or_below_min,
+                   count(*) FILTER (WHERE rec_beta > {beta_max}) AS beta_above_max,
+                   count(*) FILTER (
+                     WHERE isfinite(rec_beta)
+                       AND rec_beta > {beta_min}
+                       AND rec_beta <= {beta_max}
+                   ) AS rows_after_beta_validity
+            FROM particles WHERE {pre_beta_selection}
+            GROUP BY gen_pid ORDER BY gen_pid
+            """
+        ).fetch_df()
+        beta_response_audit.update(
+            {
+                "target": BETA_TARGET_COLUMN,
+                "definition": "rec_beta - gen_p/sqrt(gen_p^2 + generated_species_mass^2)",
+                "rec_beta_min_exclusive": beta_min,
+                "rec_beta_max_inclusive": beta_max,
+                "particle_mass_gev": {str(pid): mass for pid, mass in PARTICLE_MASS_GEV.items()},
+                "cutflow": beta_cutflow.to_dict(orient="records"),
+            }
+        )
+
     files = sorted(glob.glob(config["data"]["parquet_glob"]))
     file_records = [
         {"name": Path(path).name, "bytes": Path(path).stat().st_size}
@@ -407,6 +518,8 @@ def build_audit(
         "selected_population": counts.to_dict(orient="records"),
         "quality_cutflow": quality_cutflow.to_dict(orient="records"),
         "sampled_counts": sampled_counts,
+        "target_names": list(target_names),
+        "beta_response": beta_response_audit,
         "duplicate_composite_particle_keys": int(duplicate_rows),
         "delta_phi_range_violation_count": int(phi_violation_count),
         "event_split_overlap_count": 0,

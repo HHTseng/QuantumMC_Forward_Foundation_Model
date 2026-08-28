@@ -34,12 +34,13 @@ class ConditionalMDN(nn.Module):
     The conditional residual density is
 
         p(Delta|x) = sum_{k=1}^K pi_k(x)
-                     prod_{j in {p,theta,phi}}
+                     prod_{j in configured response targets}
                      Normal(Delta_j; mu_kj(x), sigma_kj(x)^2).
 
     Each component is diagonal internally. Mixture membership can still encode
-    joint target dependence, while keeping the first baseline stable and
-    auditable. The PID head is softmax(logits(x)) = P(s_rec|x).
+    joint target dependence, including Delta beta when configured, while
+    keeping the baseline stable and auditable. The PID head is
+    softmax(logits(x)) = P(s_rec|x).
     """
 
     def __init__(

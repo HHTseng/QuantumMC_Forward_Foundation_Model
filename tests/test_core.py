@@ -3,10 +3,22 @@ from __future__ import annotations
 import unittest
 
 import numpy as np
+import pandas as pd
 import torch
 
-from forwardfm_step1.data import PreparedSplit, Standardizer, assert_event_disjoint
+from forwardfm_step1.data import (
+    BASE_TARGET_COLUMNS,
+    BETA_TARGET_COLUMN,
+    PreparedSplit,
+    Standardizer,
+    _target_matrix,
+    assert_event_disjoint,
+    generated_beta,
+    response_target_names,
+    selection_sql,
+)
 from forwardfm_step1.evaluation import (
+    beta_closure_rows,
     conditional_pid_response_rows,
     integrated_correct_pid_response,
 )
@@ -19,6 +31,68 @@ class StandardizerTests(unittest.TestCase):
         scaler = Standardizer.fit(values)
         restored = scaler.inverse(scaler.transform(values))
         np.testing.assert_allclose(restored, values, rtol=1e-6, atol=1e-6)
+
+
+class BetaTargetTests(unittest.TestCase):
+    def test_relativistic_generated_beta_uses_species_mass(self) -> None:
+        momentum = np.asarray([0.0, 1.0, 1.0])
+        pid = np.asarray([211, 211, 2212])
+        beta = generated_beta(momentum, pid)
+        self.assertEqual(beta[0], 0.0)
+        self.assertAlmostEqual(beta[1], 1.0 / np.sqrt(1.0 + 0.13957039**2))
+        self.assertAlmostEqual(beta[2], 1.0 / np.sqrt(1.0 + 0.93827208816**2))
+        self.assertGreater(beta[1], beta[2])
+
+    def test_beta_target_round_trip(self) -> None:
+        frame = pd.DataFrame(
+            {
+                "gen_p": [0.8, 1.4],
+                "gen_pid": [211, 2212],
+                "rec_beta": [0.97, 0.81],
+                "delta_p": [0.01, -0.02],
+                "delta_theta": [0.001, -0.002],
+                "delta_phi": [0.003, -0.004],
+            }
+        )
+        target_names = (*BASE_TARGET_COLUMNS, BETA_TARGET_COLUMN)
+        matrix = _target_matrix(frame, target_names)
+        restored_beta = generated_beta(
+            frame.gen_p.to_numpy(), frame.gen_pid.to_numpy()
+        ) + matrix[:, 3]
+        np.testing.assert_allclose(restored_beta, frame.rec_beta, atol=1e-7)
+
+    def test_beta_is_opt_in_and_adds_explicit_validity_selection(self) -> None:
+        config = {
+            "data": {
+                "selection": {
+                    "theta_max_deg": 33.0,
+                    "vz_min_cm": -5.5,
+                    "vz_max_cm": -0.5,
+                    "require_reciprocal_match": True,
+                    "reject_rec_pid_zero": True,
+                    "reject_beta_sentinel": True,
+                    "max_abs_delta_p_gev": 10.0,
+                },
+                "beta_response": {
+                    "enabled": True,
+                    "target": "delta_beta",
+                    "rec_beta_min_exclusive": 0.0,
+                    "rec_beta_max_inclusive": 1.2,
+                },
+            }
+        }
+        self.assertEqual(
+            response_target_names(config),
+            (*BASE_TARGET_COLUMNS, BETA_TARGET_COLUMN),
+        )
+        selected = selection_sql(config)
+        self.assertIn("isfinite(rec_beta)", selected)
+        self.assertIn("rec_beta > 0.0", selected)
+        self.assertIn("rec_beta <= 1.2", selected)
+
+    def test_unknown_mass_hypothesis_fails(self) -> None:
+        with self.assertRaises(ValueError):
+            generated_beta(np.asarray([1.0]), np.asarray([321]))
 
 
 class SplitTests(unittest.TestCase):
@@ -82,6 +156,23 @@ class ModelTests(unittest.TestCase):
         sample = sample_standardized_residuals(output)
         self.assertEqual(tuple(sample.shape), (11, 3))
         self.assertTrue(torch.isfinite(sample).all())
+
+    def test_four_response_model_shapes(self) -> None:
+        model = ConditionalMDN(
+            n_continuous=4,
+            n_species=3,
+            n_rec_pid_classes=6,
+            hidden_width=12,
+            hidden_layers=2,
+            pid_embedding_dim=4,
+            mixture_components=3,
+            target_dim=4,
+            dropout=0.0,
+        )
+        output = model(torch.randn(7, 4), torch.randint(0, 3, (7,)))
+        self.assertEqual(tuple(output.means.shape), (7, 3, 4))
+        sample = sample_standardized_residuals(output)
+        self.assertEqual(tuple(sample.shape), (7, 4))
 
 
 class ConditionalPIDClosureTests(unittest.TestCase):
@@ -150,6 +241,50 @@ class ConditionalPIDClosureTests(unittest.TestCase):
                 self.labels,
                 np.asarray([0.0, 1.0]),
             )
+
+
+class BetaClosureTests(unittest.TestCase):
+    def test_identical_beta_sample_has_exact_bin_closure(self) -> None:
+        momentum = np.repeat(np.asarray([0.25, 0.75, 1.25, 2.0]), 10)
+        n = len(momentum)
+        raw_targets = np.zeros((n, 4), dtype=np.float32)
+        raw_targets[:, 3] = np.linspace(-0.01, 0.01, n)
+        features = np.column_stack(
+            [
+                np.log1p(momentum),
+                np.full(n, 0.2),
+                np.zeros(n),
+                np.ones(n),
+            ]
+        ).astype(np.float32)
+        split = PreparedSplit(
+            name="test",
+            event_keys=np.asarray([f"event:{i}" for i in range(n)], dtype=object),
+            continuous=features,
+            species_index=np.ones(n, dtype=np.int64),
+            targets=raw_targets,
+            rec_pid_index=np.zeros(n, dtype=np.int64),
+            raw_species=np.full(n, 211, dtype=np.int64),
+            target_names=(*BASE_TARGET_COLUMNS, BETA_TARGET_COLUMN),
+        )
+        feature_scaler = Standardizer(
+            mean=np.zeros(4, dtype=np.float32), scale=np.ones(4, dtype=np.float32)
+        )
+        target_scaler = Standardizer(
+            mean=np.zeros(4, dtype=np.float32), scale=np.ones(4, dtype=np.float32)
+        )
+        rows, overall = beta_closure_rows(
+            split,
+            feature_scaler,
+            target_scaler,
+            raw_targets.copy(),
+            np.asarray([0.0, 1.0, 2.0]),
+            0.0,
+            1.2,
+        )
+        self.assertEqual([row["n"] for row in rows], [20, 20])
+        self.assertTrue(all(row["wasserstein_1d"] < 1e-7 for row in rows))
+        self.assertLess(overall[0]["wasserstein_1d"], 1e-7)
 
 
 if __name__ == "__main__":

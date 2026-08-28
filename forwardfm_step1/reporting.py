@@ -38,12 +38,45 @@ def write_model_card(
         metrics["pid_conditional_closure"]["bin_summary"],
         key=lambda row: row["total_variation_distance"],
     )
+    target_names = tuple(audit.get("target_names", ("delta_p", "delta_theta", "delta_phi")))
+    target_text = ", ".join(target_names)
+    beta_enabled = bool(audit.get("beta_response", {}).get("enabled", False))
+    beta_quality = ""
+    beta_metrics = ""
+    if beta_enabled:
+        beta_audit = audit["beta_response"]
+        beta_quality = (
+            f"; beta-response domain `{beta_audit['rec_beta_min_exclusive']} < rec_beta "
+            f"<= {beta_audit['rec_beta_max_inclusive']}` (no clipping)"
+        )
+        beta_rows = metrics["beta_closure"]["overall_by_generated_species"]
+        beta_summary = "\n".join(
+            f"- {row['generated_species']}: W1={row['wasserstein_1d']:.5g}, "
+            f"mean difference={row['absolute_mean_difference']:.5g}, "
+            f"std ratio={row['std_ratio']:.4f}, "
+            f"sampled in-domain={row['sampled_in_training_domain_fraction']:.4%}"
+            for row in beta_rows
+        )
+        beta_metrics = f"""
+
+## Beta-response closure
+
+The model learns `delta_beta = rec_beta - beta_gen`, where
+`beta_gen = p_gen / sqrt(p_gen^2 + m_s^2)`, jointly with the three kinematic
+residuals. It retains the categorical reconstructed-PID head.
+
+{beta_summary}
+
+Fixed-momentum-bin values are saved in `beta_closure_vs_gen_p.csv`. The beta
+prediction is a detector-response diagnostic; this baseline does not implement
+or claim a COATJAVA-equivalent beta-derived PID rule.
+"""
     text = f"""# Model card: CLAS12 Forward FM step-one FD response seed
 
 ## Intended use
 
-This checkpoint samples raw Forward Detector residuals `(delta_p, delta_theta,
-delta_phi)` and reconstructed PID for a hadron that is already known to be in
+This checkpoint samples the configured Forward Detector response vector
+`({target_text})` and reconstructed PID for a hadron that is already known to be in
 the selected, triggered, FD-reconstructed population. It is a seed component,
 not yet a complete detector surrogate.
 
@@ -58,7 +91,7 @@ away.
 - Parquet files: {audit['dataset_file_count']} ({audit['dataset_total_bytes']:,} bytes)
 - Split: deterministic 80/10/10 hash of `(source_file_id, event_id)`; verified event-disjoint
 - Raw residual targets: no corrected response columns exist in this skim
-- Quality policy: reciprocal match, `rec_pid != 0`, `rec_beta > -99`, and configurable `|delta_p| <= 10 GeV`
+- Quality policy: reciprocal match, `rec_pid != 0`, `rec_beta > -99`, and configurable `|delta_p| <= 10 GeV`{beta_quality}
 - The quality policy is an explicit modeling choice and does not alter the source Parquet.
 
 Selected population before deterministic training subsampling:
@@ -92,6 +125,7 @@ The fixed-bin PID closure compares observed reconstructed-class fractions with
 the mean PID-head softmax probabilities for the same held-out particles. It is
 not top-1 classification accuracy. Full class-by-class values and uncertainties
 are saved in `pid_response_fixed_bins.csv`.
+{beta_metrics}
 
 ## Known limitations
 

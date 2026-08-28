@@ -22,7 +22,12 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from .data import PreparedSplit, Standardizer, TARGET_COLUMNS
+from .data import (
+    BETA_TARGET_COLUMN,
+    PreparedSplit,
+    Standardizer,
+    generated_beta,
+)
 from .model import ConditionalMDN, sample_standardized_residuals
 from .training import make_loader, run_epoch
 
@@ -59,7 +64,11 @@ def predict_test_sample(
         predicted_pid.append(torch.multinomial(probabilities, 1, generator=generator).squeeze(1).cpu().numpy())
     normalized = np.concatenate(sampled_targets, axis=0)
     physical_targets = target_scaler.inverse(normalized)
-    physical_targets[:, 2] = (physical_targets[:, 2] + np.pi) % (2.0 * np.pi) - np.pi
+    if "delta_phi" in split.target_names:
+        phi_index = split.target_names.index("delta_phi")
+        physical_targets[:, phi_index] = (
+            physical_targets[:, phi_index] + np.pi
+        ) % (2.0 * np.pi) - np.pi
     return (
         physical_targets,
         np.concatenate(predicted_pid),
@@ -95,7 +104,7 @@ def closure_rows(
     rows: list[dict[str, Any]] = []
     for species in sorted(SPECIES_LABELS):
         mask = split.raw_species == species
-        for target_index, target in enumerate(TARGET_COLUMNS):
+        for target_index, target in enumerate(split.target_names):
             truth = observed[mask, target_index]
             sample = sampled_targets[mask, target_index]
             truth_stats = _distribution_stats(truth)
@@ -154,7 +163,7 @@ def kinematic_closure_rows(
                 )
                 if bin_mask.sum() < 20:
                     continue
-                for target_index, target in enumerate(TARGET_COLUMNS):
+                for target_index, target in enumerate(split.target_names):
                     truth = observed[bin_mask, target_index]
                     sample = sampled_targets[bin_mask, target_index]
                     truth_std = float(np.std(truth))
@@ -205,6 +214,7 @@ def joint_and_physical_metrics(
         observed_correlation = np.corrcoef(observed[mask].T)
         sampled_correlation = np.corrcoef(sampled_targets[mask].T)
         correlations[SPECIES_LABELS[species]] = {
+            "target_names": list(split.target_names),
             "observed": observed_correlation.tolist(),
             "sampled": sampled_correlation.tolist(),
             "frobenius_difference": float(
@@ -430,10 +440,11 @@ def plot_closure(
     path: Path,
 ) -> None:
     observed = target_scaler.inverse(split.targets)
-    figure, axes = plt.subplots(3, 3, figsize=(13, 10))
+    target_count = len(split.target_names)
+    figure, axes = plt.subplots(3, target_count, figsize=(4.3 * target_count, 10), squeeze=False)
     for row_index, species in enumerate(sorted(SPECIES_LABELS)):
         mask = split.raw_species == species
-        for column_index, target in enumerate(TARGET_COLUMNS):
+        for column_index, target in enumerate(split.target_names):
             axis = axes[row_index, column_index]
             combined = np.concatenate(
                 [observed[mask, column_index], sampled_targets[mask, column_index]]
@@ -499,6 +510,249 @@ def plot_conditional_correct_pid_response(
     axes[0].set_ylabel(r"$P(s_{\rm rec}=s_{\rm gen}\mid s_{\rm gen},p_{\rm gen})$")
     axes[0].legend(fontsize=8)
     figure.suptitle("Conditional correct-PID response closure (fixed 1-GeV bins)")
+    figure.tight_layout()
+    figure.savefig(path, dpi=180)
+    plt.close(figure)
+
+
+def beta_closure_rows(
+    split: PreparedSplit,
+    feature_scaler: Standardizer,
+    target_scaler: Standardizer,
+    sampled_targets: np.ndarray,
+    momentum_edges_gev: np.ndarray,
+    beta_min_exclusive: float,
+    beta_max_inclusive: float,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Compare reconstructed beta distributions in fixed p_gen intervals.
+
+    The model learns Delta beta around the relativistic truth reference
+
+        beta_gen = p_gen / sqrt(p_gen^2 + m_s^2),
+        beta_rec = beta_gen + Delta beta.
+
+    All rows in a bin are paired only by the common held-out conditioning
+    sample; distribution metrics do not treat the random MDN draw as a
+    per-particle point prediction.
+    """
+    if BETA_TARGET_COLUMN not in split.target_names:
+        raise ValueError("beta closure requires delta_beta in split.target_names")
+    edges = np.asarray(momentum_edges_gev, dtype=np.float64)
+    if len(edges) < 2 or not np.all(np.diff(edges) > 0):
+        raise ValueError("momentum_edges_gev must be strictly increasing")
+    observed_targets = target_scaler.inverse(split.targets)
+    kinematics = _raw_kinematics(split, feature_scaler)
+    beta_index = split.target_names.index(BETA_TARGET_COLUMN)
+    beta_reference = generated_beta(kinematics["gen_p"], split.raw_species)
+    observed_beta = beta_reference + observed_targets[:, beta_index]
+    sampled_beta = beta_reference + sampled_targets[:, beta_index]
+
+    rows: list[dict[str, Any]] = []
+    overall_rows: list[dict[str, Any]] = []
+    for species in sorted(SPECIES_LABELS):
+        species_mask = split.raw_species == species
+        if not np.any(species_mask):
+            continue
+        observed_species = observed_beta[species_mask]
+        sampled_species = sampled_beta[species_mask]
+        observed_stats = _distribution_stats(observed_species)
+        sampled_stats = _distribution_stats(sampled_species)
+        overall_rows.append(
+            {
+                "generated_pid": species,
+                "generated_species": SPECIES_LABELS[species],
+                "n": int(species_mask.sum()),
+                "wasserstein_1d": _wasserstein_equal_sample(
+                    observed_species, sampled_species
+                ),
+                "absolute_mean_difference": float(
+                    abs(sampled_stats["mean"] - observed_stats["mean"])
+                ),
+                "std_ratio": float(
+                    sampled_stats["std"] / observed_stats["std"]
+                    if observed_stats["std"] > 0
+                    else 0.0
+                ),
+                "observed_in_training_domain_fraction": float(
+                    np.mean(
+                        (observed_species > beta_min_exclusive)
+                        & (observed_species <= beta_max_inclusive)
+                    )
+                ),
+                "sampled_in_training_domain_fraction": float(
+                    np.mean(
+                        (sampled_species > beta_min_exclusive)
+                        & (sampled_species <= beta_max_inclusive)
+                    )
+                ),
+                **{f"observed_{key}": value for key, value in observed_stats.items()},
+                **{f"sampled_{key}": value for key, value in sampled_stats.items()},
+            }
+        )
+        for bin_index, (low, high) in enumerate(zip(edges[:-1], edges[1:])):
+            inclusive_high = bin_index == len(edges) - 2
+            bin_mask = species_mask & (kinematics["gen_p"] >= low) & (
+                (kinematics["gen_p"] <= high)
+                if inclusive_high
+                else (kinematics["gen_p"] < high)
+            )
+            n = int(bin_mask.sum())
+            if n < 20:
+                continue
+            observed_values = observed_beta[bin_mask]
+            sampled_values = sampled_beta[bin_mask]
+            observed_stats = _distribution_stats(observed_values)
+            sampled_stats = _distribution_stats(sampled_values)
+            rows.append(
+                {
+                    "generated_pid": species,
+                    "generated_species": SPECIES_LABELS[species],
+                    "bin_index": bin_index,
+                    "p_low_gev": float(low),
+                    "p_high_gev": float(high),
+                    "upper_edge_inclusive": inclusive_high,
+                    "n": n,
+                    "observed_mean": observed_stats["mean"],
+                    "sampled_mean": sampled_stats["mean"],
+                    "absolute_mean_difference": float(
+                        abs(sampled_stats["mean"] - observed_stats["mean"])
+                    ),
+                    "observed_std": observed_stats["std"],
+                    "sampled_std": sampled_stats["std"],
+                    "std_ratio": float(
+                        sampled_stats["std"] / observed_stats["std"]
+                        if observed_stats["std"] > 0
+                        else 0.0
+                    ),
+                    "observed_q05": observed_stats["q05"],
+                    "sampled_q05": sampled_stats["q05"],
+                    "observed_median": observed_stats["median"],
+                    "sampled_median": sampled_stats["median"],
+                    "observed_q95": observed_stats["q95"],
+                    "sampled_q95": sampled_stats["q95"],
+                    "wasserstein_1d": _wasserstein_equal_sample(
+                        observed_values, sampled_values
+                    ),
+                    "observed_in_training_domain_fraction": float(
+                        np.mean(
+                            (observed_values > beta_min_exclusive)
+                            & (observed_values <= beta_max_inclusive)
+                        )
+                    ),
+                    "sampled_in_training_domain_fraction": float(
+                        np.mean(
+                            (sampled_values > beta_min_exclusive)
+                            & (sampled_values <= beta_max_inclusive)
+                        )
+                    ),
+                }
+            )
+    return rows, overall_rows
+
+
+def plot_beta_response_vs_gen_p(
+    rows: list[dict[str, Any]],
+    path: Path,
+) -> None:
+    """Plot mean and central 90% beta response versus generated momentum."""
+    figure, axes = plt.subplots(1, len(SPECIES_LABELS), figsize=(15, 4.6), sharey=True)
+    for axis, species in zip(axes, sorted(SPECIES_LABELS)):
+        species_rows = [row for row in rows if row["generated_pid"] == species]
+        centers = np.asarray(
+            [(row["p_low_gev"] + row["p_high_gev"]) / 2.0 for row in species_rows]
+        )
+        if species_rows:
+            observed_mean = np.asarray([row["observed_mean"] for row in species_rows])
+            sampled_mean = np.asarray([row["sampled_mean"] for row in species_rows])
+            axis.fill_between(
+                centers,
+                [row["observed_q05"] for row in species_rows],
+                [row["observed_q95"] for row in species_rows],
+                color="tab:blue",
+                alpha=0.16,
+            )
+            axis.fill_between(
+                centers,
+                [row["sampled_q05"] for row in species_rows],
+                [row["sampled_q95"] for row in species_rows],
+                color="tab:orange",
+                alpha=0.16,
+            )
+            axis.plot(centers, observed_mean, "o-", color="tab:blue", label="COATJAVA")
+            axis.plot(centers, sampled_mean, "s-", color="tab:orange", label="Forward FM")
+            reference = generated_beta(centers, np.full(len(centers), species))
+            axis.plot(centers, reference, "--", color="black", linewidth=1, label=r"$\beta_{gen}$")
+        axis.set(
+            xlabel=r"generated momentum $p_{\rm gen}$ [GeV]",
+            title=f"generated {SPECIES_LABELS[species]}",
+            ylim=(0.0, 1.2),
+        )
+        axis.grid(alpha=0.25)
+    axes[0].set_ylabel(r"reconstructed $\beta=v/c$")
+    axes[0].legend(fontsize=8, loc="lower right")
+    figure.suptitle(r"Continuous $\beta$ response closure; bands show 5th--95th percentiles")
+    figure.tight_layout()
+    figure.savefig(path, dpi=180)
+    plt.close(figure)
+
+
+def plot_beta_vs_reconstructed_p(
+    split: PreparedSplit,
+    feature_scaler: Standardizer,
+    target_scaler: Standardizer,
+    sampled_targets: np.ndarray,
+    path: Path,
+) -> None:
+    """Show the observed and jointly sampled (p_rec,beta_rec) PID-response plane."""
+    observed_targets = target_scaler.inverse(split.targets)
+    kinematics = _raw_kinematics(split, feature_scaler)
+    delta_p_index = split.target_names.index("delta_p")
+    beta_index = split.target_names.index(BETA_TARGET_COLUMN)
+    beta_reference = generated_beta(kinematics["gen_p"], split.raw_species)
+    observed_p = kinematics["gen_p"] + observed_targets[:, delta_p_index]
+    sampled_p = kinematics["gen_p"] + sampled_targets[:, delta_p_index]
+    observed_beta = beta_reference + observed_targets[:, beta_index]
+    sampled_beta = beta_reference + sampled_targets[:, beta_index]
+
+    figure, axes = plt.subplots(3, 2, figsize=(12, 12), sharex=True, sharey=True)
+    momentum_grid = np.linspace(0.05, 9.0, 300)
+    reference_masses = {
+        "pion": 0.13957039,
+        "kaon": 0.493677,
+        "proton": 0.93827208816,
+    }
+    for row_index, species in enumerate(sorted(SPECIES_LABELS)):
+        species_mask = split.raw_species == species
+        for column_index, (title, momentum, beta) in enumerate(
+            (("COATJAVA", observed_p, observed_beta), ("Forward FM", sampled_p, sampled_beta))
+        ):
+            axis = axes[row_index, column_index]
+            finite = species_mask & np.isfinite(momentum) & np.isfinite(beta)
+            axis.hexbin(
+                momentum[finite],
+                beta[finite],
+                gridsize=(70, 45),
+                extent=(0.0, 9.0, 0.0, 1.2),
+                bins="log",
+                mincnt=1,
+                cmap="viridis",
+            )
+            for label, mass in reference_masses.items():
+                curve = momentum_grid / np.sqrt(momentum_grid**2 + mass**2)
+                axis.plot(
+                    momentum_grid,
+                    curve,
+                    linewidth=1,
+                    label=label if row_index == 0 and column_index == 0 else None,
+                )
+            axis.set_title(f"generated {SPECIES_LABELS[species]}: {title}")
+            axis.grid(alpha=0.12)
+    for axis in axes[-1]:
+        axis.set_xlabel(r"reconstructed momentum $p_{\rm rec}$ [GeV]")
+    for axis in axes[:, 0]:
+        axis.set_ylabel(r"reconstructed $\beta=v/c$")
+    axes[0, 0].legend(fontsize=8, loc="lower right")
+    figure.suptitle(r"Observed and sampled timing response in the $(p_{rec},\beta_{rec})$ plane")
     figure.tight_layout()
     figure.savefig(path, dpi=180)
     plt.close(figure)
@@ -585,6 +839,44 @@ def evaluate_and_write(
     joint_and_physical = joint_and_physical_metrics(
         splits["test"], feature_scaler, target_scaler, sampled_targets
     )
+    beta_metrics: dict[str, Any] | None = None
+    if BETA_TARGET_COLUMN in splits["test"].target_names:
+        beta_config = config["data"]["beta_response"]
+        configured_beta_edges = config.get("evaluation", {}).get(
+            "beta_momentum_edges_gev", momentum_edges
+        )
+        beta_edges = np.asarray(configured_beta_edges, dtype=np.float64)
+        beta_rows, beta_overall = beta_closure_rows(
+            splits["test"],
+            feature_scaler,
+            target_scaler,
+            sampled_targets,
+            beta_edges,
+            float(beta_config["rec_beta_min_exclusive"]),
+            float(beta_config["rec_beta_max_inclusive"]),
+        )
+        beta_metrics = {
+            "definition": (
+                "beta_rec = p_gen/sqrt(p_gen^2+m_s^2) + sampled_delta_beta"
+            ),
+            "momentum_edges_gev": beta_edges.tolist(),
+            "training_domain": {
+                "rec_beta_min_exclusive": float(beta_config["rec_beta_min_exclusive"]),
+                "rec_beta_max_inclusive": float(beta_config["rec_beta_max_inclusive"]),
+            },
+            "overall_by_generated_species": beta_overall,
+            "fixed_momentum_bins": beta_rows,
+        }
+        write_rows_csv(beta_rows, run_dir / "beta_closure_vs_gen_p.csv")
+        write_rows_csv(beta_overall, run_dir / "beta_closure_overall.csv")
+        plot_beta_response_vs_gen_p(beta_rows, run_dir / "beta_response_vs_gen_p.png")
+        plot_beta_vs_reconstructed_p(
+            splits["test"],
+            feature_scaler,
+            target_scaler,
+            sampled_targets,
+            run_dir / "beta_vs_reconstructed_p.png",
+        )
     write_rows_csv(rows, run_dir / "closure_metrics.csv")
     write_rows_csv(kinematic_rows, run_dir / "kinematic_closure_metrics.csv")
     write_rows_csv(conditional_pid_rows, run_dir / "pid_response_fixed_bins.csv")
@@ -609,6 +901,8 @@ def evaluate_and_write(
         },
         "joint_and_physical": joint_and_physical,
     }
+    if beta_metrics is not None:
+        metrics["beta_closure"] = beta_metrics
     with (run_dir / "metrics.json").open("w", encoding="utf-8") as handle:
         json.dump(metrics, handle, indent=2, allow_nan=False)
     return metrics
