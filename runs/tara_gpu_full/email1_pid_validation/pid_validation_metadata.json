@@ -1,0 +1,45 @@
+{
+  "checkpoint": "/home/htseng/QuantumMC_Simulations/QuantumMC_Forward_Foundation_Model/runs/tara_gpu_full/model.pt",
+  "checkpoint_sha256": "22dde8fe78c5bec337e5014be46e4c8037673015bc88d4fbe812c05bebcffe11",
+  "checkpoint_best_epoch": 16,
+  "dataset_metadata_sha256": "6a7245cb0ec4125610b9dcd8c1635d70a7773eeb2b29d146dd80d5f149eb43ab",
+  "dataset_file_count": 40,
+  "test_rows": 158985,
+  "split": "event-disjoint held-out test",
+  "selection_sql": "rec_detector_region = 'FD'\n      AND rec_theta < radians(33.0)\n      AND gen_vz > -5.5\n      AND gen_vz < -0.5\n      AND usable_for_hadron_response_training\n      AND gen_pid IN (-211, 211, 2212)\n      AND delta_p IS NOT NULL AND delta_theta IS NOT NULL AND delta_phi IS NOT NULL\n      AND isfinite(delta_p) AND isfinite(delta_theta) AND isfinite(delta_phi)\n      AND match_reciprocal\n      AND rec_pid <> 0\n      AND rec_beta > -99\n      AND abs(delta_p) <= 10.0",
+  "generated_species": [
+    -211,
+    211,
+    2212
+  ],
+  "reconstructed_pid_classes": [
+    -2212,
+    -321,
+    -211,
+    -11,
+    11,
+    22,
+    45,
+    211,
+    321,
+    2112,
+    2212,
+    "OTHER"
+  ],
+  "binning": "fixed equal-width",
+  "bin_edges_gev": [
+    0.0,
+    1.0,
+    2.0,
+    3.0,
+    4.0,
+    5.0,
+    6.0,
+    7.0,
+    8.0,
+    9.0
+  ],
+  "forward_fm_statistic": "mean softmax probability",
+  "weights_changed": false,
+  "device": "cuda:0"
+}
