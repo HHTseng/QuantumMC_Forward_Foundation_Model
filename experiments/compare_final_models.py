@@ -75,7 +75,11 @@ class Run:
         self.config = json.loads(
             json.dumps(_load_yaml(path / "resolved_config.yaml"))
         )
-        self.pid_bins = _read_csv(path / "pid_response_fixed_bins.csv")
+        # Runs produced before the fixed-bin PID export existed still provide
+        # the per-bin summary inside metrics.json, so only the class-by-class
+        # correct-identification figure is unavailable for them.
+        bins_path = path / "pid_response_fixed_bins.csv"
+        self.pid_bins = _read_csv(bins_path) if bins_path.exists() else []
 
     @property
     def parameter_count(self) -> int | None:
@@ -431,6 +435,8 @@ def main() -> None:
     write_csv(tv_rows, output_dir / "final_pid_bin_total_variation.csv")
     correct_rows = []
     for run in runs:
+        if not run.pid_bins:
+            continue
         for label, curve in correct_identification_rows(run).items():
             for index, center in enumerate(curve["centers"]):
                 correct_rows.append(
@@ -450,7 +456,13 @@ def main() -> None:
 
     plot_headline(runs, output_dir / "final_headline_metrics.png")
     plot_moment_closure(runs, output_dir / "final_moment_closure.png")
-    plot_pid_correct_identification(runs, output_dir / "final_pid_correct_identification.png")
+    if all(run.pid_bins for run in runs):
+        plot_pid_correct_identification(
+            runs, output_dir / "final_pid_correct_identification.png"
+        )
+    else:
+        missing = [run.label for run in runs if not run.pid_bins]
+        print(f"skipping correct-identification figure; no fixed-bin CSV for {missing}")
     plot_pid_total_variation(runs, output_dir / "final_pid_total_variation.png")
     plot_learning_curves(runs, output_dir / "final_learning_curves.png")
 
