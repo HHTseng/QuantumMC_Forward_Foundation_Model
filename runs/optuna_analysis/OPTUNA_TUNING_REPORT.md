@@ -247,3 +247,144 @@ test, but the joint likelihood and the PID closure separate by far more than the
 observed spread. The tuned recipe is also markedly *more stable*: its standard
 deviation is smaller than the baseline's on every quantity, by a factor of
 thirty for the PID closure and the physical-sample fraction.
+
+## 8. How reliable are the two closure statistics?
+
+Before comparing small closure differences it is worth knowing their resolution.
+The two statistics are not alike, and the difference is structural rather than
+incidental.
+
+`pid_closure_tv` is built from the *mean PID-head softmax probability*, which is
+a deterministic function of the checkpoint. `moment_closure_error` is built from
+one stochastic draw per particle, and its width term is a sample standard
+deviation; a mixture density with heavy tails puts real weight on rare large
+draws, and a second moment is exactly what such draws move.
+
+`experiments/closure_sampling_uncertainty.py` re-samples a fixed checkpoint under
+ten sampling seeds on the validation split, holding weights and data constant:
+
+| Run | moment closure, mean $\pm$ s.d. | moment peak-to-peak | PID TV s.d. |
+|---|---:|---:|---:|
+| baseline reproduction | $0.06074\pm0.00315$ | 0.01054 | $0$ exactly |
+| tuned | $0.03138\pm0.00239$ | 0.00866 | $0$ exactly |
+
+So:
+
+- Every PID closure comparison in this report is exact given the checkpoints.
+  Re-sampling cannot move it at all, which is also a check that the harness does
+  what section 2.3 claims.
+- Moment closure carries $\sigma\approx0.003$ per evaluation. Differences below
+  about 0.006 between two checkpoints mean nothing on their own. The
+  tuned-versus-baseline gap of 0.029 on validation is roughly ten times that, so
+  it is safe; but the per-cell width ratios in section 6 should not be read to
+  the fourth decimal, and neither should small wiggles in the scan below.
+
+## 9. What $\lambda_{\mathrm{PID}}$ actually does
+
+The joint search ranked $\lambda_{\mathrm{PID}}$ sixth of eleven by fANOVA
+importance, which invites the conclusion that the weight hardly matters. That
+conclusion is wrong, and the controlled scan shows why: the search samples
+$\lambda$ jointly with everything else, and TPE concentrated on small values
+early, so it never paired a large $\lambda$ with the architecture it eventually
+selected.
+
+Holding the entire selected configuration fixed and moving only
+$\lambda_{\mathrm{PID}}$, on the validation split:
+
+| $\lambda_{\mathrm{PID}}$ | residual NLL | PID cross entropy | $J$ | PID top-1 accuracy | PID closure TV | moment closure |
+|---:|---:|---:|---:|---:|---:|---:|
+| 0.05 | -5.3332 | 0.9818 | -4.3514 | 0.6801 | 0.01219 | 0.01498 |
+| 0.1 | -5.3436 | 0.9807 | -4.3629 | 0.6800 | 0.01110 | 0.01821 |
+| 0.2 | -5.3661 | 0.9802 | -4.3859 | 0.6800 | 0.01070 | 0.01169 |
+| 0.5 | -5.3652 | 0.9795 | -4.3857 | 0.6801 | 0.00949 | 0.01393 |
+| 1 | -5.3446 | 0.9789 | -4.3657 | 0.6802 | 0.00982 | 0.01123 |
+| **2** | **-5.7137** | **0.7164** | **-4.9973** | **0.7399** | 0.00858 | **0.00714** |
+| 5 | -5.7000 | 0.7144 | -4.9856 | **0.7403** | 0.00840 | 0.02298 |
+| 10 | -5.6976 | 0.7145 | -4.9831 | 0.7400 | **0.00832** | 0.02119 |
+
+![Effect of the PID loss weight at the selected architecture](pid_weight_tuned_architecture.png)
+
+This is not the smooth trade-off the objective implies. Between $\lambda=1$ and
+$\lambda=2$ there is a step: PID top-1 accuracy jumps from 0.680 to 0.740, PID
+cross entropy falls from 0.979 to 0.716, and the *residual* likelihood improves
+as well, from -5.34 to -5.71. Above $\lambda=2$ everything plateaus. Both terms
+of the objective improving together is not a re-weighting effect; the run has
+reached a different and better solution.
+
+A plausible mechanism is that with `gradient_clip_norm = 5.0` and a learning rate
+of $3\times10^{-3}$ the clip is frequently active, so raising
+$\lambda_{\mathrm{PID}}$ changes the *direction* of the clipped update and not
+only the relative weight of the two losses. That is a hypothesis this study did
+not test, and it is written here as one.
+
+## 10. Is the large-$\lambda$ regime usable? Not yet
+
+The scan above was run at one seed. Because the effect is large and would change
+the recommended recipe, the $\lambda_{\mathrm{PID}}=2$ configuration was
+retrained at six seeds and evaluated on the held-out test split. It does not
+survive.
+
+| Seed | Epochs run | Test $J$ | Test PID top-1 | PID closure TV | Outcome |
+|---|---:|---:|---:|---:|---|
+| 20260822 | 70 | **-5.0091** | **0.7402** | 0.00936 | reached the better solution |
+| 20260823 | 70 | -4.3041 | 0.6796 | 0.00888 | ordinary |
+| 20260824 | **12** | -2.5682 | 0.6747 | 0.05196 | destabilized, early-stopped undertrained |
+| 20260825 | 70 | -4.3455 | 0.6792 | 0.00943 | ordinary |
+| 20260826 | 70 | **-4.8605** | **0.7326** | 0.01118 | reached the better solution |
+| 20260827 | 70 | -4.2591 | 0.6816 | 0.01001 | ordinary |
+
+Two of six seeds reach the better solution, three are ordinary, and one
+destabilizes badly enough that the patience rule stops it at epoch 12 with a
+barely-trained model. Over all six seeds
+
+$$
+J=-4.224\pm0.870,
+$$
+
+against $-4.353\pm0.045$ for the selected $\lambda_{\mathrm{PID}}=0.397$
+configuration. Excluding the diverged run it is $-4.556\pm0.351$: a better mean,
+but still with roughly eight times the spread.
+
+So the honest summary is that $\lambda_{\mathrm{PID}}\ge2$ is **not** an
+improvement in expectation, and it is much less reliable. It is a large
+opportunity with an unsolved optimization problem attached, not a recipe change
+that can be shipped. The released configuration keeps
+$\lambda_{\mathrm{PID}}=0.397$.
+
+Two further observations sharpen what is and is not on offer:
+
+- Where the better solution *is* reached, the gain is in per-particle
+  discrimination and likelihood -- top-1 accuracy 0.740 against 0.679, test $J$
+  $-5.009$ against $-4.356$ -- and **not** in the distributional PID closure
+  that the physics deliverable actually targets. The particle-weighted mean TV
+  is 0.00936 against 0.01001, which is a 7% relative change on a quantity the
+  tuned model has already brought within 0.01 of the teacher.
+- The divergent seed is the one that matters operationally. Its PID closure TV
+  is 0.052, worse than the hand-written baseline's 0.044, so a single unlucky
+  seed at $\lambda=2$ produces a model worse than the recipe being replaced.
+
+The natural follow-up, which this study did not run, is to test whether a
+learning-rate warm-up, a lower peak learning rate, or a schedule that ramps
+$\lambda_{\mathrm{PID}}$ during training makes the better solution reachable
+reliably. If it does, roughly six points of PID top-1 accuracy are available.
+
+## 11. Recommendation
+
+Use `configs/gpu_optuna_best.yaml`. Relative to the hand-written recipe it is
+better on every held-out quantity measured, in all three paired seeds, and it is
+also markedly more stable run to run.
+
+Do not use $\lambda_{\mathrm{PID}}\ge2$ in production until the instability in
+section 10 is understood.
+
+## 12. Reproduction
+
+```bash
+experiments/run_tuning_pipeline.sh        # stages 1-7
+experiments/run_tuning_pipeline.sh 2 6    # re-analyse and re-compare only
+```
+
+The study as reported used 90 search trials (5,059 GPU-seconds), two full
+training runs, four seed repeats, an eight-point $\lambda_{\mathrm{PID}}$ scan,
+six seeds at $\lambda_{\mathrm{PID}}=2$, and two sampling-uncertainty studies,
+on two RTX 2080 Ti.
