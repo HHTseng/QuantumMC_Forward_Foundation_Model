@@ -5,5 +5,6 @@ runs/*/model.pt
 !runs/smoke/model.pt
 !runs/fd_response_seed/model.pt
 !runs/tara_gpu_full/model.pt
+!runs/optuna_best/model.pt
 runs/optuna_smoke/
 *.db
