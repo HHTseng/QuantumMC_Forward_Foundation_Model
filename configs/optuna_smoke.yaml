@@ -1,0 +1,64 @@
+project:
+  name: clas12-forward-fm-step1-optuna-smoke
+  # One fixed seed for every trial: score differences must be attributable to
+  # the sampled hyper-parameters, not to initialization noise.  Seed
+  # sensitivity of the selected point is measured separately afterwards.
+  seed: 20260822
+
+data:
+  parquet_glob: ../phase-space_parquet-Aug17-26/particle_responses/*.parquet
+  split_modulus: 10000
+  train_boundary: 8000
+  validation_boundary: 9000
+  # Null uses the complete selected view.  The search must not subsample,
+  # because the target standardizer is fitted on the training split and a
+  # different subsample would change the units of the residual likelihood and
+  # make trials incomparable.
+  max_rows_per_species:
+    train: 8000
+    validation: 2000
+    test: 2000
+  selection:
+    theta_max_deg: 33.0
+    vz_min_cm: -5.5
+    vz_max_cm: -0.5
+    require_reciprocal_match: true
+    reject_rec_pid_zero: true
+    reject_beta_sentinel: true
+    max_abs_delta_p_gev: 10.0
+
+# Values below are the search defaults.  Every entry marked SEARCHED is
+# overwritten per trial by experiments/tune_hyperparameters.py.
+model:
+  hidden_width: 256        # SEARCHED
+  hidden_layers: 4         # SEARCHED
+  pid_embedding_dim: 16    # SEARCHED
+  mixture_components: 8    # SEARCHED
+  dropout: 0.03            # SEARCHED
+
+training:
+  epochs: 70               # SEARCHED
+  batch_size: 8192         # SEARCHED
+  learning_rate: 0.001     # SEARCHED
+  weight_decay: 0.00001    # SEARCHED
+  pid_loss_weight: 0.20    # SEARCHED
+  lr_schedule: cosine      # SEARCHED
+  lr_min_factor: 0.01
+  gradient_clip_norm: 5.0
+  early_stopping_patience: 10
+  num_workers: 0
+  torch_threads: 8
+  device: cuda:0
+  # Keep the split tensors on the GPU; the per-row DataLoader collation, not the
+  # arithmetic, is what limits throughput for a network of this size.
+  fast_loader: true
+  # Lambda-independent checkpoint selection, required because pid_loss_weight is
+  # itself a search dimension.
+  selection_metric: joint_nll
+
+evaluation:
+  # Fixed [low,high) bins; the final upper edge is inclusive.
+  pid_momentum_edges_gev: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+output:
+  run_dir: runs/optuna_smoke

@@ -11,6 +11,13 @@ from forwardfm_step1.evaluation import (
     integrated_correct_pid_response,
 )
 from forwardfm_step1.model import ConditionalMDN, mixture_nll, sample_standardized_residuals
+from forwardfm_step1.training import (
+    EpochMetrics,
+    build_loader,
+    run_epoch,
+    seed_everything,
+    selection_value,
+)
 
 
 class StandardizerTests(unittest.TestCase):
@@ -150,6 +157,88 @@ class ConditionalPIDClosureTests(unittest.TestCase):
                 self.labels,
                 np.asarray([0.0, 1.0]),
             )
+
+
+def _synthetic_split(n: int = 1024, seed: int = 0) -> PreparedSplit:
+    rng = np.random.default_rng(seed)
+    return PreparedSplit(
+        name="train",
+        event_keys=np.arange(n),
+        continuous=rng.normal(size=(n, 4)).astype(np.float32),
+        species_index=rng.integers(0, 3, n).astype(np.int64),
+        targets=rng.normal(size=(n, 3)).astype(np.float32),
+        rec_pid_index=rng.integers(0, 12, n).astype(np.int64),
+        raw_species=rng.choice([-211, 211, 2212], n).astype(np.int64),
+    )
+
+
+class DeviceResidentLoaderTests(unittest.TestCase):
+    """The fast loader is a throughput optimization, not a numerical change."""
+
+    def setUp(self) -> None:
+        self.split = _synthetic_split()
+        self.device = torch.device("cpu")
+
+    def _train(self, fast: bool, shuffle: bool) -> tuple[list[float], ConditionalMDN]:
+        seed_everything(7)
+        model = ConditionalMDN(
+            4, 3, 12, hidden_width=32, hidden_layers=2, mixture_components=3, dropout=0.0
+        )
+        optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+        model.to(self.device)
+        losses = []
+        for _ in range(3):
+            loader = build_loader(self.split, 256, shuffle, 7, 0, self.device, fast)
+            metrics = run_epoch(model, loader, self.device, 0.2, optimizer=optimizer)
+            losses.append(metrics.total_loss)
+        return losses, model
+
+    def test_matches_dataloader_without_shuffling(self) -> None:
+        slow_losses, slow_model = self._train(fast=False, shuffle=False)
+        fast_losses, fast_model = self._train(fast=True, shuffle=False)
+        np.testing.assert_allclose(slow_losses, fast_losses, rtol=1e-5, atol=1e-6)
+        for key, value in slow_model.state_dict().items():
+            torch.testing.assert_close(value, fast_model.state_dict()[key])
+
+    def test_is_reproducible_when_shuffling(self) -> None:
+        first, _ = self._train(fast=True, shuffle=True)
+        second, _ = self._train(fast=True, shuffle=True)
+        np.testing.assert_allclose(first, second, rtol=1e-6, atol=1e-7)
+
+    def test_visits_every_row_once_per_epoch(self) -> None:
+        loader = build_loader(self.split, 300, True, 7, 0, self.device, True)
+        rows = torch.cat([batch[3] for batch in loader])
+        self.assertEqual(len(rows), len(self.split))
+        self.assertEqual(len(loader), 4)
+
+
+class SelectionMetricTests(unittest.TestCase):
+    """Checkpoint ranking must not depend on the training pid_loss_weight."""
+
+    @staticmethod
+    def metrics(nll: float, pid_ce: float, weight: float) -> EpochMetrics:
+        return EpochMetrics(
+            total_loss=nll + weight * pid_ce,
+            residual_nll=nll,
+            pid_cross_entropy=pid_ce,
+            pid_accuracy=0.5,
+            examples_per_second=1.0,
+        )
+
+    def test_joint_nll_ignores_the_training_weight(self) -> None:
+        light = self.metrics(-4.0, 1.2, 0.2)
+        heavy = self.metrics(-4.0, 1.2, 5.0)
+        self.assertNotAlmostEqual(
+            selection_value(light, "total_loss"), selection_value(heavy, "total_loss")
+        )
+        self.assertAlmostEqual(
+            selection_value(light, "joint_nll"), selection_value(heavy, "joint_nll")
+        )
+        self.assertAlmostEqual(selection_value(light, "joint_nll"), -2.8)
+
+    def test_unknown_metric_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            selection_value(self.metrics(-4.0, 1.2, 0.2), "accuracy")
 
 
 if __name__ == "__main__":
