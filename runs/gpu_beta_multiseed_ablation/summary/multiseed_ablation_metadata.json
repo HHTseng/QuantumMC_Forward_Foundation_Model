@@ -1,0 +1,72 @@
+{
+  "definition": "Ten paired model/training seeds on one fixed beta-valid data split",
+  "paired_seeds": [
+    20260822,
+    20260823,
+    20260824,
+    20260825,
+    20260826,
+    20260827,
+    20260828,
+    20260829,
+    20260830,
+    20260831
+  ],
+  "variant_names": [
+    "no_beta",
+    "joint_beta"
+  ],
+  "statistics": {
+    "confidence_interval": "two-sided Student-t interval over paired improvements, df=9",
+    "randomization_test": "exact two-sided paired sign-flip test over 2^10 assignments",
+    "effect_size": "paired Cohen dz = mean paired improvement / SD paired improvement",
+    "multiplicity": "No multiplicity correction; two macro metrics designated primary, remaining metrics diagnostic"
+  },
+  "validation": {
+    "dataset_metadata_sha256": "6a7245cb0ec4125610b9dcd8c1635d70a7773eeb2b29d146dd80d5f149eb43ab",
+    "selection_sha256": "d00eb9c9a0a004d9eeca03cd96746cd22eb2a13b8337cd83507e9c4794a0906d",
+    "test_rows": 158482,
+    "data_split_seed": 20260822,
+    "data_order_seed": 20260822,
+    "teacher_fixed_bin_rows_identical": true,
+    "complete_pair_count": 10
+  },
+  "source_manifests": [
+    {
+      "name": "experiment_manifest.json",
+      "status": "running",
+      "included": false
+    },
+    {
+      "name": "experiment_manifest_gpu0.json",
+      "status": "running",
+      "included": false
+    },
+    {
+      "name": "experiment_manifest_gpu0_final.json",
+      "status": "complete",
+      "included": true
+    },
+    {
+      "name": "experiment_manifest_gpu1.json",
+      "status": "running",
+      "included": false
+    },
+    {
+      "name": "experiment_manifest_gpu1_final.json",
+      "status": "complete",
+      "included": true
+    },
+    {
+      "name": "experiment_manifest_gpu2.json",
+      "status": "running",
+      "included": false
+    },
+    {
+      "name": "experiment_manifest_gpu3.json",
+      "status": "running",
+      "included": false
+    }
+  ],
+  "source_manifest_policy": "Only completed worker manifests contribute seeds; incomplete launch attempts are retained in provenance and excluded."
+}

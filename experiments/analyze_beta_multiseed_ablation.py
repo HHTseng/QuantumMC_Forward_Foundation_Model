@@ -109,6 +109,7 @@ def paired_statistics(
     )
     return {
         "mean_paired_improvement": mean_improvement,
+        "median_paired_improvement": float(np.median(improvement)),
         "paired_improvement_sd": sd_improvement,
         "paired_improvement_ci95_low": mean_improvement - half_width,
         "paired_improvement_ci95_high": mean_improvement + half_width,
@@ -137,6 +138,7 @@ def run_metrics(run_dir: Path, seed: int, variant: str) -> tuple[dict[str, Any],
     required = (
         "metrics.json",
         "data_audit.json",
+        "history.json",
         "model.pt",
         "pid_response_fixed_bins.csv",
     )
@@ -145,6 +147,7 @@ def run_metrics(run_dir: Path, seed: int, variant: str) -> tuple[dict[str, Any],
         raise FileNotFoundError(f"Incomplete run {run_dir}: {missing}")
     metrics = read_json(run_dir / "metrics.json")
     audit = read_json(run_dir / "data_audit.json")
+    history = read_json(run_dir / "history.json")
     checkpoint = torch.load(run_dir / "model.pt", map_location="cpu", weights_only=False)
     if int(checkpoint["seed"]) != seed:
         raise AssertionError(f"Checkpoint seed mismatch in {run_dir}")
@@ -156,10 +159,30 @@ def run_metrics(run_dir: Path, seed: int, variant: str) -> tuple[dict[str, Any],
         int(row["generated_pid"]): row
         for row in metrics["pid_conditional_closure"]["integrated_correct_id"]
     }
+    best_epoch = int(checkpoint["best_epoch"])
+    selected_history = next(
+        item for item in history if int(item["epoch"]) == best_epoch
+    )
+    best_pid_history = min(
+        history, key=lambda item: float(item["validation"]["pid_cross_entropy"])
+    )
     row: dict[str, Any] = {
         "seed": seed,
         "variant": variant,
-        "best_epoch": int(checkpoint["best_epoch"]),
+        "best_epoch": best_epoch,
+        "selected_validation_pid_cross_entropy": float(
+            selected_history["validation"]["pid_cross_entropy"]
+        ),
+        "selected_validation_pid_accuracy": float(
+            selected_history["validation"]["pid_accuracy"]
+        ),
+        "best_validation_pid_epoch": int(best_pid_history["epoch"]),
+        "best_validation_pid_cross_entropy": float(
+            best_pid_history["validation"]["pid_cross_entropy"]
+        ),
+        "best_validation_pid_accuracy": float(
+            best_pid_history["validation"]["pid_accuracy"]
+        ),
         "target_dim": expected_dim,
         "parameter_count": int(
             sum(value.numel() for value in checkpoint["model_state"].values())
@@ -502,7 +525,7 @@ def build_report(
         "",
         "## Confirmatory design",
         "",
-        f"Twenty full-data models were trained as ten matched pairs with model/training seeds `{seeds[0]}` through `{seeds[-1]}`. Every run uses the same {validation['test_rows']:,}-particle beta-valid held-out population, event split seed `{validation['data_split_seed']}`, query-order seed `{validation['data_order_seed']}`, architecture, optimizer, PID loss weight, batch size, and early-stopping policy.",
+        f"Twenty full-data models were trained as ten matched pairs with model/training seeds `{seeds[0]}` through `{seeds[-1]}`. Every run uses the same {validation['test_rows']:,}-particle beta-valid held-out population, event split seed `{validation['data_split_seed']}`, query-order seed `{validation['data_order_seed']}`, shared architecture, optimizer, PID loss weight, batch size, and early-stopping policy.",
         "",
         "Within a seed pair, component-specific initialization streams make the species embedding, shared backbone, mixture-weight head, and direct PID head exactly identical at epoch zero. The treatment adds only the fourth continuous target",
         "",
@@ -528,8 +551,14 @@ def build_report(
             f"{row['joint_beta_better_pairs']}/10 | "
             f"{row['exact_two_sided_sign_flip_p']:.6f} |"
         )
+    macro_tv = lookup["macro_weighted_bin_tv"]
+    macro_correct = lookup["macro_correct_id_mae"]
     lines.extend(
         [
+            "",
+            f"For macro TV, the mean improvement is {macro_tv['mean_paired_improvement']:.6f}, but the median is {macro_tv['median_paired_improvement']:.6f} and joint beta is better in only {macro_tv['joint_beta_better_pairs']}/10 pairs. For correct-ID MAE, the mean improvement is {macro_correct['mean_paired_improvement']:.6f}, the median is {macro_correct['median_paired_improvement']:.6f}, and joint beta is better in {macro_correct['joint_beta_better_pairs']}/10 pairs. Both 95% intervals include zero, and neither exact test rejects a no-effect explanation.",
+            "",
+            "Therefore this controlled study does **not** reproduce the earlier large single-checkpoint PID improvement as a reliable auxiliary-task effect. The means reflect a mixture of occasional rescued and degraded optimization runs, not a uniform shift across seeds.",
             "",
             "The macro weighted-bin total-variation endpoint is",
             "",
@@ -555,7 +584,7 @@ def build_report(
         ):
             row = lookup[f"{prefix}_{SPECIES_KEY[species]}"]
             lines.append(
-                f"| {SPECIES_TEXT[species]} | {metric_label} | "
+                f"| {SPECIES_MATH[species]} | {metric_label} | "
                 f"{format_mean_sd(row, 'no_beta')} | "
                 f"{format_mean_sd(row, 'joint_beta')} | {format_ci(row)} | "
                 f"{row['joint_beta_better_pairs']}/10 | "
@@ -595,12 +624,24 @@ def build_report(
         variant: {row["parameter_count"] for row in run_rows if row["variant"] == variant}
         for variant in VARIANTS
     }
+    worst_control = max(
+        (row for row in run_rows if row["variant"] == "no_beta"),
+        key=lambda row: row["macro_weighted_bin_tv"],
+    )
+    worst_treatment = max(
+        (row for row in run_rows if row["variant"] == "joint_beta"),
+        key=lambda row: row["macro_weighted_bin_tv"],
+    )
     lines.extend(
         [
             "",
             "## Training summary and interpretation",
             "",
             f"The no-beta models have {next(iter(parameters['no_beta'])):,} parameters and selected epochs {epochs['no_beta'].min()}–{epochs['no_beta'].max()}; joint-$\\Delta\\beta$ models have {next(iter(parameters['joint_beta'])):,} parameters and selected epochs {epochs['joint_beta'].min()}–{epochs['joint_beta'].max()}.",
+            "",
+            "The current early-stopping rule minimizes the combined validation response loss, not PID closure alone. This matters for the observed outliers. "
+            f"The worst no-beta PID-closure run (seed `{worst_control['seed']}`) selected epoch {worst_control['best_epoch']}, where validation PID accuracy was {worst_control['selected_validation_pid_accuracy']:.4f}; its lowest validation PID cross entropy occurred at epoch {worst_control['best_validation_pid_epoch']}, where PID accuracy was {worst_control['best_validation_pid_accuracy']:.4f}. "
+            f"The worst joint-beta run (seed `{worst_treatment['seed']}`) likewise selected epoch {worst_treatment['best_epoch']} instead of its PID-cross-entropy optimum at epoch {worst_treatment['best_validation_pid_epoch']}. This makes optimization and checkpoint selection a plausible source of the large paired swings; the study does not isolate a purely physical representation benefit from $\\Delta\\beta$.",
             "",
             "The paired statistics quantify sensitivity to model initialization and shuffled training order on one fixed data split. They do not quantify uncertainty from new simulated datasets, alternative detector conditions, hyperparameter choices, or a changed event split. The ten seeds are independent training replicates, while particles within a held-out event are not treated as independent training replicates.",
             "",

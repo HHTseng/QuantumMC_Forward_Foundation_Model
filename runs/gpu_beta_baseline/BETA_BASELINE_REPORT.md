@@ -2,6 +2,11 @@
 
 ## Outcome
 
+> **Update:** This report records the original exploratory checkpoint. A later
+> controlled ten-paired-seed ablation did not reproduce the large direct-PID
+> gain as a reliable beta auxiliary-task effect. See the
+> [multi-seed report](../gpu_beta_multiseed_ablation/summary/MULTISEED_BETA_ABLATION_REPORT.md).
+
 The opt-in beta-response model was trained on one GPU from source commit
 `be39ff1`. The selected checkpoint is epoch 14 and has SHA-256
 `31e2c65ac417081123c87edf3fc7d874e618739b8b7cdd061c2ef3f92a102078`.
