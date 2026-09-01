@@ -9,26 +9,33 @@ density of the factorized model q(Delta|x) q(s_rec|x), so it is comparable
 across trials that trained with different ``pid_loss_weight`` values, and it is
 cheap and smooth enough to prune on.
 
-Stage 2 (final pick): ``J`` is a single number, but the deliverables are two --
-reconstructed-PID response closure and residual moment closure -- and they do
-not have to peak at the same point.  So the checkpoint is chosen by a
-*constrained* bi-objective rule.  The feasible set is every completed trial
-whose likelihood is statistically competitive,
+Stage 2 (final pick): ``J`` is a single number, but the deliverable is two
+quantities -- reconstructed-PID response closure and residual moment closure --
+and they demonstrably do not peak at the same configuration.  Minimizing ``J``
+alone is not safe either: a mixture density can buy likelihood with heavy tails
+that cost almost nothing in log density while visibly distorting the sampled
+``Std[Delta]``, so the trial with the best ``J`` can have clearly worse closure
+than a slightly less likely one.
 
-    J(trial) <= min J + --j-tolerance      (union the --top-k best by J),
+The final pick is therefore made on closure, inside a likelihood floor:
 
-and inside that set the winner minimizes the closure composite
+    feasible = { trial : J(trial) <= J_floor },
+    selected = argmin over feasible of
+               pid_closure_tv     / median(pid_closure_tv     over feasible)
+             + moment_closure_error / median(moment_closure_error over feasible).
 
-    C = pid_closure_tv / median(pid_closure_tv over the feasible set)
-      + moment_closure_error / median(moment_closure_error over the feasible set).
+``J_floor`` is not a tuned constant.  By default it is the best validation
+joint NLL of a published reference run (``--j-floor-from-run``), so the rule
+reads "the tuned model must fit the joint density at least as well as the
+recipe it replaces, and among all such models it must have the best physics
+closure".  The reference run must share the seed and split boundaries with the
+search, otherwise its NLL is in different units; this is checked.
 
-Normalizing by the feasible-set median makes the two terms dimensionless and
-equally weighted without hiding an arbitrary absolute scale factor.  The
-likelihood tolerance is what stops a trial with an accidentally lucky Monte
-Carlo closure draw and a poor density from being selected.
-
-The Pareto front over the two closure objectives is written out as well, so the
-trade-off is visible rather than buried in the scalarization.
+Normalizing each closure term by the feasible-set median makes them
+dimensionless and equally weighted without an arbitrary absolute scale factor.
+A point that is dominated on both closure objectives can never minimize this
+composite, so the selected trial is always on the closure Pareto front, which
+is written out separately together with the best-by-likelihood trial.
 
 Every figure and table is written under ``--output-dir``; the selected point is
 written as a runnable YAML configuration.
@@ -101,14 +108,20 @@ def parse_args() -> argparse.Namespace:
         "--top-k",
         type=int,
         default=8,
-        help="Always consider at least this many trials, ranked by J",
+        help="If the likelihood floor admits fewer trials than this, fall back "
+        "to this many best-by-J trials so a selection is always possible",
     )
     parser.add_argument(
-        "--j-tolerance",
+        "--j-floor-from-run",
+        default="runs/tara_gpu_full",
+        help="Reference run whose best validation joint NLL becomes the "
+        "likelihood floor; must share the seed and split boundaries",
+    )
+    parser.add_argument(
+        "--j-floor",
         type=float,
-        default=0.20,
-        help="Nats of validation joint NLL within which a trial counts as "
-        "likelihood-competitive with the best trial",
+        default=None,
+        help="Absolute likelihood floor, overriding --j-floor-from-run",
     )
     return parser.parse_args()
 
@@ -153,6 +166,41 @@ def write_csv(rows: list[dict[str, Any]], path: Path) -> None:
         writer = csv.DictWriter(handle, fieldnames=fields)
         writer.writeheader()
         writer.writerows(rows)
+
+
+def likelihood_floor_from_run(path: Path, base_config: dict[str, Any]) -> float:
+    """Best validation joint NLL of a reference run, in comparable units.
+
+    The residual NLL is a density in standardized target coordinates, and that
+    standardization is fitted on the training split.  A reference run that used
+    a different seed or different split boundaries fitted a different scaler,
+    so its NLL is not on the same scale and must not be used as a floor.
+    """
+    reference = _load_yaml(path / "resolved_config.yaml")
+    for section, key in (
+        ("project", "seed"),
+        ("data", "split_modulus"),
+        ("data", "train_boundary"),
+        ("data", "validation_boundary"),
+    ):
+        if reference[section][key] != base_config[section][key]:
+            raise SystemExit(
+                f"Reference run {path} has {section}.{key}="
+                f"{reference[section][key]} but the search used "
+                f"{base_config[section][key]}; its NLL is not comparable"
+            )
+    history = json.loads((path / "history.json").read_text())
+    return min(
+        entry["validation"]["residual_nll"] + entry["validation"]["pid_cross_entropy"]
+        for entry in history
+    )
+
+
+def _load_yaml(path: Path) -> Any:
+    import yaml as _yaml
+
+    with path.open("r", encoding="utf-8") as handle:
+        return _yaml.safe_load(handle)
 
 
 def pareto_front(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -409,16 +457,19 @@ def main() -> None:
     complete = [row for row in rows if row["state"] == "COMPLETE"]
     if not complete:
         raise SystemExit("No completed trials")
+    base_config = load_config(args.base_config)
+    if args.j_floor is not None:
+        floor = args.j_floor
+        floor_source = "explicit --j-floor"
+    else:
+        floor = likelihood_floor_from_run(Path(args.j_floor_from_run), base_config)
+        floor_source = args.j_floor_from_run
     ranked = sorted(complete, key=lambda row: row["objective_joint_nll"])
-    best_objective = ranked[0]["objective_joint_nll"]
-    feasible = [
-        row
-        for row in ranked
-        if row["objective_joint_nll"] <= best_objective + args.j_tolerance
-    ]
-    for row in ranked[: args.top_k]:
-        if row not in feasible:
-            feasible.append(row)
+    feasible = [row for row in ranked if row["objective_joint_nll"] <= floor]
+    if len(feasible) < args.top_k:
+        for row in ranked[: args.top_k]:
+            if row not in feasible:
+                feasible.append(row)
     composite, tv_scale, moment_scale = closure_composite(feasible)
     for row, value in zip(feasible, composite):
         row["closure_composite"] = value
@@ -445,7 +496,6 @@ def main() -> None:
         output_dir / "optuna_top_learning_curves.png",
     )
 
-    base_config = load_config(args.base_config)
     best_trial = next(trial for trial in study.trials if trial.number == selected["number"])
     best_config = build_best_config(base_config, best_trial.params, args.best_run_dir)
     best_path = Path(args.best_config)
@@ -461,8 +511,13 @@ def main() -> None:
         "objective": "validation residual_nll + pid_cross_entropy",
         "best_by_objective": ranked[0]["number"],
         "best_objective_value": ranked[0]["objective_joint_nll"],
+        "best_by_objective_closure": {
+            "pid_closure_tv": ranked[0]["pid_closure_tv"],
+            "moment_closure_error": ranked[0]["moment_closure_error"],
+        },
         "top_k": args.top_k,
-        "j_tolerance": args.j_tolerance,
+        "likelihood_floor": floor,
+        "likelihood_floor_source": floor_source,
         "n_feasible": len(feasible),
         "feasible_trials": [row["number"] for row in feasible],
         "closure_pareto_front": [row["number"] for row in front],
