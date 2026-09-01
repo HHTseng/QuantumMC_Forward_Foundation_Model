@@ -100,7 +100,7 @@ beta-valid teacher population.
 Full reconstructed-class closure is measured with
 
 $$
-\operatorname{TV}(s,b)=\frac{1}{2}\sum_r
+\mathrm{TV}\,(s,b)=\frac{1}{2}\sum_r
 \left|P_{\mathrm{FM}}(r\mid s,b)-P_{\mathrm{CJ}}(r\mid s,b)\right|.
 $$
 
