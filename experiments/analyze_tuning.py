@@ -9,17 +9,26 @@ density of the factorized model q(Delta|x) q(s_rec|x), so it is comparable
 across trials that trained with different ``pid_loss_weight`` values, and it is
 cheap and smooth enough to prune on.
 
-Stage 2 (final pick): among the ``--top-k`` trials by ``J`` -- all of which are
-statistically close -- the checkpoint is chosen by the physics closure
-composite
+Stage 2 (final pick): ``J`` is a single number, but the deliverables are two --
+reconstructed-PID response closure and residual moment closure -- and they do
+not have to peak at the same point.  So the checkpoint is chosen by a
+*constrained* bi-objective rule.  The feasible set is every completed trial
+whose likelihood is statistically competitive,
 
-    C = pid_closure_tv / median(pid_closure_tv over top-k)
-      + moment_closure_error / median(moment_closure_error over top-k),
+    J(trial) <= min J + --j-tolerance      (union the --top-k best by J),
 
-which balances the reconstructed-PID response closure against first- and
-second-moment closure of the residual variables.  Normalizing by the top-k
-median makes the two terms dimensionless and equally weighted without hiding an
-arbitrary absolute scale factor.
+and inside that set the winner minimizes the closure composite
+
+    C = pid_closure_tv / median(pid_closure_tv over the feasible set)
+      + moment_closure_error / median(moment_closure_error over the feasible set).
+
+Normalizing by the feasible-set median makes the two terms dimensionless and
+equally weighted without hiding an arbitrary absolute scale factor.  The
+likelihood tolerance is what stops a trial with an accidentally lucky Monte
+Carlo closure draw and a poor density from being selected.
+
+The Pareto front over the two closure objectives is written out as well, so the
+trade-off is visible rather than buried in the scalarization.
 
 Every figure and table is written under ``--output-dir``; the selected point is
 written as a runnable YAML configuration.
@@ -88,7 +97,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--best-config", required=True, help="YAML path to write")
     parser.add_argument("--best-run-dir", default="runs/optuna_best")
-    parser.add_argument("--top-k", type=int, default=8)
+    parser.add_argument(
+        "--top-k",
+        type=int,
+        default=8,
+        help="Always consider at least this many trials, ranked by J",
+    )
+    parser.add_argument(
+        "--j-tolerance",
+        type=float,
+        default=0.20,
+        help="Nats of validation joint NLL within which a trial counts as "
+        "likelihood-competitive with the best trial",
+    )
     return parser.parse_args()
 
 
@@ -132,6 +153,25 @@ def write_csv(rows: list[dict[str, Any]], path: Path) -> None:
         writer = csv.DictWriter(handle, fieldnames=fields)
         writer.writeheader()
         writer.writerows(rows)
+
+
+def pareto_front(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Trials not dominated on both closure objectives simultaneously."""
+    front = []
+    for candidate in rows:
+        dominated = any(
+            other is not candidate
+            and other["pid_closure_tv"] <= candidate["pid_closure_tv"]
+            and other["moment_closure_error"] <= candidate["moment_closure_error"]
+            and (
+                other["pid_closure_tv"] < candidate["pid_closure_tv"]
+                or other["moment_closure_error"] < candidate["moment_closure_error"]
+            )
+            for other in rows
+        )
+        if not dominated:
+            front.append(candidate)
+    return sorted(front, key=lambda row: row["pid_closure_tv"])
 
 
 def closure_composite(rows: list[dict[str, Any]]) -> tuple[list[float], float, float]:
@@ -238,7 +278,11 @@ def plot_slices(rows: list[dict[str, Any]], path: Path) -> None:
 
 
 def plot_capacity_and_tradeoff(
-    rows: list[dict[str, Any]], top_numbers: set[int], selected: int, path: Path
+    rows: list[dict[str, Any]],
+    feasible_numbers: set[int],
+    selected: int,
+    front_numbers: set[int],
+    path: Path,
 ) -> None:
     complete = [row for row in rows if row["state"] == "COMPLETE"]
     figure, axes = plt.subplots(1, 3, figsize=(15.2, 4.5))
@@ -271,8 +315,20 @@ def plot_capacity_and_tradeoff(
     moment = np.array([row["moment_closure_error"] for row in complete], dtype=float)
     numbers = [row["number"] for row in complete]
     axes[2].scatter(tv, moment, s=28, color="#a0aec0", label="all complete")
-    mask = np.array([number in top_numbers for number in numbers])
-    axes[2].scatter(tv[mask], moment[mask], s=46, color="#2b6cb0", label="top-k by $J$")
+    front = np.array([number in front_numbers for number in numbers])
+    order = np.argsort(tv[front])
+    axes[2].plot(
+        tv[front][order],
+        moment[front][order],
+        "--",
+        color="#d69e2e",
+        lw=1.4,
+        label="closure Pareto front",
+    )
+    mask = np.array([number in feasible_numbers for number in numbers])
+    axes[2].scatter(
+        tv[mask], moment[mask], s=46, color="#2b6cb0", label="likelihood-feasible"
+    )
     chosen = np.array([number == selected for number in numbers])
     axes[2].scatter(
         tv[chosen], moment[chosen], s=190, marker="*", color="#c53030", label="selected"
@@ -354,12 +410,22 @@ def main() -> None:
     if not complete:
         raise SystemExit("No completed trials")
     ranked = sorted(complete, key=lambda row: row["objective_joint_nll"])
-    top = ranked[: args.top_k]
-    composite, tv_scale, moment_scale = closure_composite(top)
-    for row, value in zip(top, composite):
+    best_objective = ranked[0]["objective_joint_nll"]
+    feasible = [
+        row
+        for row in ranked
+        if row["objective_joint_nll"] <= best_objective + args.j_tolerance
+    ]
+    for row in ranked[: args.top_k]:
+        if row not in feasible:
+            feasible.append(row)
+    composite, tv_scale, moment_scale = closure_composite(feasible)
+    for row, value in zip(feasible, composite):
         row["closure_composite"] = value
-    selected = min(zip(top, composite), key=lambda pair: pair[1])[0]
-    write_csv(top, output_dir / "optuna_top_trials.csv")
+    selected = min(zip(feasible, composite), key=lambda pair: pair[1])[0]
+    write_csv(feasible, output_dir / "optuna_top_trials.csv")
+    front = pareto_front(complete)
+    write_csv(front, output_dir / "optuna_closure_pareto_front.csv")
 
     plot_optimization_history(rows, output_dir / "optuna_history.png")
     importances, importance_evaluator = plot_importances(
@@ -367,11 +433,16 @@ def main() -> None:
     )
     plot_slices(rows, output_dir / "optuna_slices.png")
     plot_capacity_and_tradeoff(
-        rows, {row["number"] for row in top}, selected["number"],
+        rows,
+        {row["number"] for row in feasible},
+        selected["number"],
+        {row["number"] for row in front},
         output_dir / "optuna_capacity_and_tradeoff.png",
     )
     plot_learning_curves(
-        study, [row["number"] for row in top], output_dir / "optuna_top_learning_curves.png"
+        study,
+        [row["number"] for row in sorted(feasible, key=lambda r: r["closure_composite"])[:8]],
+        output_dir / "optuna_top_learning_curves.png",
     )
 
     base_config = load_config(args.base_config)
@@ -391,6 +462,10 @@ def main() -> None:
         "best_by_objective": ranked[0]["number"],
         "best_objective_value": ranked[0]["objective_joint_nll"],
         "top_k": args.top_k,
+        "j_tolerance": args.j_tolerance,
+        "n_feasible": len(feasible),
+        "feasible_trials": [row["number"] for row in feasible],
+        "closure_pareto_front": [row["number"] for row in front],
         "closure_composite_tv_scale": tv_scale,
         "closure_composite_moment_scale": moment_scale,
         "selected_trial": selected["number"],
