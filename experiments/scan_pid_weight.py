@@ -62,13 +62,78 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--tag", default="scan")
+    parser.add_argument(
+        "--merge",
+        nargs="+",
+        metavar="CSV",
+        help="Skip training; combine finished per-shard CSVs into one table and "
+        "figure. Lets the scan be split across GPUs and resumed.",
+    )
     return parser.parse_args()
+
+
+def write_rows(rows: list[dict[str, Any]], path: Path) -> None:
+    fields: list[str] = []
+    for row in rows:
+        for key in row:
+            if key not in fields:
+                fields.append(key)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def plot_scan(rows: list[dict[str, Any]], path: Path) -> None:
+    rows = sorted(rows, key=lambda row: row["pid_loss_weight"])
+    values = np.array([row["pid_loss_weight"] for row in rows], dtype=float)
+    figure, axes = plt.subplots(1, 4, figsize=(19.0, 4.3))
+    panels = (
+        ("validation_residual_nll", "validation residual NLL", "#2f855a"),
+        ("validation_pid_cross_entropy", "validation PID cross entropy", "#c05621"),
+        ("pid_closure_tv", "PID weighted mean TV", "#2b6cb0"),
+        ("moment_closure_error", "moment closure error", "#6b46c1"),
+    )
+    for panel, (key, title, color) in zip(axes, panels):
+        series = np.array([float(row[key]) for row in rows])
+        panel.plot(values, series, "-o", color=color)
+        best = int(np.argmin(series))
+        panel.plot(values[best], series[best], "*", ms=16, color="#c53030")
+        panel.set_xscale("log")
+        panel.set_xlabel(r"$\lambda_{\mathrm{PID}}$")
+        panel.set_ylabel(title)
+        panel.grid(alpha=0.3)
+        panel.set_title(f"minimum at $\\lambda={values[best]:g}$", fontsize=10)
+    figure.suptitle(
+        r"Effect of $\lambda_{\mathrm{PID}}$ at the selected architecture "
+        "(validation split; every other hyper-parameter fixed)",
+        y=1.0,
+    )
+    figure.tight_layout()
+    figure.savefig(path, dpi=160, bbox_inches="tight")
+    plt.close(figure)
 
 
 def main() -> None:
     args = parse_args()
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    if args.merge:
+        merged: list[dict[str, Any]] = []
+        for raw in args.merge:
+            with Path(raw).open("r", encoding="utf-8") as handle:
+                merged.extend(dict(row) for row in csv.DictReader(handle))
+        for row in merged:
+            for key, value in row.items():
+                row[key] = float(value)
+        merged.sort(key=lambda row: row["pid_loss_weight"])
+        csv_path = output_dir / f"pid_weight_{args.tag}.csv"
+        write_rows(merged, csv_path)
+        plot_scan(merged, output_dir / f"pid_weight_{args.tag}.png")
+        print(f"merged {len(merged)} weights into {csv_path}")
+        return
+
     base = load_config(args.config)
     device = choose_device(args.device)
     weights = [float(value) for value in args.weights.split(",")]
@@ -137,42 +202,16 @@ def main() -> None:
             row[f"pid_tv_{species}"] = value
         rows.append(row)
         print(json.dumps(row), flush=True)
+        # Write after every weight so a long scan can be interrupted, split
+        # across GPUs, or resumed without losing finished work.
+        write_rows(rows, output_dir / f"pid_weight_{args.tag}.csv")
         del model
         if device.type == "cuda":
             torch.cuda.empty_cache()
 
     csv_path = output_dir / f"pid_weight_{args.tag}.csv"
-    with csv_path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
-        writer.writeheader()
-        writer.writerows(rows)
-
-    values = np.array([row["pid_loss_weight"] for row in rows])
-    figure, axes = plt.subplots(1, 4, figsize=(19.0, 4.3))
-    panels = (
-        ("validation_residual_nll", "validation residual NLL", "#2f855a"),
-        ("validation_pid_cross_entropy", "validation PID cross entropy", "#c05621"),
-        ("pid_closure_tv", "PID weighted mean TV", "#2b6cb0"),
-        ("moment_closure_error", "moment closure error", "#6b46c1"),
-    )
-    for panel, (key, title, color) in zip(axes, panels):
-        series = np.array([row[key] for row in rows])
-        panel.plot(values, series, "-o", color=color)
-        best = int(np.argmin(series))
-        panel.plot(values[best], series[best], "*", ms=16, color="#c53030")
-        panel.set_xscale("log")
-        panel.set_xlabel(r"$\lambda_{\mathrm{PID}}$")
-        panel.set_ylabel(title)
-        panel.grid(alpha=0.3)
-        panel.set_title(f"minimum at $\\lambda={values[best]:g}$", fontsize=10)
-    figure.suptitle(
-        r"Effect of $\lambda_{\mathrm{PID}}$ at a fixed architecture "
-        "(validation split; the star marks the minimum)",
-        y=1.0,
-    )
-    figure.tight_layout()
-    figure.savefig(output_dir / f"pid_weight_{args.tag}.png", dpi=160, bbox_inches="tight")
-    plt.close(figure)
+    write_rows(rows, csv_path)
+    plot_scan(rows, output_dir / f"pid_weight_{args.tag}.png")
     print(f"wrote {csv_path}")
 
 
