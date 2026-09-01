@@ -1,0 +1,115 @@
+{
+  "dataset_glob": "/home/htseng/QuantumMC_Simulations/phase-space_parquet-Aug17-26/particle_responses/*.parquet",
+  "dataset_file_count": 40,
+  "dataset_total_bytes": 2061164285,
+  "dataset_metadata_sha256": "6a7245cb0ec4125610b9dcd8c1635d70a7773eeb2b29d146dd80d5f149eb43ab",
+  "schema_column_count": 84,
+  "denominator_sql": "gen_pid = 11",
+  "trigger_label": "has_valid_trigger_electron",
+  "positive_association_invariant": "trigger_mcindex = mcindex",
+  "global_counts": {
+    "events": 5000000,
+    "generated_electrons": 5000000,
+    "trigger_successes": 2471543,
+    "trigger_failures": 2528457,
+    "role_flag_trigger_mismatches": 0
+  },
+  "split_counts": {
+    "train": {
+      "rows": 3999385,
+      "trigger_successes": 1976265,
+      "trigger_failures": 2023120,
+      "trigger_rate": 0.49414222436699645,
+      "outcome_counts": {
+        "unreconstructed": 2023120,
+        "FD": 1976265,
+        "FT": 0,
+        "CD": 0,
+        "other": 0
+      }
+    },
+    "validation": {
+      "rows": 500177,
+      "trigger_successes": 247871,
+      "trigger_failures": 252306,
+      "trigger_rate": 0.49556656943442023,
+      "outcome_counts": {
+        "unreconstructed": 252306,
+        "FD": 247871,
+        "FT": 0,
+        "CD": 0,
+        "other": 0
+      }
+    },
+    "test": {
+      "rows": 500438,
+      "trigger_successes": 247407,
+      "trigger_failures": 253031,
+      "trigger_rate": 0.49438092231205466,
+      "outcome_counts": {
+        "unreconstructed": 253031,
+        "FD": 247407,
+        "FT": 0,
+        "CD": 0,
+        "other": 0
+      }
+    }
+  },
+  "training_feature_stats": {
+    "log1p_gen_p": {
+      "min": 1.0986125469207764,
+      "max": 2.4420976638793945,
+      "mean": 1.705479383468628,
+      "std": 0.3420524001121521
+    },
+    "gen_theta": {
+      "min": 0.10471975058317184,
+      "max": 0.6106776595115662,
+      "mean": 0.2733340561389923,
+      "std": 0.11931773275136948
+    },
+    "sin_gen_phi": {
+      "min": -1.0,
+      "max": 1.0,
+      "mean": -0.00016718689585104585,
+      "std": 0.7072208523750305
+    },
+    "cos_gen_phi": {
+      "min": -1.0,
+      "max": 1.0,
+      "mean": 0.0003031012020073831,
+      "std": 0.7069925665855408
+    },
+    "gen_vx": {
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "gen_vy": {
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "gen_vz": {
+      "min": -15.292213439941406,
+      "max": 9.368817329406738,
+      "mean": -3.0022096633911133,
+      "std": 2.500272750854492
+    }
+  },
+  "active_feature_names": [
+    "log1p_gen_p",
+    "gen_theta",
+    "sin_gen_phi",
+    "cos_gen_phi",
+    "gen_vz"
+  ],
+  "dropped_constant_feature_names": [
+    "gen_vx",
+    "gen_vy"
+  ],
+  "event_split_overlap_count": 0,
+  "audit_note": "is_generated_trigger_electron equals trigger success in this production; it is not used as the denominator."
+}

@@ -1,0 +1,325 @@
+[
+  {
+    "epoch": 1,
+    "train": {
+      "total_loss": 0.7641197494335019,
+      "trigger_bce": 0.37832238102106713,
+      "outcome_cross_entropy": 0.38579736647159546,
+      "trigger_accuracy": 0.8324944960287645,
+      "outcome_accuracy": 0.8315798554027681,
+      "examples_per_second": 1944100.441732896
+    },
+    "validation": {
+      "total_loss": 0.5173979393717453,
+      "trigger_bce": 0.25938092536537993,
+      "outcome_cross_entropy": 0.2580170125697463,
+      "trigger_accuracy": 0.905729371802382,
+      "outcome_accuracy": 0.9065010986110916,
+      "examples_per_second": 11189349.954392908
+    }
+  },
+  {
+    "epoch": 2,
+    "train": {
+      "total_loss": 0.5154471762945305,
+      "trigger_bce": 0.25742336054883336,
+      "outcome_cross_entropy": 0.2580238175159888,
+      "trigger_accuracy": 0.9044438082355162,
+      "outcome_accuracy": 0.9042502784803164,
+      "examples_per_second": 3184713.869796332
+    },
+    "validation": {
+      "total_loss": 0.4751143155161368,
+      "trigger_bce": 0.2376760362049108,
+      "outcome_cross_entropy": 0.2374382817517683,
+      "trigger_accuracy": 0.9142363603284437,
+      "outcome_accuracy": 0.9143923051239861,
+      "examples_per_second": 18933772.205118176
+    }
+  },
+  {
+    "epoch": 3,
+    "train": {
+      "total_loss": 0.49472974211524773,
+      "trigger_bce": 0.2472411624097644,
+      "outcome_cross_entropy": 0.24748857836879637,
+      "trigger_accuracy": 0.9091412804718726,
+      "outcome_accuracy": 0.909049016286254,
+      "examples_per_second": 3348294.230335221
+    },
+    "validation": {
+      "total_loss": 0.4671134821264567,
+      "trigger_bce": 0.2334597737999539,
+      "outcome_cross_entropy": 0.2336537100487356,
+      "trigger_accuracy": 0.916165677350218,
+      "outcome_accuracy": 0.9161176943362049,
+      "examples_per_second": 12154183.328321105
+    }
+  },
+  {
+    "epoch": 4,
+    "train": {
+      "total_loss": 0.4877917576702847,
+      "trigger_bce": 0.24384114476440952,
+      "outcome_cross_entropy": 0.2439506115503093,
+      "trigger_accuracy": 0.9107902840061659,
+      "outcome_accuracy": 0.9107605294314001,
+      "examples_per_second": 3194204.304275938
+    },
+    "validation": {
+      "total_loss": 0.46789422011398163,
+      "trigger_bce": 0.23393967960830575,
+      "outcome_cross_entropy": 0.23395453855324205,
+      "trigger_accuracy": 0.9155558932138023,
+      "outcome_accuracy": 0.9154679243547784,
+      "examples_per_second": 11479310.235953158
+    }
+  },
+  {
+    "epoch": 5,
+    "train": {
+      "total_loss": 0.4831051339136833,
+      "trigger_bce": 0.2415246628124857,
+      "outcome_cross_entropy": 0.2415804707349304,
+      "trigger_accuracy": 0.9117801862036288,
+      "outcome_accuracy": 0.9117594330128257,
+      "examples_per_second": 4246561.942220876
+    },
+    "validation": {
+      "total_loss": 0.4635020652588061,
+      "trigger_bce": 0.23153011945018884,
+      "outcome_cross_entropy": 0.231971943368075,
+      "trigger_accuracy": 0.9166435081980979,
+      "outcome_accuracy": 0.9163975952512811,
+      "examples_per_second": 18560680.151417498
+    }
+  },
+  {
+    "epoch": 6,
+    "train": {
+      "total_loss": 0.47952227409102144,
+      "trigger_bce": 0.2397503963381693,
+      "outcome_cross_entropy": 0.2397718774539224,
+      "trigger_accuracy": 0.9127143298282111,
+      "outcome_accuracy": 0.9127005777138235,
+      "examples_per_second": 4601842.425299424
+    },
+    "validation": {
+      "total_loss": 0.46829355625645924,
+      "trigger_bce": 0.2341172559277238,
+      "outcome_cross_entropy": 0.23417630179306081,
+      "trigger_accuracy": 0.9152659958374736,
+      "outcome_accuracy": 0.9151540354714431,
+      "examples_per_second": 18711020.581906192
+    }
+  },
+  {
+    "epoch": 7,
+    "train": {
+      "total_loss": 0.4771829973801065,
+      "trigger_bce": 0.2385881023863098,
+      "outcome_cross_entropy": 0.23859489536006392,
+      "trigger_accuracy": 0.9132444113282417,
+      "outcome_accuracy": 0.9132569132504122,
+      "examples_per_second": 4365324.332819828
+    },
+    "validation": {
+      "total_loss": 0.46388267935548944,
+      "trigger_bce": 0.23167428288147546,
+      "outcome_cross_entropy": 0.23220839598590554,
+      "trigger_accuracy": 0.9169474006201804,
+      "outcome_accuracy": 0.9166774961663571,
+      "examples_per_second": 18675770.238184772
+    }
+  },
+  {
+    "epoch": 8,
+    "train": {
+      "total_loss": 0.4759194377185136,
+      "trigger_bce": 0.23794483685955864,
+      "outcome_cross_entropy": 0.2379746012315152,
+      "trigger_accuracy": 0.9134164377773083,
+      "outcome_accuracy": 0.9134051860473548,
+      "examples_per_second": 4656046.651356795
+    },
+    "validation": {
+      "total_loss": 0.4634652311729595,
+      "trigger_bce": 0.23174762149591585,
+      "outcome_cross_entropy": 0.23171760870082672,
+      "trigger_accuracy": 0.9166595025361022,
+      "outcome_accuracy": 0.9167354756416228,
+      "examples_per_second": 19370650.9773854
+    }
+  },
+  {
+    "epoch": 9,
+    "train": {
+      "total_loss": 0.4749645563584259,
+      "trigger_bce": 0.23745101051571366,
+      "outcome_cross_entropy": 0.2375135456595786,
+      "trigger_accuracy": 0.9137829941353484,
+      "outcome_accuracy": 0.9137467385610538,
+      "examples_per_second": 4506129.829584884
+    },
+    "validation": {
+      "total_loss": 0.46383074044644546,
+      "trigger_bce": 0.2318237205489704,
+      "outcome_cross_entropy": 0.23200701892125813,
+      "trigger_accuracy": 0.9162616433782441,
+      "outcome_accuracy": 0.9161436851354621,
+      "examples_per_second": 18146697.104250994
+    }
+  },
+  {
+    "epoch": 10,
+    "train": {
+      "total_loss": 0.4733396507652966,
+      "trigger_bce": 0.23665338373697464,
+      "outcome_cross_entropy": 0.23668626720516261,
+      "trigger_accuracy": 0.914126796995038,
+      "outcome_accuracy": 0.9141087942271124,
+      "examples_per_second": 4809338.394704517
+    },
+    "validation": {
+      "total_loss": 0.4637963634524072,
+      "trigger_bce": 0.23186771478450505,
+      "outcome_cross_entropy": 0.23192865062033605,
+      "trigger_accuracy": 0.9164535754342963,
+      "outcome_accuracy": 0.9164375810962919,
+      "examples_per_second": 18418358.59449746
+    }
+  },
+  {
+    "epoch": 11,
+    "train": {
+      "total_loss": 0.4725803014711142,
+      "trigger_bce": 0.2362530080443161,
+      "outcome_cross_entropy": 0.23632729311528242,
+      "trigger_accuracy": 0.9143220770193418,
+      "outcome_accuracy": 0.91432707778821,
+      "examples_per_second": 4653218.992560018
+    },
+    "validation": {
+      "total_loss": 0.4624533729255715,
+      "trigger_bce": 0.23122913473271298,
+      "outcome_cross_entropy": 0.23122423695873418,
+      "trigger_accuracy": 0.9169613956659343,
+      "outcome_accuracy": 0.9170053800954462,
+      "examples_per_second": 18458434.264315225
+    }
+  },
+  {
+    "epoch": 12,
+    "train": {
+      "total_loss": 0.4713826014721092,
+      "trigger_bce": 0.23566143076035295,
+      "outcome_cross_entropy": 0.2357211709685204,
+      "trigger_accuracy": 0.9146483771879926,
+      "outcome_accuracy": 0.9146426263037942,
+      "examples_per_second": 4601398.819419611
+    },
+    "validation": {
+      "total_loss": 0.45753039470413237,
+      "trigger_bce": 0.22872708671214922,
+      "outcome_cross_entropy": 0.22880330678556518,
+      "trigger_accuracy": 0.9181589717240097,
+      "outcome_accuracy": 0.9181109887099966,
+      "examples_per_second": 18570390.71912445
+    }
+  },
+  {
+    "epoch": 13,
+    "train": {
+      "total_loss": 0.46966244276710417,
+      "trigger_bce": 0.2348001716649915,
+      "outcome_cross_entropy": 0.23486227098002355,
+      "trigger_accuracy": 0.9151227001151427,
+      "outcome_accuracy": 0.915152704728352,
+      "examples_per_second": 4669179.5035836045
+    },
+    "validation": {
+      "total_loss": 0.4706585750591808,
+      "trigger_bce": 0.23524811670988544,
+      "outcome_cross_entropy": 0.23541045955571333,
+      "trigger_accuracy": 0.9146702067468117,
+      "outcome_accuracy": 0.9145602456730317,
+      "examples_per_second": 18604203.78535763
+    }
+  },
+  {
+    "epoch": 14,
+    "train": {
+      "total_loss": 0.4689429137031323,
+      "trigger_bce": 0.23443839327897625,
+      "outcome_cross_entropy": 0.23450452116298354,
+      "trigger_accuracy": 0.9153157297934558,
+      "outcome_accuracy": 0.9152457190293007,
+      "examples_per_second": 4419286.410599605
+    },
+    "validation": {
+      "total_loss": 0.4611148622587738,
+      "trigger_bce": 0.23055334856738047,
+      "outcome_cross_entropy": 0.23056151394930074,
+      "trigger_accuracy": 0.917133334799481,
+      "outcome_accuracy": 0.9171073440002239,
+      "examples_per_second": 18622817.751572832
+    }
+  },
+  {
+    "epoch": 15,
+    "train": {
+      "total_loss": 0.46875657811389715,
+      "trigger_bce": 0.23433724382202648,
+      "outcome_cross_entropy": 0.23441933374876275,
+      "trigger_accuracy": 0.9152457190293007,
+      "outcome_accuracy": 0.9152244657616109,
+      "examples_per_second": 4979900.830459817
+    },
+    "validation": {
+      "total_loss": 0.46878925366373136,
+      "trigger_bce": 0.2343232493534713,
+      "outcome_cross_entropy": 0.23446600382215163,
+      "trigger_accuracy": 0.9156718521643338,
+      "outcome_accuracy": 0.9155978783510638,
+      "examples_per_second": 20626183.80386411
+    }
+  },
+  {
+    "epoch": 16,
+    "train": {
+      "total_loss": 0.4675858121926242,
+      "trigger_bce": 0.23375087875030615,
+      "outcome_cross_entropy": 0.23383493368649624,
+      "trigger_accuracy": 0.9156120253488974,
+      "outcome_accuracy": 0.9155670184290835,
+      "examples_per_second": 4169795.3847371168
+    },
+    "validation": {
+      "total_loss": 0.4587518839629609,
+      "trigger_bce": 0.22933597084976381,
+      "outcome_cross_entropy": 0.22941591629975522,
+      "trigger_accuracy": 0.9180809993262385,
+      "outcome_accuracy": 0.918079000033988,
+      "examples_per_second": 18285310.537607048
+    }
+  },
+  {
+    "epoch": 17,
+    "train": {
+      "total_loss": 0.4674364020514986,
+      "trigger_bce": 0.23367534602153314,
+      "outcome_cross_entropy": 0.23376105627414365,
+      "trigger_accuracy": 0.91559902334984,
+      "outcome_accuracy": 0.9155875215814432,
+      "examples_per_second": 4826843.54791488
+    },
+    "validation": {
+      "total_loss": 0.46043206688280375,
+      "trigger_bce": 0.23019942152220277,
+      "outcome_cross_entropy": 0.23023264610661687,
+      "trigger_accuracy": 0.9171913142747468,
+      "outcome_accuracy": 0.9172352987042587,
+      "examples_per_second": 18518039.351981778
+    }
+  }
+]
