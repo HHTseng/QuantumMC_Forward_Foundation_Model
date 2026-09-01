@@ -200,10 +200,15 @@ Per generated species, on the same test particles:
 ![Correct-identification response versus generated momentum](final_pid_correct_identification.png)
 
 The baseline's PID response departs from the COATJAVA teacher at both ends of
-the momentum range -- it over-predicts correct identification for high-momentum
-protons and under-predicts it for low-momentum $\pi^+$ and protons. The tuned
-model tracks the teacher within the statistical error bars over almost the whole
-range.
+the momentum range, and in opposite directions for the two pion charges. Above
+about 6 GeV it over-predicts correct identification for protons and $\pi^+$, by
+up to $+0.125$ for protons in the 6-7 GeV bin and $+0.085$ for $\pi^+$ in the
+8-9 GeV bin, while under-predicting it for $\pi^-$ by about $-0.035$. At the
+lowest momenta it under-predicts for $\pi^+$ and protons, by $-0.043$ and
+$-0.058$ in the 0-1 GeV bin, and over-predicts for $\pi^-$ by $+0.044$. The
+tuned model stays within $\pm0.031$ everywhere and within $\pm0.010$ in all but
+three of the twenty-five bins, tracking the teacher inside its statistical error
+bars over almost the whole range.
 
 ![Total-variation closure per momentum bin](final_pid_total_variation.png)
 
