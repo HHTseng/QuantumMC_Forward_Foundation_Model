@@ -59,9 +59,10 @@ DuckDB selection cost is paid once per process rather than once per trial.
 from __future__ import annotations
 
 import argparse
-import sys
 import copy
+import hashlib
 import json
+import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -122,6 +123,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timeout", type=float, default=None, help="Seconds")
     parser.add_argument(
         "--worker-tag", default="worker", help="Recorded on every trial for provenance"
+    )
+    parser.add_argument(
+        "--sampler-seed",
+        type=int,
+        default=None,
+        help="Defaults to a per-worker offset of the project seed, so that "
+        "parallel workers do not draw the same startup trials",
     )
     return parser.parse_args()
 
@@ -403,8 +411,14 @@ def main() -> None:
     run_dir.mkdir(parents=True, exist_ok=True)
     device = choose_device(args.device)
 
+    # Distinct sampler seeds per worker.  Identical seeds would make both
+    # workers propose the same random startup trials and waste half the budget.
+    sampler_seed = args.sampler_seed
+    if sampler_seed is None:
+        offset = int(hashlib.sha256(args.worker_tag.encode("utf-8")).hexdigest()[:8], 16)
+        sampler_seed = (int(base_config["project"]["seed"]) + offset) % (2**31)
     sampler = optuna.samplers.TPESampler(
-        seed=int(base_config["project"]["seed"]) % (2**31),
+        seed=sampler_seed,
         multivariate=True,
         group=True,
         n_startup_trials=16,
@@ -428,7 +442,10 @@ def main() -> None:
         gc_after_trial=True,
         catch=(torch.cuda.OutOfMemoryError,),
     )
-    print(f"worker {args.worker_tag} finished; study has {len(study.trials)} trials")
+    print(
+        f"worker {args.worker_tag} (sampler seed {sampler_seed}) finished; "
+        f"study has {len(study.trials)} trials"
+    )
 
 
 if __name__ == "__main__":
