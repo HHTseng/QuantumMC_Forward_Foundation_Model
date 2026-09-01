@@ -119,7 +119,9 @@ def main() -> None:
             spread = np.hypot(row[f"{label}_std"], row[f"{reference}_std"])
             row[f"{label}_minus_{reference}"] = difference
             row[f"{label}_separation_in_combined_std"] = (
-                float(abs(difference) / spread) if spread > 0 else float("inf")
+                float(abs(difference) / spread)
+                if spread > 0
+                else (0.0 if difference == 0 else float("inf"))
             )
             # Paired statistics: at a given seed both recipes trained on the
             # same partition, so differencing per seed cancels the partition.
@@ -138,11 +140,16 @@ def main() -> None:
             row[f"{label}_paired_consistent_sign"] = bool(
                 np.all(paired > 0) or np.all(paired < 0)
             )
-            row[f"{label}_paired_separation"] = (
-                float(abs(paired.mean()) / (paired_std / np.sqrt(paired_count)))
-                if paired_std > 0
-                else float("inf")
-            )
+            # Paired t statistic. With a handful of seeds this is descriptive,
+            # not a hypothesis test: read it as "how many standard errors".
+            if paired_std > 0:
+                row[f"{label}_paired_t"] = float(
+                    paired.mean() / (paired_std / np.sqrt(paired_count))
+                )
+            elif paired.mean() == 0.0:
+                row[f"{label}_paired_t"] = 0.0
+            else:
+                row[f"{label}_paired_t"] = float("inf") * np.sign(paired.mean())
         summary_rows.append(row)
 
     with (output_dir / "seed_repeat_runs.csv").open("w", newline="", encoding="utf-8") as handle:
