@@ -1,11 +1,19 @@
 #!/usr/bin/env python3
 """Aggregate repeated-seed runs of the baseline and the tuned configuration.
 
-A single seed cannot separate a real architectural gain from initialization
-luck.  This reads the ``metrics.json`` of several runs per configuration and
-reports, for every held-out quantity, the mean, the sample standard deviation,
-and whether the tuned mean separates from the baseline mean by more than the
-combined spread.
+A single seed cannot separate a real architectural gain from run-to-run luck.
+This reads the ``metrics.json`` of several runs per configuration and reports,
+for every held-out quantity, the mean, the sample standard deviation, and the
+separation between groups.
+
+The seed in this project drives both the model initialization *and* the
+deterministic hash that assigns events to train/validation/test, so a repeat
+varies the data partition as well.  That makes the spread a measure of total
+run-to-run variability rather than of initialization alone, which is the
+stronger claim to test.  It also means the runs are *paired*: at a given seed
+both recipes see exactly the same events, so the per-seed difference removes
+the partition effect entirely.  Groups are paired positionally, so pass the
+directories in the same seed order for every group.
 
 Usage:
 
@@ -104,7 +112,7 @@ def main() -> None:
             row[f"{label}_mean"] = float(values.mean())
             row[f"{label}_std"] = float(values.std(ddof=1)) if len(values) > 1 else 0.0
             row[f"{label}_n"] = len(values)
-        for label in groups:
+        for label, runs in groups.items():
             if label == reference:
                 continue
             difference = row[f"{label}_mean"] - row[f"{reference}_mean"]
@@ -112,6 +120,28 @@ def main() -> None:
             row[f"{label}_minus_{reference}"] = difference
             row[f"{label}_separation_in_combined_std"] = (
                 float(abs(difference) / spread) if spread > 0 else float("inf")
+            )
+            # Paired statistics: at a given seed both recipes trained on the
+            # same partition, so differencing per seed cancels the partition.
+            paired_count = min(len(runs), len(groups[reference]))
+            paired = np.array(
+                [
+                    runs[index][key] - groups[reference][index][key]
+                    for index in range(paired_count)
+                ],
+                dtype=np.float64,
+            )
+            row[f"{label}_paired_mean_difference"] = float(paired.mean())
+            paired_std = float(paired.std(ddof=1)) if paired_count > 1 else 0.0
+            row[f"{label}_paired_std"] = paired_std
+            row[f"{label}_paired_n"] = paired_count
+            row[f"{label}_paired_consistent_sign"] = bool(
+                np.all(paired > 0) or np.all(paired < 0)
+            )
+            row[f"{label}_paired_separation"] = (
+                float(abs(paired.mean()) / (paired_std / np.sqrt(paired_count)))
+                if paired_std > 0
+                else float("inf")
             )
         summary_rows.append(row)
 
