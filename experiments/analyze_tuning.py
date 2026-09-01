@@ -27,6 +27,7 @@ written as a runnable YAML configuration.
 from __future__ import annotations
 
 import argparse
+import sys
 import csv
 import json
 from pathlib import Path
@@ -39,6 +40,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import optuna
 import yaml
+
+# Allow execution as `python experiments/<script>.py` from the repository root.
+REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
+if str(REPOSITORY_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPOSITORY_ROOT))
 
 from forwardfm_step1.config import load_config
 

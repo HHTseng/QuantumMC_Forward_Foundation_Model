@@ -59,6 +59,7 @@ DuckDB selection cost is paid once per process rather than once per trial.
 from __future__ import annotations
 
 import argparse
+import sys
 import copy
 import json
 import time
@@ -68,6 +69,11 @@ from typing import Any
 import numpy as np
 import optuna
 import torch
+
+# Allow execution as `python experiments/<script>.py` from the repository root.
+REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
+if str(REPOSITORY_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPOSITORY_ROOT))
 
 from forwardfm_step1.config import load_config, resolve_run_dir
 from forwardfm_step1.data import (
