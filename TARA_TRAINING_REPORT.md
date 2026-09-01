@@ -14,10 +14,10 @@ epochs without a better validation objective.
 
 This remains a conditional FD residual/PID baseline,
 
-\[
+$$
 P(\Delta p,\Delta\theta,\Delta\phi,\widehat s
 \mid x,T=1,C=\mathrm{FD}),
-\]
+$$
 
 not yet the complete trigger/outcome/response foundation model.
 
@@ -86,10 +86,10 @@ cross partitions.
 
 Selection:
 
-\[
+$$
 C=\mathrm{FD},\quad \theta_{rec}<33^\circ,\quad
 -5.5<z_{gen}<-0.5\ \mathrm{cm},\quad T=1,
-\]
+$$
 
 plus the explicit residual-density policy: reciprocal match, `rec_pid != 0`,
 `rec_beta > -99`, and `|delta_p| <= 10 GeV`. Source Parquet was not modified.
@@ -108,10 +108,10 @@ plus the explicit residual-density policy: reciprocal match, `rec_pid != 0`,
 
 The optimized likelihood was
 
-\[
+$$
 \mathcal L=-\mathbb E[\log p_\theta(\Delta\mid x)]
 -0.2\,\mathbb E[\log P_\theta(\widehat s\mid x)].
-\]
+$$
 
 AdamW, gradient-norm clipping at 5, and validation early stopping with patience
 5 were used. Data loading and preprocessing took 3.57 seconds. End-to-end wall
@@ -197,4 +197,3 @@ is preserved in `training_attempt1_duckdb_limit.log`.
    corrected target.
 5. Return to the all-event dataset to implement `P(T|x_e)` and `P(C|x,T)`;
    only then compose a complete detector-event sampler.
-

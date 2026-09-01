@@ -215,7 +215,7 @@ $$
 
 $$
 \Delta\phi_i=
-\operatorname{wrap}_{[-\pi,\pi)}
+\mathrm{wrap}_{[-\pi,\pi)}
 (\phi_i^{\rm rec}-\phi_i^{\rm gen}).
 $$
 
