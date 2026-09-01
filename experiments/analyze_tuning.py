@@ -174,12 +174,23 @@ def plot_optimization_history(rows: list[dict[str, Any]], path: Path) -> None:
     plt.close(figure)
 
 
-def plot_importances(study: optuna.Study, path: Path) -> dict[str, float]:
+def plot_importances(study: optuna.Study, path: Path) -> tuple[dict[str, float], str]:
+    """Rank hyper-parameters by how much of the variation in J they explain.
+
+    fANOVA is used explicitly rather than the library default so that the
+    reported quantity is a documented variance decomposition and stays the same
+    if the Optuna default evaluator changes.
+    """
+    evaluator = optuna.importance.FanovaImportanceEvaluator(
+        seed=0, n_trees=64, max_depth=64
+    )
     try:
-        importances = optuna.importance.get_param_importances(study)
+        importances = optuna.importance.get_param_importances(
+            study, evaluator=evaluator
+        )
     except (ValueError, RuntimeError) as error:  # too few completed trials
         print(f"skipping importances: {error}")
-        return {}
+        return {}, type(evaluator).__name__
     names = list(importances)[::-1]
     values = [importances[name] for name in names]
     figure, axes = plt.subplots(figsize=(7.4, 0.42 * len(names) + 1.6))
@@ -192,7 +203,7 @@ def plot_importances(study: optuna.Study, path: Path) -> dict[str, float]:
     figure.tight_layout()
     figure.savefig(path, dpi=160)
     plt.close(figure)
-    return dict(importances)
+    return dict(importances), type(evaluator).__name__
 
 
 def plot_slices(rows: list[dict[str, Any]], path: Path) -> None:
@@ -351,7 +362,9 @@ def main() -> None:
     write_csv(top, output_dir / "optuna_top_trials.csv")
 
     plot_optimization_history(rows, output_dir / "optuna_history.png")
-    importances = plot_importances(study, output_dir / "optuna_importances.png")
+    importances, importance_evaluator = plot_importances(
+        study, output_dir / "optuna_importances.png"
+    )
     plot_slices(rows, output_dir / "optuna_slices.png")
     plot_capacity_and_tradeoff(
         rows, {row["number"] for row in top}, selected["number"],
@@ -390,6 +403,7 @@ def main() -> None:
             if key != "history"
         },
         "param_importances": importances,
+        "param_importance_evaluator": importance_evaluator,
         "written_config": str(best_path),
         "total_search_seconds": sum(
             row["train_seconds"] or 0.0 for row in rows if row["train_seconds"]
