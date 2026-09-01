@@ -41,6 +41,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--smoke", action="store_true", help="Use a tiny sample and two epochs")
     parser.add_argument("--run-dir", help="Override the configured output directory")
     parser.add_argument("--device", help="Override auto/cpu/cuda/mps device selection")
+    parser.add_argument(
+        "--seed",
+        type=int,
+        help="Override the configured seed, for seed-sensitivity repeats",
+    )
     return parser.parse_args()
 
 
@@ -69,6 +74,8 @@ def main() -> None:
         config["output"]["run_dir"] = args.run_dir
     if args.device:
         config["training"]["device"] = args.device
+    if args.seed is not None:
+        config["project"]["seed"] = args.seed
     run_dir = resolve_run_dir(config)
     run_dir.mkdir(parents=True, exist_ok=True)
 
