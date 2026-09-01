@@ -7,6 +7,10 @@
 # Stage 4  seed repeats of both recipes, so a gain can be separated from luck
 # Stage 5  lambda_PID scan at the selected architecture (validation only)
 # Stage 6  held-out comparison tables and figures
+# Stage 7  refit at the scan-optimal lambda_PID, with seed repeats, and redo the
+#          comparison. The joint search samples lambda together with everything
+#          else and can miss a productive setting that only pays off at the
+#          selected architecture, which is exactly what happened here.
 #
 # The test split is touched only in stages 3, 4 and 6, by train.py's own
 # evaluation. The search and the scan never see it.
@@ -23,6 +27,8 @@ ANALYSIS="runs/optuna_analysis"
 TRIALS_PER_WORKER="${TRIALS_PER_WORKER:-45}"
 SEARCH_TIMEOUT="${SEARCH_TIMEOUT:-12600}"
 REPEAT_SEEDS="${REPEAT_SEEDS:-20260823 20260824}"
+# Set from the stage 5 scan; see runs/optuna_analysis/pid_weight_tuned_architecture.csv
+REFIT_PID_WEIGHT="${REFIT_PID_WEIGHT:-2.0}"
 
 STAGES=("$@")
 stage_wanted() { [ "${#STAGES[@]}" -eq 0 ] || [[ " ${STAGES[*]} " == *" $1 "* ]]; }
@@ -103,6 +109,59 @@ if stage_wanted 6; then
   done
   python experiments/summarize_seed_repeats.py \
     --group "baseline=$baseline_dirs" --group "tuned=$tuned_dirs" \
+    --output-dir "$ANALYSIS" > "$ANALYSIS/seed_repeats.log" 2>&1
+fi
+
+if stage_wanted 7; then
+  echo "== stage 7: refit at lambda_PID=$REFIT_PID_WEIGHT =="
+  python - "$REFIT_PID_WEIGHT" <<'PYEOF'
+import sys
+import yaml
+
+with open("configs/gpu_optuna_best.yaml", "r", encoding="utf-8") as handle:
+    config = yaml.safe_load(handle)
+config["project"]["name"] = "clas12-forward-fm-step1-optuna-best-pidweight"
+config["training"]["pid_loss_weight"] = float(sys.argv[1])
+config["output"]["run_dir"] = "runs/optuna_best_pidweight"
+with open("configs/gpu_optuna_best_pidweight.yaml", "w", encoding="utf-8") as handle:
+    yaml.safe_dump(config, handle, sort_keys=False)
+print("wrote configs/gpu_optuna_best_pidweight.yaml")
+PYEOF
+  mkdir -p runs/optuna_best_pidweight
+  python train.py --config configs/gpu_optuna_best_pidweight.yaml \
+    --run-dir runs/optuna_best_pidweight --device cuda:0 \
+    > runs/optuna_best_pidweight/training.log 2>&1 &
+  first=$!
+  seed_list=($REPEAT_SEEDS)
+  mkdir -p "runs/seed_pidweight_${seed_list[0]}"
+  python train.py --config configs/gpu_optuna_best_pidweight.yaml --seed "${seed_list[0]}" \
+    --run-dir "runs/seed_pidweight_${seed_list[0]}" --device cuda:1 \
+    > "runs/seed_pidweight_${seed_list[0]}/training.log" 2>&1 &
+  second=$!
+  wait $first $second
+  for seed in "${seed_list[@]:1}"; do
+    mkdir -p "runs/seed_pidweight_$seed"
+    python train.py --config configs/gpu_optuna_best_pidweight.yaml --seed "$seed" \
+      --run-dir "runs/seed_pidweight_$seed" --device cuda:0 \
+      > "runs/seed_pidweight_$seed/training.log" 2>&1
+  done
+
+  python experiments/compare_final_models.py \
+    --run "baseline=runs/optuna_baseline_repro" \
+    --run "tuned=runs/optuna_best" \
+    --run "tuned+lambda=runs/optuna_best_pidweight" \
+    --output-dir "$ANALYSIS" > "$ANALYSIS/compare_final_models.log" 2>&1
+  baseline_dirs="runs/optuna_baseline_repro"
+  tuned_dirs="runs/optuna_best"
+  pidweight_dirs="runs/optuna_best_pidweight"
+  for seed in $REPEAT_SEEDS; do
+    baseline_dirs="$baseline_dirs,runs/seed_baseline_$seed"
+    tuned_dirs="$tuned_dirs,runs/seed_tuned_$seed"
+    pidweight_dirs="$pidweight_dirs,runs/seed_pidweight_$seed"
+  done
+  python experiments/summarize_seed_repeats.py \
+    --group "baseline=$baseline_dirs" --group "tuned=$tuned_dirs" \
+    --group "tuned+lambda=$pidweight_dirs" \
     --output-dir "$ANALYSIS" > "$ANALYSIS/seed_repeats.log" 2>&1
 fi
 
