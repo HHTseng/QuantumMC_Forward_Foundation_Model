@@ -954,7 +954,7 @@ closure composite, eight of eight used cosine and seven of eight used a
 
 ## 13. Held-out results of the searched configuration
 
-Both recipes were retrained to completion on the same two RTX 2080 Ti and
+Each recipe was retrained to completion on the same two RTX 2080 Ti and
 evaluated on the untouched 158,985-row test split. The search never saw these
 rows.
 
@@ -978,10 +978,11 @@ different hardware, and the reproduction lies inside the baseline seed spread of
 section 13.3. The two dashes are quantities that the published run predates.
 
 The last column is deliberately *not* the released model. It is the same
-architecture trained with $\lambda_{\mathrm{PID}}=2$, and at this seed it is
-better on every line. Section 13.4 shows that it reaches that solution in only
-two of six seeds and destabilizes outright in one, so it is reported as a lead
-rather than a recipe.
+architecture trained with $\lambda_{\mathrm{PID}}=2$, and at this seed it wins
+on every line except the maximum PID marginal discrepancy, where it is 0.289%
+against the released model's 0.200%. Section 13.4 shows that it reaches that
+solution in only two of six seeds and destabilizes outright in one, so it is
+reported as a lead rather than a recipe.
 
 ![Held-out headline metrics](runs/optuna_analysis/final_headline_metrics.png)
 
