@@ -1,6 +1,6 @@
 """Physics-aware construction of the conditional Forward Detector response view.
 
-For one generated hadron the truth state is
+For one generated particle the truth state is
 
     x = (p_gen, theta_gen, phi_gen, s_gen),
 
@@ -36,7 +36,10 @@ import pandas as pd
 
 CONTINUOUS_FEATURES = ("log1p_gen_p", "gen_theta", "sin_gen_phi", "cos_gen_phi")
 TARGET_COLUMNS = ("delta_p", "delta_theta", "delta_phi")
-SPECIES = (-211, 211, 2212)
+DEFAULT_SPECIES = (-211, 211, 2212)
+# Backward-compatible public alias. New code should use configured_species().
+SPECIES = DEFAULT_SPECIES
+SUPPORTED_SPECIES = (11, -211, 211, 2212)
 REQUIRED_COLUMNS = {
     "source_file_id",
     "event_id",
@@ -52,6 +55,11 @@ REQUIRED_COLUMNS = {
     "rec_detector_region",
     "match_reciprocal",
     "usable_for_hadron_response_training",
+    "has_valid_trigger_electron",
+    "trigger_mcindex",
+    "is_generated_trigger_electron",
+    "reconstructed",
+    "matched_pindex",
     "delta_p",
     "delta_theta",
     "delta_phi",
@@ -100,6 +108,7 @@ class PreparedSplit:
     species_index: np.ndarray
     targets: np.ndarray
     rec_pid_index: np.ndarray
+    pid_loss_mask: np.ndarray
     raw_species: np.ndarray
 
     def __len__(self) -> int:
@@ -125,6 +134,57 @@ def assert_schema(con: duckdb.DuckDBPyConnection) -> list[str]:
     return columns
 
 
+def configured_species(config: dict[str, Any]) -> tuple[int, ...]:
+    """Return the ordered generated-species checkpoint vocabulary.
+
+    The order defines embedding indices and is therefore part of the saved
+    model contract. Existing configurations intentionally remain three-species.
+    """
+    species = tuple(int(pid) for pid in config["data"].get("generated_species", DEFAULT_SPECIES))
+    if not species:
+        raise ValueError("generated_species must not be empty")
+    if len(species) != len(set(species)):
+        raise ValueError("generated_species contains duplicates")
+    unsupported = sorted(set(species).difference(SUPPORTED_SPECIES))
+    if unsupported:
+        raise ValueError(f"unsupported generated species: {unsupported}")
+    return species
+
+
+def _sql_integer_list(values: tuple[int, ...]) -> str:
+    return "(" + ", ".join(str(int(value)) for value in values) + ")"
+
+
+def response_population_sql(config: dict[str, Any]) -> str:
+    """Define the species-specific population before shared FD cuts.
+
+    Hadrons retain the legacy teacher flag exactly. The electron is selected
+    independently because that flag excludes PID 11. Its response is defined
+    only after the generated event electron produced the valid trigger:
+
+        s_gen=11, T=1, trigger_mcindex=mcindex, reconstructed=1.
+
+    This conditional population is intentionally distinct from the all-event
+    denominator used by the trigger-efficiency model.
+    """
+    species = configured_species(config)
+    hadrons = tuple(pid for pid in species if pid in DEFAULT_SPECIES)
+    terms: list[str] = []
+    if hadrons:
+        terms.append(
+            "(gen_pid IN "
+            + _sql_integer_list(hadrons)
+            + " AND usable_for_hadron_response_training)"
+        )
+    if 11 in species:
+        terms.append(
+            "(gen_pid = 11 AND has_valid_trigger_electron "
+            "AND trigger_mcindex = mcindex AND reconstructed "
+            "AND matched_pindex >= 0)"
+        )
+    return "(" + " OR ".join(terms) + ")"
+
+
 def fiducial_sql(config: dict[str, Any]) -> str:
     """Encode the initial reconstructed-FD fiducial phase-space definition.
 
@@ -133,9 +193,9 @@ def fiducial_sql(config: dict[str, Any]) -> str:
         C = FD,  theta_rec < 33 degrees,
         -5.5 cm < z_vertex,gen < -0.5 cm,  T = 1.
 
-    `usable_for_hadron_response_training` supplies the T=1 hadron conditioning.
+    The population expression supplies species-specific T=1 conditioning.
     These are not efficiency cuts: failures are absent from this conditional
-    response sample and belong in the later P(T|x_e) and P(C|x,T) heads.
+    response sample and belong in P(T|x_e) and the future P(C|x,T) head.
     """
     selection = config["data"]["selection"]
     terms = [
@@ -143,8 +203,7 @@ def fiducial_sql(config: dict[str, Any]) -> str:
         f"rec_theta < radians({float(selection['theta_max_deg'])})",
         f"gen_vz > {float(selection['vz_min_cm'])}",
         f"gen_vz < {float(selection['vz_max_cm'])}",
-        "usable_for_hadron_response_training",
-        "gen_pid IN (-211, 211, 2212)",
+        response_population_sql(config),
         "delta_p IS NOT NULL AND delta_theta IS NOT NULL AND delta_phi IS NOT NULL",
         "isfinite(delta_p) AND isfinite(delta_theta) AND isfinite(delta_phi)",
     ]
@@ -269,6 +328,8 @@ def prepare_split(
     feature_scaler: Standardizer,
     target_scaler: Standardizer,
     rec_pid_vocabulary: list[int],
+    species_pids: tuple[int, ...],
+    electron_pid_enabled: bool,
 ) -> PreparedSplit:
     """Encode x, Delta, generated species, and reconstructed PID labels.
 
@@ -279,7 +340,7 @@ def prepare_split(
     so a reconstructed PID different from `gen_pid` is retained as detector
     contamination rather than treated as corrupt data.
     """
-    species_to_index = {pid: index for index, pid in enumerate(SPECIES)}
+    species_to_index = {pid: index for index, pid in enumerate(species_pids)}
     rec_pid_to_index = {pid: index for index, pid in enumerate(rec_pid_vocabulary)}
     unknown_index = len(rec_pid_vocabulary)
     raw_species = frame["gen_pid"].to_numpy(dtype=np.int64)
@@ -289,6 +350,9 @@ def prepare_split(
         [rec_pid_to_index.get(int(pid), unknown_index) for pid in frame["rec_pid"]],
         dtype=np.int64,
     )
+    pid_loss_mask = np.ones(len(frame), dtype=bool)
+    if not electron_pid_enabled:
+        pid_loss_mask[raw_species == 11] = False
     return PreparedSplit(
         name=split,
         event_keys=_event_keys(frame),
@@ -296,6 +360,7 @@ def prepare_split(
         species_index=species_index,
         targets=target_scaler.transform(raw_targets),
         rec_pid_index=rec_pid_index,
+        pid_loss_mask=pid_loss_mask,
         raw_species=raw_species,
     )
 
@@ -313,12 +378,36 @@ def load_all_splits(
     feature_scaler = Standardizer.fit(train_features)
     target_scaler = Standardizer.fit(train_targets)
     rec_pid_vocabulary = discover_rec_pid_vocabulary(frames["train"])
+    species_pids = configured_species(config)
+    electron_rec_pid_classes = int(
+        frames["train"].loc[frames["train"]["gen_pid"] == 11, "rec_pid"].nunique()
+    )
+    configured_electron_pid = config.get("training", {}).get("electron_pid_loss", "auto")
+    if configured_electron_pid not in ("auto", True, False):
+        raise ValueError("training.electron_pid_loss must be 'auto', true, or false")
+    electron_pid_enabled = (
+        electron_rec_pid_classes > 1
+        if configured_electron_pid == "auto"
+        else bool(configured_electron_pid)
+    )
     splits = {
-        name: prepare_split(frame, name, feature_scaler, target_scaler, rec_pid_vocabulary)
+        name: prepare_split(
+            frame,
+            name,
+            feature_scaler,
+            target_scaler,
+            rec_pid_vocabulary,
+            species_pids,
+            electron_pid_enabled,
+        )
         for name, frame in frames.items()
     }
     assert_event_disjoint(splits)
     audit = build_audit(con, frames, columns, config)
+    audit["generated_species"] = list(species_pids)
+    audit["response_population_sql"] = response_population_sql(config)
+    audit["electron_rec_pid_classes_in_train"] = electron_rec_pid_classes
+    audit["electron_pid_loss_enabled"] = electron_pid_enabled
     con.close()
     return splits, feature_scaler, target_scaler, rec_pid_vocabulary, audit
 

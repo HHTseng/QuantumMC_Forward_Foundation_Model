@@ -27,7 +27,7 @@ from .model import ConditionalMDN, sample_standardized_residuals
 from .training import make_loader, run_epoch
 
 
-SPECIES_LABELS = {-211: "pi-", 211: "pi+", 2212: "proton"}
+PDG_LABELS = {11: "electron", -211: "pi-", 211: "pi+", 2212: "proton"}
 DEFAULT_PID_MOMENTUM_EDGES_GEV = np.arange(0.0, 10.0, 1.0)
 
 
@@ -50,7 +50,7 @@ def predict_test_sample(
         else None
     )
     model.eval()
-    for continuous, species_index, _, _ in loader:
+    for continuous, species_index, _, _, _ in loader:
         output = model(continuous.to(device), species_index.to(device))
         sampled = sample_standardized_residuals(output, generator=generator)
         sampled_targets.append(sampled.cpu().numpy())
@@ -89,11 +89,13 @@ def closure_rows(
     split: PreparedSplit,
     target_scaler: Standardizer,
     sampled_targets: np.ndarray,
+    species_pids: tuple[int, ...],
 ) -> list[dict[str, Any]]:
     """Compare bias E[Delta], resolution Std[Delta], quantiles, and W1."""
     observed = target_scaler.inverse(split.targets)
     rows: list[dict[str, Any]] = []
-    for species in sorted(SPECIES_LABELS):
+    labels = {pid: PDG_LABELS.get(pid, str(pid)) for pid in species_pids}
+    for species in species_pids:
         mask = split.raw_species == species
         for target_index, target in enumerate(TARGET_COLUMNS):
             truth = observed[mask, target_index]
@@ -102,7 +104,7 @@ def closure_rows(
             sample_stats = _distribution_stats(sample)
             row: dict[str, Any] = {
                 "species_pid": species,
-                "species": SPECIES_LABELS[species],
+                "species": labels[species],
                 "target": target,
                 "n": int(mask.sum()),
                 "wasserstein_1d": _wasserstein_equal_sample(truth, sample),
@@ -131,6 +133,7 @@ def kinematic_closure_rows(
     feature_scaler: Standardizer,
     target_scaler: Standardizer,
     sampled_targets: np.ndarray,
+    species_pids: tuple[int, ...],
 ) -> list[dict[str, Any]]:
     """Test conditional closure versus p_gen, theta_gen, and phi_gen.
 
@@ -140,7 +143,8 @@ def kinematic_closure_rows(
     observed = target_scaler.inverse(split.targets)
     kinematics = _raw_kinematics(split, feature_scaler)
     rows: list[dict[str, Any]] = []
-    for species in sorted(SPECIES_LABELS):
+    labels = {pid: PDG_LABELS.get(pid, str(pid)) for pid in species_pids}
+    for species in species_pids:
         species_mask = split.raw_species == species
         for variable, values in kinematics.items():
             if variable == "gen_phi":
@@ -162,7 +166,7 @@ def kinematic_closure_rows(
                     rows.append(
                         {
                             "species_pid": species,
-                            "species": SPECIES_LABELS[species],
+                            "species": labels[species],
                             "conditioning_variable": variable,
                             "bin_index": bin_index,
                             "bin_low": float(low),
@@ -186,6 +190,7 @@ def joint_and_physical_metrics(
     feature_scaler: Standardizer,
     target_scaler: Standardizer,
     sampled_targets: np.ndarray,
+    species_pids: tuple[int, ...],
 ) -> dict[str, Any]:
     """Check residual correlations and reconstruct physical sampled kinematics.
 
@@ -200,11 +205,12 @@ def joint_and_physical_metrics(
     observed = target_scaler.inverse(split.targets)
     kinematics = _raw_kinematics(split, feature_scaler)
     correlations: dict[str, Any] = {}
-    for species in sorted(SPECIES_LABELS):
+    labels = {pid: PDG_LABELS.get(pid, str(pid)) for pid in species_pids}
+    for species in species_pids:
         mask = split.raw_species == species
         observed_correlation = np.corrcoef(observed[mask].T)
         sampled_correlation = np.corrcoef(sampled_targets[mask].T)
-        correlations[SPECIES_LABELS[species]] = {
+        correlations[labels[species]] = {
             "observed": observed_correlation.tolist(),
             "sampled": sampled_correlation.tolist(),
             "frobenius_difference": float(
@@ -327,7 +333,7 @@ def conditional_pid_response_rows(
                 response_rows.append(
                     {
                         "generated_pid": species,
-                        "generated_species": SPECIES_LABELS.get(species, str(species)),
+                        "generated_species": PDG_LABELS.get(species, str(species)),
                         "bin_index": bin_index,
                         "p_low_gev": float(low),
                         "p_high_gev": float(high),
@@ -348,7 +354,7 @@ def conditional_pid_response_rows(
             summary_rows.append(
                 {
                     "generated_pid": species,
-                    "generated_species": SPECIES_LABELS.get(species, str(species)),
+                    "generated_species": PDG_LABELS.get(species, str(species)),
                     "bin_index": bin_index,
                     "p_low_gev": float(low),
                     "p_high_gev": float(high),
@@ -381,7 +387,7 @@ def integrated_correct_pid_response(
         rows.append(
             {
                 "generated_pid": species,
-                "generated_species": SPECIES_LABELS.get(species, str(species)),
+                "generated_species": PDG_LABELS.get(species, str(species)),
                 "n": int(mask.sum()),
                 "coatjava_correct_fraction": float(
                     np.mean(observed_pid_index[mask] == class_index)
@@ -396,7 +402,7 @@ def integrated_correct_pid_response(
 
 def write_rows_csv(rows: list[dict[str, Any]], path: Path) -> None:
     with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0]), lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
 
@@ -427,11 +433,16 @@ def plot_closure(
     split: PreparedSplit,
     target_scaler: Standardizer,
     sampled_targets: np.ndarray,
+    species_pids: tuple[int, ...],
     path: Path,
 ) -> None:
     observed = target_scaler.inverse(split.targets)
-    figure, axes = plt.subplots(3, 3, figsize=(13, 10))
-    for row_index, species in enumerate(sorted(SPECIES_LABELS)):
+    labels = {pid: PDG_LABELS.get(pid, str(pid)) for pid in species_pids}
+    figure, axes = plt.subplots(
+        len(species_pids), len(TARGET_COLUMNS),
+        figsize=(13, 3.2 * len(species_pids)), squeeze=False
+    )
+    for row_index, species in enumerate(species_pids):
         mask = split.raw_species == species
         for column_index, target in enumerate(TARGET_COLUMNS):
             axis = axes[row_index, column_index]
@@ -450,7 +461,7 @@ def plot_closure(
                 histtype="step",
                 label="MDN sample",
             )
-            axis.set_title(f"{SPECIES_LABELS[species]}: {target}")
+            axis.set_title(f"{labels[species]}: {target}")
             if row_index == 0 and column_index == 0:
                 axis.legend()
     figure.tight_layout()
@@ -461,10 +472,15 @@ def plot_closure(
 def plot_conditional_correct_pid_response(
     response_rows: list[dict[str, Any]],
     path: Path,
+    species_pids: tuple[int, ...],
 ) -> None:
     """Plot the diagonal response P(s_rec=s_gen | s_gen,p_gen)."""
-    figure, axes = plt.subplots(1, len(SPECIES_LABELS), figsize=(15, 4.5), sharey=True)
-    for axis, species in zip(axes, sorted(SPECIES_LABELS)):
+    labels = {pid: PDG_LABELS.get(pid, str(pid)) for pid in species_pids}
+    figure, axes = plt.subplots(
+        1, len(species_pids), figsize=(4.7 * len(species_pids), 4.5),
+        sharey=True, squeeze=False
+    )
+    for axis, species in zip(axes[0], species_pids):
         rows = [
             row
             for row in response_rows
@@ -492,12 +508,12 @@ def plot_conditional_correct_pid_response(
             )
         axis.set(
             xlabel=r"generated momentum $p_{\rm gen}$ [GeV]",
-            title=f"generated {SPECIES_LABELS[species]}",
+            title=f"generated {labels[species]}",
             ylim=(-0.03, 1.03),
         )
         axis.grid(alpha=0.25)
-    axes[0].set_ylabel(r"$P(s_{\rm rec}=s_{\rm gen}\mid s_{\rm gen},p_{\rm gen})$")
-    axes[0].legend(fontsize=8)
+    axes[0, 0].set_ylabel(r"$P(s_{\rm rec}=s_{\rm gen}\mid s_{\rm gen},p_{\rm gen})$")
+    axes[0, 0].legend(fontsize=8)
     figure.suptitle("Conditional correct-PID response closure (fixed 1-GeV bins)")
     figure.tight_layout()
     figure.savefig(path, dpi=180)
@@ -514,6 +530,7 @@ def evaluate_and_write(
     config: dict[str, Any],
     device: torch.device,
     run_dir: Path,
+    species_pids: tuple[int, ...],
 ) -> dict[str, Any]:
     training = config["training"]
     seed = int(config["project"]["seed"])
@@ -538,9 +555,11 @@ def evaluate_and_write(
         int(training["batch_size"]),
         seed,
     )
-    rows = closure_rows(splits["test"], target_scaler, sampled_targets)
+    rows = closure_rows(
+        splits["test"], target_scaler, sampled_targets, species_pids
+    )
     kinematic_rows = kinematic_closure_rows(
-        splits["test"], feature_scaler, target_scaler, sampled_targets
+        splits["test"], feature_scaler, target_scaler, sampled_targets, species_pids
     )
     pid = pid_metrics(splits["test"], sampled_pid, pid_probabilities, rec_pid_vocabulary)
     pid_labels: list[int | str] = [*rec_pid_vocabulary, "OTHER"]
@@ -569,21 +588,21 @@ def evaluate_and_write(
         generated_momentum <= momentum_edges[-1]
     )
     pid_momentum_coverage = []
-    for species in sorted(SPECIES_LABELS):
+    for species in species_pids:
         species_mask = splits["test"].raw_species == species
         total = int(species_mask.sum())
         inside = int((species_mask & inside_pid_momentum_range).sum())
         pid_momentum_coverage.append(
             {
                 "generated_pid": species,
-                "generated_species": SPECIES_LABELS[species],
+                "generated_species": PDG_LABELS.get(species, str(species)),
                 "test_rows": total,
                 "rows_inside_configured_range": inside,
                 "coverage_fraction": inside / total,
             }
         )
     joint_and_physical = joint_and_physical_metrics(
-        splits["test"], feature_scaler, target_scaler, sampled_targets
+        splits["test"], feature_scaler, target_scaler, sampled_targets, species_pids
     )
     write_rows_csv(rows, run_dir / "closure_metrics.csv")
     write_rows_csv(kinematic_rows, run_dir / "kinematic_closure_metrics.csv")
@@ -591,9 +610,13 @@ def evaluate_and_write(
     write_rows_csv(conditional_pid_summary, run_dir / "pid_bin_closure_summary.csv")
     write_rows_csv(integrated_correct_pid, run_dir / "pid_integrated_correct_id.csv")
     plot_history(history, run_dir / "training_history.png")
-    plot_closure(splits["test"], target_scaler, sampled_targets, run_dir / "residual_closure.png")
+    plot_closure(
+        splits["test"], target_scaler, sampled_targets,
+        species_pids, run_dir / "residual_closure.png"
+    )
     plot_conditional_correct_pid_response(
-        conditional_pid_rows, run_dir / "pid_correct_response_vs_gen_p.png"
+        conditional_pid_rows, run_dir / "pid_correct_response_vs_gen_p.png",
+        species_pids,
     )
     metrics = {
         "test": test_metrics.as_dict(),

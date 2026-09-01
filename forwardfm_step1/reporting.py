@@ -43,11 +43,11 @@ def write_model_card(
 ## Intended use
 
 This checkpoint samples raw Forward Detector residuals `(delta_p, delta_theta,
-delta_phi)` and reconstructed PID for a hadron that is already known to be in
+delta_phi)` and reconstructed PID for a particle that is already known to be in
 the selected, triggered, FD-reconstructed population. It is a seed component,
 not yet a complete detector surrogate.
 
-It must not be used to estimate the electron trigger probability or hadron
+It must not be used to estimate the electron trigger probability or particle
 reconstruction efficiency: the supplied FD-cuts view conditions those failures
 away.
 
@@ -68,7 +68,7 @@ Selected population before deterministic training subsampling:
 ## Model
 
 - Conditional diagonal Gaussian mixture-density network with a shared particle backbone
-- Shared across generated pi-, pi+, and proton via a learned species embedding
+- Shared across configured generated PIDs {audit['generated_species']} via a learned species embedding
 - Periodic generated phi encoded as sine/cosine
 - Joint reconstructed-PID categorical head
 - Trainable parameters: {parameter_count:,}
@@ -97,7 +97,7 @@ are saved in `pid_response_fixed_bins.csv`.
 
 - This is a classical baseline trained on a deterministic subset, not the final foundation model.
 - It models raw residuals because versioned energy-loss/swum-back-phi corrected columns were not delivered.
-- It does not model trigger, unreconstructed/FD/CD outcome probabilities, electron response, event correlations, run-condition variation, or CD residuals.
+- It does not model trigger or general unreconstructed/FD/CD outcome probabilities, event correlations, run-condition variation, or CD residuals.
 - Gaussian components are diagonal; mixture membership captures some joint dependence, but a flow/full-covariance model may improve correlations and tails.
 - The `|delta_p| <= 10 GeV` policy removes a tiny pathological population and needs a documented ablation before a physics release.
 - Release tolerances for closure have not yet been approved by the analysis group. These metrics are diagnostics, not a physics sign-off.

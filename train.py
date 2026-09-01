@@ -6,8 +6,9 @@ In the planned full detector surrogate this is the final conditional factor:
     P(Y|X) = P(T|x_e) prod_i P(C_i|x_i,T)
              P(Delta_i,s_rec,i|x_i,T,C_i).
 
-This executable trains the last term for hadrons with C_i=FD. The earlier
-trigger and reconstruction-region factors intentionally remain future heads.
+This executable trains the last term for configured particles with C_i=FD.
+The trigger factor is trained separately by train_electron_efficiency.py; the
+general reconstruction-region factor remains future work.
 """
 from __future__ import annotations
 
@@ -24,7 +25,12 @@ import torch
 import yaml
 
 from forwardfm_step1.config import apply_smoke_overrides, load_config, resolve_run_dir
-from forwardfm_step1.data import CONTINUOUS_FEATURES, SPECIES, TARGET_COLUMNS, load_all_splits
+from forwardfm_step1.data import (
+    CONTINUOUS_FEATURES,
+    TARGET_COLUMNS,
+    configured_species,
+    load_all_splits,
+)
 from forwardfm_step1.evaluation import evaluate_and_write
 from forwardfm_step1.model import ConditionalMDN, count_parameters
 from forwardfm_step1.reporting import write_history, write_json, write_model_card
@@ -80,6 +86,7 @@ def main() -> None:
     print("loading deterministic, event-disjoint data splits...")
     start = time.perf_counter()
     splits, feature_scaler, target_scaler, rec_pid_vocabulary, audit = load_all_splits(config)
+    species_pids = configured_species(config)
     print(
         "loaded "
         + ", ".join(f"{name}={len(split):,}" for name, split in splits.items())
@@ -89,7 +96,7 @@ def main() -> None:
     model_config = config["model"]
     model = ConditionalMDN(
         n_continuous=len(CONTINUOUS_FEATURES),
-        n_species=len(SPECIES),
+        n_species=len(species_pids),
         n_rec_pid_classes=len(rec_pid_vocabulary) + 1,
         hidden_width=int(model_config["hidden_width"]),
         hidden_layers=int(model_config["hidden_layers"]),
@@ -107,7 +114,7 @@ def main() -> None:
         "architecture": model.architecture_dict(),
         "feature_names": list(CONTINUOUS_FEATURES),
         "target_names": list(TARGET_COLUMNS),
-        "species_pids": list(SPECIES),
+        "species_pids": list(species_pids),
         "rec_pid_vocabulary": rec_pid_vocabulary,
         "feature_scaler": feature_scaler.as_dict(),
         "target_scaler": target_scaler.as_dict(),
@@ -133,6 +140,7 @@ def main() -> None:
         config,
         device,
         run_dir,
+        species_pids,
     )
     write_model_card(
         run_dir / "MODEL_CARD.md",

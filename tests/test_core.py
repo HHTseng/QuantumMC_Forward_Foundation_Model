@@ -32,6 +32,7 @@ class SplitTests(unittest.TestCase):
             species_index=np.zeros(n, dtype=np.int64),
             targets=np.zeros((n, 3), dtype=np.float32),
             rec_pid_index=np.zeros(n, dtype=np.int64),
+            pid_loss_mask=np.ones(n, dtype=bool),
             raw_species=np.full(n, 211, dtype=np.int64),
         )
 

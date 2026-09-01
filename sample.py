@@ -23,7 +23,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from forwardfm_step1.data import SPECIES, Standardizer
+from forwardfm_step1.data import Standardizer
 from forwardfm_step1.model import ConditionalMDN, sample_standardized_residuals
 from forwardfm_step1.training import choose_device, seed_everything
 
@@ -71,10 +71,14 @@ def main() -> None:
     model.to(device).eval()
 
     frame = pd.read_csv(args.input)
-    species_to_index = {pid: index for index, pid in enumerate(checkpoint["species_pids"])}
+    species_pids = tuple(int(pid) for pid in checkpoint["species_pids"])
+    species_to_index = {pid: index for index, pid in enumerate(species_pids)}
     unsupported = sorted(set(int(pid) for pid in frame.gen_pid).difference(species_to_index))
     if unsupported:
-        raise ValueError(f"Unsupported generated PIDs: {unsupported}; supported={list(SPECIES)}")
+        raise ValueError(
+            f"Unsupported generated PIDs: {unsupported}; "
+            f"checkpoint supports={species_pids}"
+        )
     species_index = np.asarray([species_to_index[int(pid)] for pid in frame.gen_pid], dtype=np.int64)
     feature_scaler = Standardizer.from_dict(checkpoint["feature_scaler"])
     target_scaler = Standardizer.from_dict(checkpoint["target_scaler"])
