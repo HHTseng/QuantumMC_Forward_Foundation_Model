@@ -24,7 +24,13 @@ import torch
 import yaml
 
 from forwardfm_step1.config import apply_smoke_overrides, load_config, resolve_run_dir
-from forwardfm_step1.data import CONTINUOUS_FEATURES, SPECIES, load_all_splits
+from forwardfm_step1.data import (
+    CONTINUOUS_FEATURES,
+    SPECIES,
+    data_order_seed,
+    data_split_seed,
+    load_all_splits,
+)
 from forwardfm_step1.evaluation import evaluate_and_write
 from forwardfm_step1.model import ConditionalMDN, count_parameters
 from forwardfm_step1.reporting import write_history, write_json, write_model_card
@@ -99,6 +105,16 @@ def main() -> None:
         target_dim=len(target_names),
         dropout=float(model_config["dropout"]),
     )
+    paired_initialization = bool(
+        model_config.get("deterministic_component_initialization", False)
+    )
+    if paired_initialization:
+        model.reset_parameters(seed=seed)
+        # Constructing a wider response head consumes more values from
+        # PyTorch's global RNG.  Restore the model/training seed so paired
+        # no-beta and joint-beta runs receive the same dropout stream; the
+        # DataLoader already uses its own identically seeded generator.
+        seed_everything(seed)
     print(f"trainable_parameters={count_parameters(model):,}")
     model, history, best_epoch = train_model(model, splits, config, device)
 
@@ -116,6 +132,13 @@ def main() -> None:
         "selection_sql": audit["selection_sql"],
         "dataset_metadata_sha256": audit["dataset_metadata_sha256"],
         "seed": seed,
+        "data_split_seed": data_split_seed(config),
+        "data_order_seed": data_order_seed(config),
+        "initialization_policy": (
+            "deterministic_component_streams_and_training_rng_reset"
+            if paired_initialization
+            else "legacy_global_stream"
+        ),
         "best_epoch": best_epoch,
     }
     torch.save(checkpoint, run_dir / "model.pt")

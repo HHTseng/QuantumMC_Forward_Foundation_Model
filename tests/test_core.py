@@ -13,9 +13,12 @@ from forwardfm_step1.data import (
     Standardizer,
     _target_matrix,
     assert_event_disjoint,
+    data_order_seed,
+    data_split_seed,
     generated_beta,
     response_target_names,
     selection_sql,
+    split_predicate,
 )
 from forwardfm_step1.evaluation import (
     beta_closure_rows,
@@ -94,6 +97,33 @@ class BetaTargetTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             generated_beta(np.asarray([1.0]), np.asarray([321]))
 
+    def test_beta_validity_selection_can_be_used_without_beta_target(self) -> None:
+        config = {
+            "project": {"seed": 99},
+            "data": {
+                "selection": {
+                    "theta_max_deg": 33.0,
+                    "vz_min_cm": -5.5,
+                    "vz_max_cm": -0.5,
+                    "require_reciprocal_match": True,
+                    "reject_rec_pid_zero": True,
+                    "reject_beta_sentinel": True,
+                    "max_abs_delta_p_gev": 10.0,
+                },
+                "beta_response": {
+                    "enabled": False,
+                    "apply_validity_selection": True,
+                    "rec_beta_min_exclusive": 0.0,
+                    "rec_beta_max_inclusive": 1.2,
+                },
+            },
+        }
+        self.assertEqual(response_target_names(config), BASE_TARGET_COLUMNS)
+        selected = selection_sql(config)
+        self.assertIn("isfinite(rec_beta)", selected)
+        self.assertIn("rec_beta > 0.0", selected)
+        self.assertIn("rec_beta <= 1.2", selected)
+
 
 class SplitTests(unittest.TestCase):
     @staticmethod
@@ -127,6 +157,21 @@ class SplitTests(unittest.TestCase):
                     "test": self.split("test", ["1:3"]),
                 }
             )
+
+    def test_explicit_data_seeds_are_independent_of_model_seed(self) -> None:
+        config = {
+            "project": {"seed": 101},
+            "data": {
+                "split_modulus": 10000,
+                "train_boundary": 8000,
+                "validation_boundary": 9000,
+                "split_seed": 17,
+                "order_seed": 23,
+            },
+        }
+        self.assertEqual(data_split_seed(config), 17)
+        self.assertEqual(data_order_seed(config), 23)
+        self.assertIn("event_id, 17", split_predicate("test", config))
 
 
 class ModelTests(unittest.TestCase):
@@ -173,6 +218,35 @@ class ModelTests(unittest.TestCase):
         self.assertEqual(tuple(output.means.shape), (7, 3, 4))
         sample = sample_standardized_residuals(output)
         self.assertEqual(tuple(sample.shape), (7, 4))
+
+    def test_seeded_reset_pairs_shared_and_pid_parameters_across_target_dims(self) -> None:
+        arguments = {
+            "n_continuous": 4,
+            "n_species": 3,
+            "n_rec_pid_classes": 6,
+            "hidden_width": 12,
+            "hidden_layers": 2,
+            "pid_embedding_dim": 4,
+            "mixture_components": 3,
+            "dropout": 0.0,
+        }
+        control = ConditionalMDN(**arguments, target_dim=3)
+        treatment = ConditionalMDN(**arguments, target_dim=4)
+        control.reset_parameters(seed=31415)
+        treatment.reset_parameters(seed=31415)
+        control_state = control.state_dict()
+        treatment_state = treatment.state_dict()
+        paired_names = [
+            name
+            for name in control_state
+            if name.startswith("species_embedding")
+            or name.startswith("backbone")
+            or name.startswith("mixture_head")
+            or name.startswith("pid_head")
+        ]
+        self.assertTrue(paired_names)
+        for name in paired_names:
+            torch.testing.assert_close(control_state[name], treatment_state[name])
 
 
 class ConditionalPIDClosureTests(unittest.TestCase):

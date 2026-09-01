@@ -64,6 +64,37 @@ REQUIRED_COLUMNS = {
 }
 
 
+def data_split_seed(config: dict[str, Any]) -> int:
+    """Return the event-partition seed, independent of model randomness.
+
+    Existing configurations remain backward compatible: when ``split_seed``
+    is absent, the project seed still determines the split.  Controlled
+    multi-seed experiments set this field explicitly so every trained model is
+    evaluated on exactly the same physical events.
+    """
+    return int(config["data"].get("split_seed", config["project"]["seed"]))
+
+
+def data_order_seed(config: dict[str, Any]) -> int:
+    """Return the deterministic query-order/subsampling seed."""
+    return int(config["data"].get("order_seed", data_split_seed(config)))
+
+
+def beta_validity_selection_enabled(config: dict[str, Any]) -> bool:
+    """Whether the explicit reconstructed-beta validity domain selects rows.
+
+    ``enabled`` continues to control whether delta-beta is a response target.
+    The separate selection flag permits a three-target control model to use
+    exactly the same teacher particles as the four-target beta model.
+    """
+    beta_config = config["data"].get("beta_response", {})
+    return bool(
+        beta_config.get(
+            "apply_validity_selection", beta_config.get("enabled", False)
+        )
+    )
+
+
 @dataclass(frozen=True)
 class Standardizer:
     """Training-only affine coordinates z_j=(x_j-mu_j)/sigma_j.
@@ -175,7 +206,7 @@ def selection_sql(config: dict[str, Any]) -> str:
     if selection["reject_beta_sentinel"]:
         terms.append("rec_beta > -99")
     beta_config = config["data"].get("beta_response", {})
-    if beta_config.get("enabled", False):
+    if beta_validity_selection_enabled(config):
         beta_min = float(beta_config["rec_beta_min_exclusive"])
         beta_max = float(beta_config["rec_beta_max_inclusive"])
         if beta_min >= beta_max:
@@ -204,7 +235,7 @@ def split_predicate(split: str, config: dict[str, Any]) -> str:
     modulus = int(data["split_modulus"])
     train_boundary = int(data["train_boundary"])
     validation_boundary = int(data["validation_boundary"])
-    seed = int(config["project"]["seed"])
+    seed = data_split_seed(config)
     bucket = f"hash(source_file_id, event_id, {seed}) % {modulus}"
     if split == "train":
         return f"{bucket} < {train_boundary}"
@@ -222,7 +253,7 @@ def _load_frame(
 ) -> pd.DataFrame:
     configured_limit = config["data"]["max_rows_per_species"][split]
     limit = int(configured_limit) if configured_limit is not None else None
-    seed = int(config["project"]["seed"])
+    seed = data_order_seed(config)
     # `null` means no development subsampling: retain the complete physical
     # population in this event partition. Keeping this separate from a very
     # large Top-N also avoids DuckDB's finite arg_min/arg_max N limit.
@@ -457,12 +488,16 @@ def build_audit(
 
     target_names = response_target_names(config)
     beta_config = config["data"].get("beta_response", {})
-    beta_response_audit: dict[str, Any] = {"enabled": bool(beta_config.get("enabled", False))}
-    if beta_response_audit["enabled"]:
+    beta_response_audit: dict[str, Any] = {
+        "enabled": bool(beta_config.get("enabled", False)),
+        "validity_selection_enabled": beta_validity_selection_enabled(config),
+    }
+    if beta_response_audit["validity_selection_enabled"]:
         beta_min = float(beta_config["rec_beta_min_exclusive"])
         beta_max = float(beta_config["rec_beta_max_inclusive"])
         pre_beta_config = deepcopy(config)
         pre_beta_config["data"]["beta_response"]["enabled"] = False
+        pre_beta_config["data"]["beta_response"]["apply_validity_selection"] = False
         pre_beta_selection = selection_sql(pre_beta_config)
         beta_cutflow = con.execute(
             f"""
@@ -482,7 +517,9 @@ def build_audit(
         ).fetch_df()
         beta_response_audit.update(
             {
-                "target": BETA_TARGET_COLUMN,
+                "target": (
+                    BETA_TARGET_COLUMN if beta_response_audit["enabled"] else None
+                ),
                 "definition": "rec_beta - gen_p/sqrt(gen_p^2 + generated_species_mass^2)",
                 "rec_beta_min_exclusive": beta_min,
                 "rec_beta_max_inclusive": beta_max,
@@ -519,6 +556,9 @@ def build_audit(
         "quality_cutflow": quality_cutflow.to_dict(orient="records"),
         "sampled_counts": sampled_counts,
         "target_names": list(target_names),
+        "model_seed": int(config["project"]["seed"]),
+        "data_split_seed": data_split_seed(config),
+        "data_order_seed": data_order_seed(config),
         "beta_response": beta_response_audit,
         "duplicate_composite_particle_keys": int(duplicate_rows),
         "delta_phi_range_violation_count": int(phi_violation_count),

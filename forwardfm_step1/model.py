@@ -78,10 +78,25 @@ class ConditionalMDN(nn.Module):
         self.pid_head = nn.Linear(hidden_width, n_rec_pid_classes)
         self.reset_parameters()
 
-    def reset_parameters(self) -> None:
-        for module in self.modules():
+    def reset_parameters(self, seed: int | None = None) -> None:
+        """Initialize parameters, optionally with component-paired generators.
+
+        A seeded reset gives every module its own deterministic random stream.
+        Models whose response heads have different output dimensions therefore
+        still start with identical species embeddings, shared-backbone weights,
+        mixture weights, and PID-head weights.  This is useful for a paired
+        auxiliary-target ablation; the default preserves the original policy.
+        """
+        for module_index, module in enumerate(self.modules()):
+            generator = None
+            if seed is not None:
+                generator = torch.Generator(device="cpu").manual_seed(
+                    int(seed) + 1009 * module_index
+                )
+            if isinstance(module, nn.Embedding) and seed is not None:
+                nn.init.normal_(module.weight, generator=generator)
             if isinstance(module, nn.Linear):
-                nn.init.xavier_uniform_(module.weight)
+                nn.init.xavier_uniform_(module.weight, generator=generator)
                 nn.init.zeros_(module.bias)
         # Start near unit variance in standardized target space.
         nn.init.constant_(self.log_scale_head.bias, 0.0)

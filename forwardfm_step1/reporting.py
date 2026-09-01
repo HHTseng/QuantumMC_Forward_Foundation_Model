@@ -41,14 +41,21 @@ def write_model_card(
     target_names = tuple(audit.get("target_names", ("delta_p", "delta_theta", "delta_phi")))
     target_text = ", ".join(target_names)
     beta_enabled = bool(audit.get("beta_response", {}).get("enabled", False))
+    beta_selection_enabled = bool(
+        audit.get("beta_response", {}).get(
+            "validity_selection_enabled", beta_enabled
+        )
+    )
     beta_quality = ""
     beta_metrics = ""
-    if beta_enabled:
+    if beta_selection_enabled:
         beta_audit = audit["beta_response"]
         beta_quality = (
             f"; beta-response domain `{beta_audit['rec_beta_min_exclusive']} < rec_beta "
             f"<= {beta_audit['rec_beta_max_inclusive']}` (no clipping)"
         )
+    if beta_enabled:
+        beta_audit = audit["beta_response"]
         beta_rows = metrics["beta_closure"]["overall_by_generated_species"]
         beta_summary = "\n".join(
             f"- {row['generated_species']}: W1={row['wasserstein_1d']:.5g}, "
