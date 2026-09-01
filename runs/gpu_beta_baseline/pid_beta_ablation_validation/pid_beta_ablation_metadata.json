@@ -1,0 +1,55 @@
+{
+  "definition": "Both direct PID heads are evaluated on the beta baseline's exact held-out rows; teacher responses are empirical fractions and model responses are mean softmax probabilities.",
+  "test_rows": 158482,
+  "split": "event-disjoint beta-valid held-out test",
+  "bin_edges_gev": [
+    0.0,
+    1.0,
+    2.0,
+    3.0,
+    4.0,
+    5.0,
+    6.0,
+    7.0,
+    8.0,
+    9.0
+  ],
+  "generated_species": [
+    -211,
+    211,
+    2212
+  ],
+  "reconstructed_pid_classes": [
+    -2212,
+    -321,
+    -211,
+    -11,
+    11,
+    22,
+    45,
+    211,
+    321,
+    2112,
+    2212,
+    "OTHER"
+  ],
+  "dataset_metadata_sha256": "6a7245cb0ec4125610b9dcd8c1635d70a7773eeb2b29d146dd80d5f149eb43ab",
+  "loaded_dataset_metadata_sha256": "6a7245cb0ec4125610b9dcd8c1635d70a7773eeb2b29d146dd80d5f149eb43ab",
+  "device": "cuda:0",
+  "original_checkpoint": {
+    "path": "runs/tara_gpu_full/model.pt",
+    "sha256": "22dde8fe78c5bec337e5014be46e4c8037673015bc88d4fbe812c05bebcffe11",
+    "best_epoch": 16,
+    "target_dim": 3,
+    "selection_sql": "rec_detector_region = 'FD'\n      AND rec_theta < radians(33.0)\n      AND gen_vz > -5.5\n      AND gen_vz < -0.5\n      AND usable_for_hadron_response_training\n      AND gen_pid IN (-211, 211, 2212)\n      AND delta_p IS NOT NULL AND delta_theta IS NOT NULL AND delta_phi IS NOT NULL\n      AND isfinite(delta_p) AND isfinite(delta_theta) AND isfinite(delta_phi)\n      AND match_reciprocal\n      AND rec_pid <> 0\n      AND rec_beta > -99\n      AND abs(delta_p) <= 10.0"
+  },
+  "beta_checkpoint": {
+    "path": "runs/gpu_beta_baseline/model.pt",
+    "sha256": "31e2c65ac417081123c87edf3fc7d874e618739b8b7cdd061c2ef3f92a102078",
+    "best_epoch": 14,
+    "target_dim": 4,
+    "selection_sql": "rec_detector_region = 'FD'\n      AND rec_theta < radians(33.0)\n      AND gen_vz > -5.5\n      AND gen_vz < -0.5\n      AND usable_for_hadron_response_training\n      AND gen_pid IN (-211, 211, 2212)\n      AND delta_p IS NOT NULL AND delta_theta IS NOT NULL AND delta_phi IS NOT NULL\n      AND isfinite(delta_p) AND isfinite(delta_theta) AND isfinite(delta_phi)\n      AND match_reciprocal\n      AND rec_pid <> 0\n      AND rec_beta > -99\n      AND isfinite(rec_beta)\n      AND rec_beta > 0.0\n      AND rec_beta <= 1.2\n      AND abs(delta_p) <= 10.0"
+  },
+  "causal_attribution": false,
+  "caveat": "Same-test comparison only. Training selections, continuous target dimensions, and selected early-stopping epochs differ."
+}

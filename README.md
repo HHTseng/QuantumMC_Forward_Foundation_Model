@@ -825,21 +825,66 @@ selected epoch 14 on 158,482 held-out particles. Checkpoint SHA-256:
 
 ![Observed and sampled beta versus reconstructed momentum](runs/gpu_beta_baseline/beta_vs_reconstructed_p.png)
 
-On the exact same beta-valid test rows, the original model's worst fixed-bin
-PID total-variation distance is 0.466220; the beta multitask model's worst bin
-is 0.121610. Integrated correct-class responses are:
+### Direct PID closure with and without the beta target
 
-| Generated species | COATJAVA | Original FM | Beta FM |
-|---|---:|---:|---:|
-| $\pi^-$ | 0.549971 | 0.546963 | 0.550227 |
-| $\pi^+$ | 0.590640 | 0.406701 | 0.582493 |
-| proton | 0.814299 | 0.577392 | 0.813916 |
+The two published checkpoints were evaluated on the exact same 158,482
+beta-valid held-out particles and Dr. Joo's fixed 1-GeV momentum bins. For each
+generated species $s$, reconstructed class $r$, and momentum bin $b$, the
+teacher is the empirical COATJAVA fraction and the model response is the mean
+direct PID-head softmax probability:
 
-![Conditional correct-PID closure for the beta multitask checkpoint](runs/gpu_beta_baseline/pid_correct_response_vs_gen_p.png)
+$$
+P_{\mathrm{CJ}}(r\mid s,b)=\frac{N(s,b,r)}{N(s,b)},
+\qquad
+P_{\mathrm{FM}}(r\mid s,b)=
+\frac{1}{N(s,b)}\sum_{i\in(s,b)}q_\theta(r\mid x_i).
+$$
 
-This improvement is evidence from one seeded multitask baseline, not proof of
-causation. A repeat-seed study and a three-target same-selection ablation are
-needed. The complete interpretation and artifact inventory are in
+This is a distributional closure test, not top-1 classification accuracy.
+
+| Generated species | COATJAVA correct | No-beta FM | Joint-$\Delta\beta$ FM | No-beta abs. error | Joint-$\Delta\beta$ abs. error |
+|---|---:|---:|---:|---:|---:|
+| $\pi^-$ | 0.549971 | 0.546963 | 0.550227 | 0.003007 | 0.000257 |
+| $\pi^+$ | 0.590640 | 0.406701 | 0.582493 | 0.183939 | 0.008147 |
+| proton | 0.814299 | 0.577392 | 0.813916 | 0.236907 | 0.000383 |
+
+The first figure extends the reproduced correct-ID plot, and the second extends
+Dr. Joo's composite plot with correct-ID, momentum-integrated response, key
+migration channels, low-momentum matrices, and total-variation closure.
+
+![Correct-ID PID closure with and without joint beta prediction](runs/gpu_beta_baseline/pid_beta_ablation_validation/pid_correct_id_with_without_beta.png)
+
+![Composite PID closure with and without joint beta prediction](runs/gpu_beta_baseline/pid_beta_ablation_validation/pid_composite_with_without_beta.png)
+
+The full reconstructed-class distribution uses
+
+$$
+\operatorname{TV}(s,b)=\frac{1}{2}\sum_r
+\left|P_{\mathrm{FM}}(r\mid s,b)-P_{\mathrm{CJ}}(r\mid s,b)\right|.
+$$
+
+| Generated species | No-beta weighted mean TV | Joint-$\Delta\beta$ weighted mean TV | No-beta maximum TV | Joint-$\Delta\beta$ maximum TV |
+|---|---:|---:|---:|---:|
+| $\pi^-$ | 0.039209 | 0.042680 | 0.078814 (8--9 GeV) | 0.121610 (0--1 GeV) |
+| $\pi^+$ | 0.248669 | 0.047245 | 0.466220 (0--1 GeV) | 0.075327 (8--9 GeV) |
+| proton | 0.257262 | 0.027650 | 0.291261 (0--1 GeV) | 0.054570 (6--7 GeV) |
+
+On this common test population, joint-$\Delta\beta$ training is associated with
+a large improvement for generated $\pi^+$ and protons, including much smaller
+low-momentum $\pi^+\leftrightarrow p$ migration errors. The result is not
+uniform: generated $\pi^-$ has a slightly worse particle-weighted fixed-bin TV,
+driven by the 0--1 GeV bin.
+
+This is a same-test comparison, not a pure auxiliary-task ablation. The no-beta
+checkpoint was trained with the older `rec_beta > -99` selection and three
+continuous targets, whereas the joint-$\Delta\beta$ checkpoint used
+$0<\beta_{\mathrm{rec}}\leq1.2$ and four targets; the selected early-stopping
+epochs also differ. A same-selection no-beta retraining and multiple seeds are
+required before attributing the improvement specifically to the beta task.
+The complete interpretation, executable analysis, tables, metadata, and
+figures are in
+[`pid_beta_ablation_validation/`](runs/gpu_beta_baseline/pid_beta_ablation_validation/)
+and
 [`BETA_BASELINE_REPORT.md`](runs/gpu_beta_baseline/BETA_BASELINE_REPORT.md).
 
 ## 12. Installation and execution

@@ -71,21 +71,60 @@ visible in model selection.
 ## Conditional PID closure
 
 Both checkpoints were also evaluated on the beta branch's exact 158,482 test
-particles, so the small beta-validity selection change cannot explain the PID
-difference.
+particles. In each generated-species and fixed generated-momentum bin, the
+comparison uses the empirical reconstructed-class fractions for COATJAVA and
+the mean direct PID-head softmax probabilities for each model. It does not use
+argmax accuracy.
 
-| generated species | COATJAVA correct fraction | original FM mean probability | beta FM mean probability |
-|---|---:|---:|---:|
-| $\pi^-$ | 0.549971 | 0.546963 | 0.550227 |
-| $\pi^+$ | 0.590640 | 0.406701 | 0.582493 |
-| proton | 0.814299 | 0.577392 | 0.813916 |
+$$
+P_{\mathrm{CJ}}(r\mid s,b)=\frac{N(s,b,r)}{N(s,b)},
+\qquad
+P_{\mathrm{FM}}(r\mid s,b)=
+\frac{1}{N(s,b)}\sum_{i\in(s,b)}q_\theta(r\mid x_i).
+$$
 
-The worst fixed-bin PID total-variation distance changed from 0.466220 in the
-original checkpoint ($\pi^+$, 0--1 GeV) to 0.121610 in the beta checkpoint
-($\pi^-$, 0--1 GeV). This is encouraging evidence that beta multitask learning
-regularized the shared representation. It is one seeded baseline, not yet proof
-that beta alone caused the improvement; repeat seeds and a same-selection
-three-target ablation are needed.
+| generated species | COATJAVA correct | no-beta FM | joint-$\Delta\beta$ FM | no-beta abs. error | joint-$\Delta\beta$ abs. error |
+|---|---:|---:|---:|---:|---:|
+| $\pi^-$ | 0.549971 | 0.546963 | 0.550227 | 0.003007 | 0.000257 |
+| $\pi^+$ | 0.590640 | 0.406701 | 0.582493 | 0.183939 | 0.008147 |
+| proton | 0.814299 | 0.577392 | 0.813916 | 0.236907 | 0.000383 |
+
+The following figures extend the layouts used for Dr. Joo's reproduced
+correct-ID and composite figures by placing both checkpoints on the same
+beta-valid teacher population.
+
+![Correct-ID PID closure with and without the beta target](pid_beta_ablation_validation/pid_correct_id_with_without_beta.png)
+
+![Composite PID closure with and without the beta target](pid_beta_ablation_validation/pid_composite_with_without_beta.png)
+
+Full reconstructed-class closure is measured with
+
+$$
+\operatorname{TV}(s,b)=\frac{1}{2}\sum_r
+\left|P_{\mathrm{FM}}(r\mid s,b)-P_{\mathrm{CJ}}(r\mid s,b)\right|.
+$$
+
+| generated species | no-beta weighted mean TV | joint-$\Delta\beta$ weighted mean TV | no-beta maximum TV | joint-$\Delta\beta$ maximum TV |
+|---|---:|---:|---:|---:|
+| $\pi^-$ | 0.039209 | 0.042680 | 0.078814 (8--9 GeV) | 0.121610 (0--1 GeV) |
+| $\pi^+$ | 0.248669 | 0.047245 | 0.466220 (0--1 GeV) | 0.075327 (8--9 GeV) |
+| proton | 0.257262 | 0.027650 | 0.291261 (0--1 GeV) | 0.054570 (6--7 GeV) |
+
+The association is large for generated $\pi^+$ and protons, including the
+low-momentum cross-migration channels highlighted by Dr. Joo. It is not a
+uniform improvement: the weighted fixed-bin TV for generated $\pi^-$ is
+slightly worse, primarily because of the joint-$\Delta\beta$ checkpoint's
+0--1 GeV full-distribution discrepancy.
+
+This is a same-test comparison, not a pure auxiliary-task ablation. The
+no-beta checkpoint was trained with the older `rec_beta > -99` selection and
+three continuous targets; the beta checkpoint used
+$0<\beta_{\mathrm{rec}}\leq1.2$ and four continuous targets. They also selected
+different early-stopping epochs. Repeat seeds and a three-target model trained
+with the exact beta-valid selection are needed before attributing the change
+specifically to beta multitask learning. The complete tables, metadata,
+figures, and executable validation are in
+[`pid_beta_ablation_validation/`](pid_beta_ablation_validation/).
 
 ## Reproduce
 
@@ -98,6 +137,7 @@ python sample.py \
   --input example_generated_hadrons.csv \
   --output runs/gpu_beta_baseline/example_beta_samples.csv
 python runs/gpu_beta_baseline/compare_original_pid_same_test.py
+python runs/gpu_beta_baseline/pid_beta_ablation_validation/pid_beta_ablation_validation.py
 ```
 
 The comparison script requires the published original checkpoint at
