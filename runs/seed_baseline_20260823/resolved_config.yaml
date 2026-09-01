@@ -1,0 +1,51 @@
+project:
+  name: clas12-forward-fm-full-gpu
+  seed: 20260823
+data:
+  parquet_glob: ../phase-space_parquet-Aug17-26/particle_responses/*.parquet
+  split_modulus: 10000
+  train_boundary: 8000
+  validation_boundary: 9000
+  max_rows_per_species:
+    train: null
+    validation: null
+    test: null
+  selection:
+    theta_max_deg: 33.0
+    vz_min_cm: -5.5
+    vz_max_cm: -0.5
+    require_reciprocal_match: true
+    reject_rec_pid_zero: true
+    reject_beta_sentinel: true
+    max_abs_delta_p_gev: 10.0
+model:
+  hidden_width: 256
+  hidden_layers: 4
+  pid_embedding_dim: 16
+  mixture_components: 8
+  dropout: 0.03
+training:
+  epochs: 30
+  batch_size: 8192
+  learning_rate: 0.001
+  weight_decay: 1.0e-05
+  pid_loss_weight: 0.2
+  gradient_clip_norm: 5.0
+  early_stopping_patience: 5
+  num_workers: 0
+  torch_threads: 8
+  device: cuda:0
+evaluation:
+  pid_momentum_edges_gev:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+output:
+  run_dir: runs/seed_baseline_20260823

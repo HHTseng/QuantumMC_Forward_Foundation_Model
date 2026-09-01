@@ -1,0 +1,6 @@
+waiting for search workers...
+search done at 2026-09-01T20:19:43Z
+== stage 2: study analysis ==
+== stage 3: baseline and tuned full runs ==
+== stage 4: seed repeats ==
+== stage 5: lambda_PID scan at the selected architecture ==

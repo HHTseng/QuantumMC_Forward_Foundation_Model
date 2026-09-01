@@ -1,0 +1,27 @@
+device=cuda:0 run_dir=/home/htseng/Downloads/QuantumMC_Forward_Foundation_Model/runs/optuna_baseline_repro
+loading deterministic, event-disjoint data splits...
+loaded train=1,270,698, validation=159,558, test=158,985 in 5.03s
+trainable_parameters=222,324
+epoch=01 train_loss=0.65228 val_loss=-2.29932 val_nll=-2.52160 val_joint_nll=-1.41018 val_pid_acc=0.6641
+epoch=02 train_loss=-1.95693 val_loss=-3.08081 val_nll=-3.30258 val_joint_nll=-2.19375 val_pid_acc=0.6700
+epoch=03 train_loss=-2.73305 val_loss=-3.55891 val_nll=-3.77782 val_joint_nll=-2.68329 val_pid_acc=0.6729
+epoch=04 train_loss=-3.19832 val_loss=-3.60556 val_nll=-3.82159 val_joint_nll=-2.74144 val_pid_acc=0.6740
+epoch=05 train_loss=-3.50281 val_loss=-3.70275 val_nll=-3.91576 val_joint_nll=-2.85071 val_pid_acc=0.6745
+epoch=06 train_loss=-3.72184 val_loss=-3.93842 val_nll=-4.14894 val_joint_nll=-3.09631 val_pid_acc=0.6745
+epoch=07 train_loss=-3.86462 val_loss=-3.84139 val_nll=-4.05047 val_joint_nll=-3.00508 val_pid_acc=0.6747
+epoch=08 train_loss=-3.97967 val_loss=-3.93184 val_nll=-4.14012 val_joint_nll=-3.09874 val_pid_acc=0.6748
+epoch=09 train_loss=-4.06223 val_loss=-4.31101 val_nll=-4.51873 val_joint_nll=-3.48014 val_pid_acc=0.6750
+epoch=10 train_loss=-4.13480 val_loss=-4.22863 val_nll=-4.43591 val_joint_nll=-3.39950 val_pid_acc=0.6752
+epoch=11 train_loss=-4.19545 val_loss=-4.04519 val_nll=-4.25203 val_joint_nll=-3.21781 val_pid_acc=0.6754
+epoch=12 train_loss=-4.24555 val_loss=-3.99678 val_nll=-4.20323 val_joint_nll=-3.17096 val_pid_acc=0.6756
+epoch=13 train_loss=-4.28921 val_loss=-4.05081 val_nll=-4.25682 val_joint_nll=-3.22677 val_pid_acc=0.6757
+epoch=14 train_loss=-4.32939 val_loss=-4.32408 val_nll=-4.52973 val_joint_nll=-3.50147 val_pid_acc=0.6757
+epoch=15 train_loss=-4.34988 val_loss=-4.10838 val_nll=-4.31350 val_joint_nll=-3.28788 val_pid_acc=0.6760
+epoch=16 train_loss=-4.37276 val_loss=-4.28465 val_nll=-4.48934 val_joint_nll=-3.46588 val_pid_acc=0.6759
+epoch=17 train_loss=-4.39514 val_loss=-4.10619 val_nll=-4.31062 val_joint_nll=-3.28851 val_pid_acc=0.6761
+epoch=18 train_loss=-4.43536 val_loss=-4.01238 val_nll=-4.21623 val_joint_nll=-3.19697 val_pid_acc=0.6761
+epoch=19 train_loss=-4.44906 val_loss=-3.99688 val_nll=-4.20011 val_joint_nll=-3.18400 val_pid_acc=0.6762
+early stopping after epoch 19; best epoch was 14
+test_nll=-4.530445
+test_pid_accuracy=0.6750
+checkpoint=/home/htseng/Downloads/QuantumMC_Forward_Foundation_Model/runs/optuna_baseline_repro/model.pt

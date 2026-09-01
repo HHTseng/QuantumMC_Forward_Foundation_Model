@@ -295,32 +295,57 @@ def plot_importances(study: optuna.Study, path: Path) -> tuple[dict[str, float],
 
 
 def plot_slices(rows: list[dict[str, Any]], path: Path) -> None:
+    """Objective against each searched dimension, one panel per dimension.
+
+    A single badly diverged trial would otherwise compress every vertical axis
+    and hide the structure among the trials that matter, so the axis is clipped
+    to a robust range and the number of points left off-scale is stated.
+    """
     complete = [row for row in rows if row["state"] == "COMPLETE"]
     names = [name for name in PRETTY if any(row[name] is not None for row in complete)]
     columns = 3
     lines = (len(names) + columns - 1) // columns
-    figure, axes_grid = plt.subplots(lines, columns, figsize=(4.4 * columns, 3.3 * lines))
+    figure, axes_grid = plt.subplots(lines, columns, figsize=(4.6 * columns, 3.4 * lines))
     axes_list = np.atleast_1d(axes_grid).ravel()
-    values = [row["objective_joint_nll"] for row in complete]
+    values = np.array([row["objective_joint_nll"] for row in complete], dtype=float)
+    low, high = float(values.min()), float(np.quantile(values, 0.90))
+    margin = 0.08 * max(high - low, 1e-9)
+    limits = (low - margin, high + margin)
+    hidden = int(np.sum(values > limits[1]))
     for axes, name in zip(axes_list, names):
         raw = [row[name] for row in complete]
         if isinstance(raw[0], str):
             categories = sorted(set(raw))
-            positions = [categories.index(item) for item in raw]
+            x = [categories.index(item) for item in raw]
             axes.set_xticks(range(len(categories)), categories)
-            x = positions
+            axes.set_xlim(-0.5, len(categories) - 0.5)
         else:
             x = raw
             if name in LOG_PARAMS:
                 axes.set_xscale("log")
-        scatter = axes.scatter(x, values, c=values, cmap="viridis_r", s=26)
+                # Decade ticks alone can leave a narrow range with one label,
+                # so also tick the 3x points and drop the unlabelled minors.
+                axes.xaxis.set_major_locator(
+                    matplotlib.ticker.LogLocator(base=10.0, subs=(1.0, 3.0), numticks=8)
+                )
+                axes.xaxis.set_major_formatter(
+                    matplotlib.ticker.LogFormatterSciNotation(minor_thresholds=(4, 1))
+                )
+                axes.xaxis.set_minor_locator(matplotlib.ticker.NullLocator())
+        scatter = axes.scatter(
+            x, values, c=values, cmap="viridis_r", s=26, vmin=limits[0], vmax=limits[1]
+        )
+        axes.set_ylim(*limits)
         axes.set_xlabel(PRETTY[name])
         axes.set_ylabel("$J$")
         axes.grid(alpha=0.25)
     for axes in axes_list[len(names) :]:
         axes.axis("off")
     figure.colorbar(scatter, ax=axes_list.tolist(), label="$J$", shrink=0.6)
-    figure.suptitle("Objective versus each searched hyper-parameter", y=1.0)
+    note = f"; {hidden} diverged trial(s) above the axis" if hidden else ""
+    figure.suptitle(
+        f"Objective versus each searched hyper-parameter (lower is better{note})", y=1.0
+    )
     figure.savefig(path, dpi=160, bbox_inches="tight")
     plt.close(figure)
 
@@ -358,6 +383,14 @@ def plot_capacity_and_tradeoff(
     twin.set_ylabel("validation residual NLL", color="#2f855a")
     axes[1].set_title(r"The $\lambda_{\mathrm{PID}}$ trade-off")
     axes[1].grid(alpha=0.3)
+    handles = axes[1].collections[:1] + twin.collections[:1]
+    axes[1].legend(
+        handles,
+        ["PID cross entropy (left)", "residual NLL (right)"],
+        frameon=False,
+        fontsize=8,
+        loc="upper left",
+    )
 
     tv = np.array([row["pid_closure_tv"] for row in complete], dtype=float)
     moment = np.array([row["moment_closure_error"] for row in complete], dtype=float)
