@@ -189,7 +189,7 @@ published run predates.
 
 Per generated species, on the same test particles:
 
-| Generated species | Baseline mean TV | Tuned mean TV | Baseline worst bin | Tuned worst bin | Baseline mean $|$correct-ID error$|$ | Tuned |
+| Generated species | Baseline mean TV | Tuned mean TV | Baseline worst bin | Tuned worst bin | Baseline mean absolute correct-ID error | Tuned |
 |---|---:|---:|---|---|---:|---:|
 | $\pi^-$ | 0.04193 | **0.01085** | 0.10337 (0-1 GeV) | 0.05039 (8-9 GeV) | 0.01991 | **0.00452** |
 | $\pi^+$ | 0.05397 | **0.01122** | 0.16402 (8-9 GeV) | 0.02867 (8-9 GeV) | 0.02343 | **0.00413** |
