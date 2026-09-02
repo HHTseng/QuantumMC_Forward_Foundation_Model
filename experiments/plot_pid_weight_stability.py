@@ -45,6 +45,14 @@ def parse_args() -> argparse.Namespace:
         default=0.70,
         help="Test PID top-1 above this counts as having reached the better solution",
     )
+    parser.add_argument(
+        "--destabilized-fraction",
+        type=float,
+        default=0.2,
+        help="A run counts as destabilized when its best epoch falls inside this "
+        "fraction of the budget, i.e. it peaked immediately and never recovered. "
+        "Ordinary early stopping late in the schedule is not destabilization.",
+    )
     parser.add_argument("--output-dir", required=True)
     return parser.parse_args()
 
@@ -57,6 +65,11 @@ def read_group(spec: str) -> tuple[str, list[dict[str, Any]]]:
         metrics = json.loads((path / "metrics.json").read_text())
         history = json.loads((path / "history.json").read_text())
         config = json.loads(json.dumps(_load_yaml(path / "resolved_config.yaml")))
+        best_epoch = next(
+            int(line.split(":")[1])
+            for line in (path / "MODEL_CARD.md").read_text().splitlines()
+            if line.startswith("- Best validation epoch")
+        )
         test = metrics["test"]
         summary = metrics["pid_conditional_closure"]["bin_summary"]
         weights = np.array([row["n"] for row in summary], dtype=np.float64)
@@ -66,6 +79,7 @@ def read_group(spec: str) -> tuple[str, list[dict[str, Any]]]:
                 "run": path.name,
                 "seed": int(config["project"]["seed"]),
                 "epochs_run": len(history),
+                "best_epoch": best_epoch,
                 "epoch_budget": int(config["training"]["epochs"]),
                 "pid_loss_weight": float(config["training"]["pid_loss_weight"]),
                 "test_joint_nll": test["residual_nll"] + test["pid_cross_entropy"],
@@ -112,7 +126,7 @@ def main() -> None:
         seeds = [row["seed"] for row in variant]
         positions = np.arange(len(seeds))
         for index, row in enumerate(variant):
-            diverged = row["epochs_run"] < row["epoch_budget"]
+            diverged = row["best_epoch"] <= args.destabilized_fraction * row["epoch_budget"]
             better = row["test_pid_accuracy"] >= args.accuracy_threshold
             colour = "#c53030" if diverged else ("#2f855a" if better else "#a0aec0")
             marker = "X" if diverged else ("*" if better else "o")
@@ -143,9 +157,17 @@ def main() -> None:
                    label=f"{reference_label}, mean $\\pm$ s.d."),
     ]
     figure.legend(handles=handles, loc="lower center", ncols=4, frameon=False, fontsize=9)
+    reached = sum(
+        row["test_pid_accuracy"] >= args.accuracy_threshold for row in variant
+    )
+    unstable = sum(
+        row["best_epoch"] <= args.destabilized_fraction * row["epoch_budget"]
+        for row in variant
+    )
     figure.suptitle(
-        f"{variant_label} is bimodal, not better on average: "
-        "each point is one independently trained seed",
+        f"{variant_label}: one point per independently trained seed. "
+        f"{reached} of {len(variant)} reached the better solution, "
+        f"{unstable} destabilized.",
         y=1.0,
     )
     figure.tight_layout(rect=(0, 0.08, 1, 1))
@@ -156,7 +178,9 @@ def main() -> None:
     rows += [{"group": variant_label, **row} for row in variant]
     for row in rows:
         row["reached_better_solution"] = row["test_pid_accuracy"] >= args.accuracy_threshold
-        row["completed_schedule"] = row["epochs_run"] >= row["epoch_budget"]
+        row["destabilized"] = (
+            row["best_epoch"] <= args.destabilized_fraction * row["epoch_budget"]
+        )
     with (output_dir / "pid_weight_stability.csv").open(
         "w", newline="", encoding="utf-8"
     ) as handle:
@@ -166,7 +190,12 @@ def main() -> None:
 
     variant_values = np.array([row["test_joint_nll"] for row in variant])
     reference_values = np.array([row["test_joint_nll"] for row in reference])
-    kept = np.array([row["epochs_run"] >= row["epoch_budget"] for row in variant])
+    kept = np.array(
+        [
+            row["best_epoch"] > args.destabilized_fraction * row["epoch_budget"]
+            for row in variant
+        ]
+    )
     print(
         json.dumps(
             {

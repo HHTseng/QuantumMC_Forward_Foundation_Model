@@ -20,9 +20,11 @@ Sections 12 and 13 replace that recipe's assumed hyper-parameters with a
 recorded search and report what it is worth on the held-out split: the searched
 configuration lowers the held-out joint negative log likelihood by 0.75 nats and
 improves the reconstructed-PID response closure against the COATJAVA teacher by
-about a factor of five, reproducibly across three seeds. Section 13.4 reports a
-separate and larger effect from the PID loss weight that is **not** yet
-reproducible, and explains why it is published as a lead rather than adopted.
+about a factor of five, reproducibly across three seeds. Sections 13.4 and
+13.4.1 report a separate and larger effect from the PID loss weight that is
+**not** reproducible, together with the follow-up showing that the obvious fix
+removes the instability but also removes most of the gain, and explain why it is
+published as a lead rather than adopted.
 
 ## 1. Where this model sits in the physics workflow
 
@@ -1131,13 +1133,54 @@ closure the physics deliverable targets: the particle-weighted mean TV moves
 from 0.01001 to 0.00936, a 7% relative change on a quantity the released
 configuration has already brought within 0.01 of the teacher.
 
-The released configuration therefore keeps $\lambda_{\mathrm{PID}}=0.397$. The
-$\lambda\ge2$ artifacts are published in `runs/optuna_best_pidweight/` and
-`runs/seed_pidweight_*/` so the follow-up does not have to start over: test
-whether a learning-rate warm-up, a lower peak learning rate, or a schedule that
-ramps $\lambda_{\mathrm{PID}}$ during training makes the better solution
-reachable reliably. If it does, roughly six points of PID top-1 accuracy are
-available.
+The released configuration therefore keeps $\lambda_{\mathrm{PID}}=0.397$.
+
+### 13.4.1 Follow-up: learning-rate warm-up
+
+The obvious explanation for the instability is the first few hundred updates:
+the diverged seed peaked at epoch 2. That window is a fraction of one epoch, so
+`training.lr_warmup_epochs` switches the learning rate to a *per-step* schedule,
+a linear ramp over the given number of epochs' worth of optimizer steps followed
+by the configured cosine decay. The same configuration was retrained at the same
+six seeds with a five-epoch warm-up, about 1,550 optimizer steps.
+
+| Seed | No warm-up: epochs / best epoch / $J$ / top-1 | With warm-up: epochs / best epoch / $J$ / top-1 |
+|---|---|---|
+| 20260822 | 70 / 70 / **-5.0091** / **0.7402** | 70 / 70 / **-4.8149** / **0.7271** |
+| 20260823 | 70 / 67 / -4.3041 / 0.6796 | 70 / 70 / -4.2970 / 0.6799 |
+| 20260824 | **12 / 2 / -2.5682 / 0.6747** | 70 / 69 / -4.0093 / 0.6784 |
+| 20260825 | 70 / 70 / -4.3455 / 0.6792 | 70 / 70 / -4.3476 / 0.6793 |
+| 20260826 | 70 / 70 / **-4.8605** / **0.7326** | 62 / 52 / -4.0183 / 0.6791 |
+| 20260827 | 70 / 69 / -4.2591 / 0.6816 | 70 / 67 / -4.3484 / 0.6815 |
+
+![Warm-up against no warm-up at the same six seeds](runs/optuna_analysis/pid_weight_warmup_stability.png)
+
+| | reached the better solution | destabilized | $J$ mean $\pm$ s.d. |
+|---|---:|---:|---:|
+| $\lambda=2$, no warm-up | 2 of 6 | 1 of 6 | $-4.224\pm0.870$ |
+| $\lambda=2$, 5-epoch warm-up | **1 of 6** | **0 of 6** | $-4.306\pm0.294$ |
+| released, $\lambda=0.397$ | n/a | 0 of 3 | $-4.353\pm0.045$ |
+
+The hypothesis is half right, and the half that fails is the important one.
+Warm-up fixes the stability: the divergence is gone, seed 20260824 now trains
+the full schedule and lands at $-4.0093$ instead of collapsing at epoch 12, no
+seed destabilizes, and the spread falls threefold. But it makes the *gain*
+rarer, not more reliable -- one seed of six instead of two, and seed 20260826,
+which reached the better solution without warm-up, no longer does.
+
+That points away from the original framing. The large early updates are not
+merely an unwanted side effect; they appear to be causally involved in reaching
+the better solution, and damping them suppresses the divergence and the jump
+together. Even with warm-up the setting remains worse than the released recipe
+on both mean and spread, so the recommendation is unchanged.
+
+The artifacts are published in `runs/optuna_best_pidweight/`,
+`runs/seed_pidweight_*/` and `runs/seed_pidweight_warmup_*/`. A more promising
+direction than damping the early phase, and untested here, is to make the better
+solution the target rather than an accident: fine-tune the PID head at a large
+weight after training the residual density at the released weight, or decouple
+the two heads' learning rates, so the PID term can be strong without putting the
+shared trunk's early updates at risk.
 
 ### 13.5 How precisely can these closure numbers be read?
 
@@ -1318,12 +1361,16 @@ sample.py                stochastic inference entry point
     schedule had not stopped improving. The reported numbers are a lower bound
     on what this architecture can reach, not a converged optimum.
 
-11. **Training is not stable at a large PID loss weight.** Section 13.4 shows
-    that $\lambda_{\mathrm{PID}}\ge2$ can reach a solution roughly six points
-    better in reconstructed-PID top-1 accuracy, but reaches it in only two of
-    six seeds and destabilizes outright in one. Until that is understood, an
-    apparently large gain from this direction must be checked across seeds
-    before it is believed.
+11. **Training is not stable at a large PID loss weight, and stabilizing it
+    costs the gain.** Section 13.4 shows that $\lambda_{\mathrm{PID}}\ge2$ can
+    reach a solution roughly six points better in reconstructed-PID top-1
+    accuracy, but reaches it in only two of six seeds and destabilizes outright
+    in one. Section 13.4.1 shows that a learning-rate warm-up removes the
+    destabilization completely and cuts the spread threefold, yet makes the
+    better solution *rarer* -- one seed of six instead of two. The large early
+    updates appear to be causally involved in reaching it, so the two effects
+    cannot currently be separated. Until they can, an apparently large gain from
+    this direction must be checked across seeds before it is believed.
 
 ## 17. Roadmap to the full forward foundation model
 

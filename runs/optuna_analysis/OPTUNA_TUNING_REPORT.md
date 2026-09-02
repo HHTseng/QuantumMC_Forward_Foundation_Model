@@ -391,3 +391,65 @@ The study as reported used 90 search trials (5,059 GPU-seconds), two full
 training runs, four seed repeats, an eight-point $\lambda_{\mathrm{PID}}$ scan,
 six seeds at $\lambda_{\mathrm{PID}}=2$, and two sampling-uncertainty studies,
 on two RTX 2080 Ti.
+
+## 13. Follow-up: does learning-rate warm-up rescue the large weight?
+
+Section 10 left a specific hypothesis: the $\lambda_{\mathrm{PID}}\ge2$ setting
+might be unusable only because of its first few hundred updates, in which case
+a warm-up would make the better solution reachable reliably. The diverged seed
+peaked at epoch 2, so the window in question is a fraction of one epoch and an
+epoch-granularity scheduler cannot address it. `training.lr_warmup_epochs`
+therefore switches the learning rate to a per-step schedule: a linear ramp over
+the given number of epochs' worth of optimizer steps, then the configured
+cosine decay.
+
+The same $\lambda_{\mathrm{PID}}=2$ configuration was retrained at the same six
+seeds with a five-epoch warm-up (about 1,550 optimizer steps).
+
+| Seed | No warm-up: epochs / best epoch / $J$ / top-1 | With warm-up: epochs / best epoch / $J$ / top-1 |
+|---|---|---|
+| 20260822 | 70 / 70 / **-5.0091** / **0.7402** | 70 / 70 / **-4.8149** / **0.7271** |
+| 20260823 | 70 / 67 / -4.3041 / 0.6796 | 70 / 70 / -4.2970 / 0.6799 |
+| 20260824 | **12 / 2 / -2.5682 / 0.6747** | 70 / 69 / -4.0093 / 0.6784 |
+| 20260825 | 70 / 70 / -4.3455 / 0.6792 | 70 / 70 / -4.3476 / 0.6793 |
+| 20260826 | 70 / 70 / **-4.8605** / **0.7326** | 62 / 52 / -4.0183 / 0.6791 |
+| 20260827 | 70 / 69 / -4.2591 / 0.6816 | 70 / 67 / -4.3484 / 0.6815 |
+
+![Warm-up against no warm-up at the same six seeds](pid_weight_warmup_stability.png)
+
+| | reached the better solution | destabilized | $J$ mean $\pm$ s.d. |
+|---|---:|---:|---:|
+| $\lambda=2$, no warm-up | 2 of 6 | 1 of 6 | $-4.224\pm0.870$ |
+| $\lambda=2$, 5-epoch warm-up | **1 of 6** | **0 of 6** | $-4.306\pm0.294$ |
+| released, $\lambda=0.397$ | n/a | 0 of 3 | $-4.353\pm0.045$ |
+
+The hypothesis is **half right, and the half that fails is the important one**.
+
+Warm-up does what it was supposed to do about stability: the divergence is gone.
+Seed 20260824, which previously peaked at epoch 2 and was stopped at epoch 12
+with $J=-2.5682$, now trains for the full schedule and lands at $-4.0093$. No
+seed destabilizes, and the spread falls by a factor of three, from $\pm0.870$ to
+$\pm0.294$.
+
+But it does not make the *gain* reliable. It makes it rarer: one seed of six
+reaches the better solution instead of two, and seed 20260826 -- which reached it
+without warm-up -- no longer does. The one seed that still gets there arrives
+slightly lower than before, $J=-4.8149$ against $-5.0091$ and top-1 0.7271
+against 0.7402.
+
+Read together, these point away from the original framing. The large early
+updates are not merely an unwanted side effect to be damped; they appear to be
+causally involved in reaching the better solution. Suppressing them suppresses
+the divergence and the jump together. That is consistent with the mechanism
+suggested in section 9 -- that a large $\lambda_{\mathrm{PID}}$ acts through the
+*direction* of the clipped update rather than through the loss weighting -- but
+it is now clear that damping the early phase is not the way to exploit it.
+
+Even with warm-up the setting is still worse than the released recipe on both
+mean and spread, so the recommendation in section 11 is unchanged.
+
+A more promising direction than warm-up, and untested here, is to make the
+better solution the *target* rather than an accident: train at
+$\lambda_{\mathrm{PID}}=0.397$ for the residual density and fine-tune the PID
+head at a large weight, or decouple the two heads' learning rates, so that the
+PID term can be strong without the shared trunk's early updates being at risk.
