@@ -11,6 +11,9 @@
 #          comparison. The joint search samples lambda together with everything
 #          else and can miss a productive setting that only pays off at the
 #          selected architecture, which is exactly what happened here.
+# Stage 8  the same lambda_PID with learning-rate warm-up, over WARMUP_SEEDS, to
+#          test whether the early-training instability rather than the weight
+#          itself is what makes stage 7's setting unusable.
 #
 # The test split is touched only in stages 3, 4 and 6, by train.py's own
 # evaluation. The search and the scan never see it.
@@ -29,6 +32,8 @@ SEARCH_TIMEOUT="${SEARCH_TIMEOUT:-12600}"
 REPEAT_SEEDS="${REPEAT_SEEDS:-20260823 20260824}"
 # Set from the stage 5 scan; see runs/optuna_analysis/pid_weight_tuned_architecture.csv
 REFIT_PID_WEIGHT="${REFIT_PID_WEIGHT:-2.0}"
+LR_WARMUP_EPOCHS="${LR_WARMUP_EPOCHS:-5}"
+WARMUP_SEEDS="${WARMUP_SEEDS:-20260822 20260823 20260824 20260825 20260826 20260827}"
 
 STAGES=("$@")
 stage_wanted() { [ "${#STAGES[@]}" -eq 0 ] || [[ " ${STAGES[*]} " == *" $1 "* ]]; }
@@ -163,6 +168,55 @@ PYEOF
     --group "baseline=$baseline_dirs" --group "tuned=$tuned_dirs" \
     --group "tuned+lambda=$pidweight_dirs" \
     --output-dir "$ANALYSIS" > "$ANALYSIS/seed_repeats.log" 2>&1
+fi
+
+if stage_wanted 8; then
+  echo "== stage 8: lambda_PID=$REFIT_PID_WEIGHT with $LR_WARMUP_EPOCHS-epoch warm-up =="
+  python - "$REFIT_PID_WEIGHT" "$LR_WARMUP_EPOCHS" <<'PYEOF'
+import sys
+import yaml
+
+with open("configs/gpu_optuna_best.yaml", "r", encoding="utf-8") as handle:
+    config = yaml.safe_load(handle)
+config["project"]["name"] = "clas12-forward-fm-step1-pidweight-warmup"
+config["training"]["pid_loss_weight"] = float(sys.argv[1])
+config["training"]["lr_warmup_epochs"] = float(sys.argv[2])
+config["output"]["run_dir"] = "runs/optuna_best_pidweight_warmup"
+with open("configs/gpu_optuna_best_pidweight_warmup.yaml", "w", encoding="utf-8") as handle:
+    yaml.safe_dump(config, handle, sort_keys=False)
+print("wrote configs/gpu_optuna_best_pidweight_warmup.yaml")
+PYEOF
+
+  gpu=0
+  pids=()
+  for seed in $WARMUP_SEEDS; do
+    dir="runs/seed_pidweight_warmup_$seed"
+    mkdir -p "$dir"
+    python train.py --config configs/gpu_optuna_best_pidweight_warmup.yaml \
+      --seed "$seed" --run-dir "$dir" --device "cuda:$gpu" \
+      > "$dir/training.log" 2>&1 &
+    pids+=($!)
+    if [ "$gpu" -eq 1 ]; then wait "${pids[@]}"; pids=(); gpu=0; else gpu=1; fi
+  done
+  if [ "${#pids[@]}" -gt 0 ]; then wait "${pids[@]}"; fi
+
+  warmup_dirs=""
+  plain_dirs=""
+  for seed in $WARMUP_SEEDS; do
+    warmup_dirs="$warmup_dirs,runs/seed_pidweight_warmup_$seed"
+    if [ "$seed" = "20260822" ]; then
+      plain_dirs="$plain_dirs,runs/optuna_best_pidweight"
+    else
+      plain_dirs="$plain_dirs,runs/seed_pidweight_$seed"
+    fi
+  done
+  warmup_dirs="${warmup_dirs#,}"
+  plain_dirs="${plain_dirs#,}"
+
+  python experiments/plot_pid_weight_stability.py \
+    --reference "lambda $REFIT_PID_WEIGHT, no warm-up=$plain_dirs" \
+    --variant "lambda $REFIT_PID_WEIGHT, warm-up=$warmup_dirs" \
+    --output-dir "$ANALYSIS" > "$ANALYSIS/pid_weight_warmup_stability.log" 2>&1
 fi
 
 echo "pipeline complete; artifacts in $ANALYSIS"
