@@ -371,14 +371,16 @@ learning-rate warm-up, a lower peak learning rate, or a schedule that ramps
 $\lambda_{\mathrm{PID}}$ during training makes the better solution reachable
 reliably. If it does, roughly six points of PID top-1 accuracy are available.
 
-## 11. Recommendation
+## 11. Recommendation (superseded by section 15.1)
 
 Use `configs/gpu_optuna_best.yaml`. Relative to the hand-written recipe it is
 better on every held-out quantity measured, in all three paired seeds, and it is
 also markedly more stable run to run.
 
-Do not use $\lambda_{\mathrm{PID}}\ge2$ in production until the instability in
-section 10 is understood.
+Do not use $\lambda_{\mathrm{PID}}\ge2$ as a single-run setting. Section 15
+later shows it *is* usable as a restart search, and section 15.1 gives the
+revised recommendation; the advice against setting it blindly in one run
+stands.
 
 ## 12. Reproduction
 
@@ -521,3 +523,85 @@ and at two successes in six seeds would cost about three training runs per
 usable model.
 
 The released configuration is unchanged.
+
+## 15. Multi-restart: the large weight works as a search, not as a recipe
+
+Sections 13 and 14 ruled out every attempt to make the large-weight solution
+arrive reliably in a single run. What was left was to stop calling it a recipe
+and treat it as what it is: a search. Train several independently initialized
+runs at $\lambda_{\mathrm{PID}}=2$ and keep the one that lands.
+
+Two properties make that honest rather than a way of flattering the result.
+
+**All restarts share one data partition.** `project.seed` previously drove both
+the initialization and the partition hash, so varying it would have moved the
+test split as well, and "keep the best" would have meant selecting across
+different test sets. `data.split_seed` now pins the partition while
+`project.seed` varies initialization and batch order. Every run in a pool was
+verified to load the same 1,270,698 / 159,558 / 158,985 rows.
+
+**Selection uses validation only.** Choosing the restart with the best *test*
+score would report the maximum of several noisy test evaluations, which is
+biased upward and not reproducible in use. The selector reads each run's own
+validation history; the test numbers are read out afterwards and never influence
+the choice. `restart_selection.json` records `selection_used_test_split: false`
+and the regret against an oracle that did cheat.
+
+Three pools, each at its own partition, each with its own released-recipe
+reference from that same partition:
+
+| Partition | Restarts | Landed in better basin | Selected | Released acc | Selected acc | Gain |
+|---|---:|---:|---|---:|---:|---:|
+| 20260822 | 8 | 4 | `pid_restart_102` | 0.6793 | **0.7404** | **+6.11 pp** |
+| 20260823 | 6 | 2 | `pid_restart_s23_203` | 0.6797 | **0.7398** | **+6.01 pp** |
+| 20260824 | 6 | 1 | `pid_restart_s24_305` | 0.6785 | **0.7365** | **+5.80 pp** |
+
+| Partition | Released $J$ | Selected $J$ | $\Delta J$ | Released TV | Selected TV | $\Delta$TV |
+|---|---:|---:|---:|---:|---:|---:|
+| 20260822 | -4.3559 | -4.9910 | $-0.6351$ | 0.01001 | 0.00822 | $-0.00179$ |
+| 20260823 | -4.3972 | -4.9834 | $-0.5862$ | 0.01052 | 0.00893 | $-0.00159$ |
+| 20260824 | -4.3068 | -4.9385 | $-0.6317$ | 0.01105 | 0.01072 | $-0.00033$ |
+
+![Multi-restart replicated at three partitions](restart_pools.png)
+
+![Validation selection against held-out outcome](restart_selection.png)
+
+**The procedure works, and it replicates.** Across 20 restarts, 7 landed in the
+better basin: a landing rate of 0.35 with a Wilson 95% interval of
+$[0.18,0.57]$, so about three training runs per usable model. A pool of six has
+a 92% chance of containing at least one success and a pool of eight 97%.
+
+**Validation selection is reliable here.** In all three pools it picked a
+better-basin run, and in all three the regret against a test-set oracle was
+exactly zero. That is not luck: the two basins are separated by roughly 0.5 nats
+in validation joint NLL, which is an order of magnitude beyond any noise in that
+quantity, so the ranking is unambiguous.
+
+The gain is consistent in size and direction across three independent
+partitions: about +6 points of reconstructed-PID top-1 accuracy, about 0.6 nats
+of joint likelihood, and a smaller PID response total-variation distance in every
+pool. Section 6's full closure comparison, re-run with the selected checkpoint on
+partition 20260822, improves on the released recipe on every held-out quantity
+including moment closure (0.01493 against 0.03152) and the physical sampled
+fraction (99.18% against 99.08%).
+
+### 15.1 Revised recommendation
+
+There are now two supported options, and which one to use depends on whether the
+extra training cost is acceptable.
+
+**For the best model, use the restart search.** Run
+`experiments/run_tuning_pipeline.sh 10` with `RESTART_SPLIT_SEED` set to the
+partition you intend to release on, take the checkpoint that
+`restart_selection.json` names, and expect about three training runs per usable
+model. The published example is `runs/pid_restart_102/model.pt`.
+
+**For a single deterministic run, use `configs/gpu_optuna_best.yaml`.** It is
+reproducible in one run, its seed-to-seed spread is the smallest of anything
+measured here, and it still beats the hand-written baseline on every held-out
+quantity.
+
+What should *not* be done is to set `pid_loss_weight >= 2` in a single run and
+expect the gain: that lands in the better basin about a third of the time and
+occasionally destabilizes outright. The weight is the entry ticket to a search,
+not a setting.

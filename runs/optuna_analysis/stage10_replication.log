@@ -1,0 +1,7 @@
+== stage 10: multi-restart at lambda_PID=2.0, split pinned to 20260823 ==
+wrote configs/gpu_pid_restart.yaml
+pipeline complete; artifacts in runs/optuna_analysis
+== stage 10: multi-restart at lambda_PID=2.0, split pinned to 20260824 ==
+wrote configs/gpu_pid_restart.yaml
+pipeline complete; artifacts in runs/optuna_analysis
+REPLICATION_DONE

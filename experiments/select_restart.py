@@ -201,12 +201,16 @@ def main() -> None:
     colours = [
         "#2f855a" if row["reached_better_solution"] else "#718096" for row in restarts
     ]
-    axes.bar(order, joint, color=colours)
+    # Stems anchored on the reference rather than bars anchored on zero: the
+    # quantity is a negative log likelihood, so zero is not a meaningful floor
+    # and bars from it would waste the axis and imply a false baseline.
     axes.axhline(
         reference["test_joint_nll"], color="#2b6cb0", lw=1.8,
         label="released recipe, same split",
     )
-    axes.plot(selected_index, joint[selected_index], "*", ms=20, color="#c53030",
+    axes.vlines(order, reference["test_joint_nll"], joint, colors=colours, lw=3, alpha=0.75)
+    axes.scatter(order, joint, s=90, color=colours, zorder=4)
+    axes.plot(selected_index, joint[selected_index], "*", ms=22, color="#c53030",
               zorder=5, label="selected on validation")
     axes.set_xticks(order, [str(row["training_seed"]) for row in restarts],
                     rotation=45, fontsize=8)

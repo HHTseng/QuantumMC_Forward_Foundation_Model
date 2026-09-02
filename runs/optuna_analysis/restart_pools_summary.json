@@ -1,0 +1,69 @@
+{
+  "n_pools": 3,
+  "total_restarts": 20,
+  "total_landed_in_better_basin": 7,
+  "landing_rate": 0.35,
+  "landing_rate_wilson_95": [
+    0.18118954786794464,
+    0.5671494897805354
+  ],
+  "expected_runs_per_usable_model": 2.857142857142857,
+  "probability_at_least_one_success": {
+    "4": 0.8214937499999999,
+    "6": 0.924581109375,
+    "8": 0.9681355187109375,
+    "12": 0.9943119909368943
+  },
+  "pools_where_validation_selection_picked_a_better_basin_run": 3,
+  "max_selection_regret_vs_test_oracle": 0.0,
+  "per_pool": [
+    {
+      "split_seed": 20260822,
+      "n_restarts": 8,
+      "landed": 4,
+      "selected_run": "pid_restart_102",
+      "selected_test_pid_accuracy": 0.740428342296443,
+      "selected_test_joint_nll": -4.990987164045867,
+      "selected_test_pid_weighted_mean_tv": 0.008218338344214478,
+      "reference_test_pid_accuracy": 0.679284209202126,
+      "reference_test_joint_nll": -4.35587406802988,
+      "reference_test_pid_weighted_mean_tv": 0.010005758016922337,
+      "accuracy_gain": 0.0611441330943171,
+      "joint_nll_gain": -0.6351130960159868,
+      "tv_gain": -0.0017874196727078583,
+      "selection_regret_vs_test_oracle": 0.0
+    },
+    {
+      "split_seed": 20260823,
+      "n_restarts": 6,
+      "landed": 2,
+      "selected_run": "pid_restart_s23_203",
+      "selected_test_pid_accuracy": 0.739775825507422,
+      "selected_test_joint_nll": -4.9833802749481535,
+      "selected_test_pid_weighted_mean_tv": 0.008928722899940714,
+      "reference_test_pid_accuracy": 0.6796551550035342,
+      "reference_test_joint_nll": -4.3971729704759035,
+      "reference_test_pid_weighted_mean_tv": 0.010517671070802802,
+      "accuracy_gain": 0.06012067050388781,
+      "joint_nll_gain": -0.58620730447225,
+      "tv_gain": -0.0015889481708620881,
+      "selection_regret_vs_test_oracle": 0.0
+    },
+    {
+      "split_seed": 20260824,
+      "n_restarts": 6,
+      "landed": 1,
+      "selected_run": "pid_restart_s24_305",
+      "selected_test_pid_accuracy": 0.7365304802627035,
+      "selected_test_joint_nll": -4.938519140611894,
+      "selected_test_pid_weighted_mean_tv": 0.010720317010698161,
+      "reference_test_pid_accuracy": 0.6785272529777041,
+      "reference_test_joint_nll": -4.306821239058818,
+      "reference_test_pid_weighted_mean_tv": 0.011045917513467046,
+      "accuracy_gain": 0.058003227284999404,
+      "joint_nll_gain": -0.6316979015530757,
+      "tv_gain": -0.00032560050276888436,
+      "selection_regret_vs_test_oracle": 0.0
+    }
+  ]
+}

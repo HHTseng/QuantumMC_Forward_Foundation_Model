@@ -1,0 +1,56 @@
+project:
+  name: clas12-forward-fm-step1-pid-restart
+  seed: 301
+data:
+  parquet_glob: ../phase-space_parquet-Aug17-26/particle_responses/*.parquet
+  split_modulus: 10000
+  train_boundary: 8000
+  validation_boundary: 9000
+  max_rows_per_species:
+    train: null
+    validation: null
+    test: null
+  selection:
+    theta_max_deg: 33.0
+    vz_min_cm: -5.5
+    vz_max_cm: -0.5
+    require_reciprocal_match: true
+    reject_rec_pid_zero: true
+    reject_beta_sentinel: true
+    max_abs_delta_p_gev: 10.0
+  split_seed: 20260824
+model:
+  hidden_width: 768
+  hidden_layers: 6
+  pid_embedding_dim: 8
+  mixture_components: 8
+  dropout: 0.14181331057099705
+training:
+  epochs: 70
+  batch_size: 4096
+  learning_rate: 0.002958454985358802
+  weight_decay: 0.00014951169938564305
+  pid_loss_weight: 2.0
+  lr_schedule: cosine
+  lr_min_factor: 0.01
+  gradient_clip_norm: 5.0
+  early_stopping_patience: 10
+  num_workers: 0
+  torch_threads: 8
+  device: cuda:0
+  fast_loader: true
+  selection_metric: joint_nll
+evaluation:
+  pid_momentum_edges_gev:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+output:
+  run_dir: runs/pid_restart_s24_301

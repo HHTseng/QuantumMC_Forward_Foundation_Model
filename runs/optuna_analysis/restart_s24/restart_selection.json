@@ -1,0 +1,22 @@
+{
+  "n_restarts": 6,
+  "split_seed": 20260824,
+  "selection_metric": "validation_joint_nll",
+  "selection_used_test_split": false,
+  "landed_in_better_basin": 1,
+  "landing_rate": 0.16666666666666666,
+  "expected_runs_per_usable_model": 6.0,
+  "selected_run": "pid_restart_s24_305",
+  "selected_training_seed": 305,
+  "selected_validation_metric": -4.941027485522847,
+  "selected_test_joint_nll": -4.938519140611894,
+  "selected_test_pid_accuracy": 0.7365304802627035,
+  "selected_test_pid_weighted_mean_tv": 0.010720317010698161,
+  "selection_picked_a_better_basin_run": true,
+  "best_possible_test_pid_accuracy": 0.7365304802627035,
+  "selection_regret_vs_test_oracle": 0.0,
+  "reference_run": "seed_tuned_20260824",
+  "reference_test_joint_nll": -4.306821239058818,
+  "reference_test_pid_accuracy": 0.6785272529777041,
+  "reference_test_pid_weighted_mean_tv": 0.011045917513467046
+}

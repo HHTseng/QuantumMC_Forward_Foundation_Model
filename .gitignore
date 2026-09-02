@@ -6,5 +6,6 @@ runs/*/model.pt
 !runs/fd_response_seed/model.pt
 !runs/tara_gpu_full/model.pt
 !runs/optuna_best/model.pt
+!runs/pid_restart_102/model.pt
 runs/optuna_smoke/
 *.db

@@ -21,11 +21,12 @@ recorded search and report what it is worth on the held-out split: the searched
 configuration lowers the held-out joint negative log likelihood by 0.75 nats and
 improves the reconstructed-PID response closure against the COATJAVA teacher by
 about a factor of five, reproducibly across three seeds. Sections 13.4 to
-13.4.2 report a separate and larger effect from the PID loss weight that is
-**not** reproducible, together with three follow-ups -- warm-up, fine-tuning and
-decoupled learning rates -- each of which stabilizes training and removes the
-gain, and explain why it is published as a documented dead end rather than
-adopted.
+13.4.4 report a separate and larger effect from the PID loss weight, worth about
+six points of reconstructed-PID top-1 accuracy. It cannot be turned into a
+single-run setting -- three interventions that stabilize training each remove it
+-- but it is reliably obtainable as a *search*: several restarts at a pinned data
+partition with the winner chosen on validation, replicated at three partitions
+for about three training runs per usable model.
 
 ## 1. Where this model sits in the physics workflow
 
@@ -1134,7 +1135,9 @@ closure the physics deliverable targets: the particle-weighted mean TV moves
 from 0.01001 to 0.00936, a 7% relative change on a quantity the released
 configuration has already brought within 0.01 of the teacher.
 
-The released configuration therefore keeps $\lambda_{\mathrm{PID}}=0.397$.
+So a larger PID weight is not a usable *setting*. Sections 13.4.1 and 13.4.2
+try to make it one and fail; section 13.4.3 succeeds by treating it as a search
+instead.
 
 ### 13.4.1 Follow-up: learning-rate warm-up
 
@@ -1221,17 +1224,97 @@ only by a large undamped perturbation of the shared trunk early in training. It
 is reached by luck, and every attempt here to reach it on purpose has instead
 prevented it.
 
-That closes off the "just stabilize it" family of fixes. What remains untried is
-changing the problem rather than the schedule: coupling the two heads so they
-are not conditionally independent (limitation 3), a different PID head
-parameterization, or an explicit multi-restart procedure that trains several
-seeds at $\lambda\ge2$ and keeps the one that lands well -- honest about being a
-search rather than a recipe, and at two successes in six seeds costing about
-three training runs per usable model.
+That closes off the "just stabilize it" family of fixes: every intervention that
+makes the run safe also makes it ordinary. Two directions remain. One is to
+change the problem rather than the schedule -- coupling the two heads so they are
+not conditionally independent (limitation 3), or a different PID head
+parameterization -- which is untried here. The other is to accept that the
+solution is reached by luck and buy enough lottery tickets, which is section
+13.4.3 and does work.
 
 All artifacts are published: `runs/optuna_best_pidweight/`,
 `runs/seed_pidweight_*/`, `runs/seed_pidweight_warmup_*/`,
 `runs/seed_pid_finetune_*/` and `runs/seed_pid_decoupled_*/`.
+
+### 13.4.3 The large weight works as a search, not as a recipe
+
+Every attempt above to make the better solution arrive reliably in a single run
+failed. What was left was to stop calling it a recipe: train several
+independently initialized runs at $\lambda_{\mathrm{PID}}=2$ and keep the one
+that lands.
+
+Two properties make that honest rather than a way of flattering the result.
+**All restarts share one data partition** -- `data.split_seed` pins the
+partition while `project.seed` varies only initialization and batch order, so
+the runs are mutually comparable and the winner is reported on a split none of
+them trained on. Previously `project.seed` moved the partition too, and "keep
+the best" would have meant selecting across different test sets. **Selection
+uses validation only** -- the selector reads each run's own validation history,
+and the test numbers are read out afterwards and never influence the choice;
+`restart_selection.json` records `selection_used_test_split: false` alongside
+the regret against an oracle that did cheat.
+
+Three pools, each at its own partition, each against its own released-recipe
+reference from that same partition:
+
+| Partition | Restarts | Landed | Selected | Released acc | Selected acc | Gain |
+|---|---:|---:|---|---:|---:|---:|
+| 20260822 | 8 | 4 | `pid_restart_102` | 0.6793 | **0.7404** | **+6.11 pp** |
+| 20260823 | 6 | 2 | `pid_restart_s23_203` | 0.6797 | **0.7398** | **+6.01 pp** |
+| 20260824 | 6 | 1 | `pid_restart_s24_305` | 0.6785 | **0.7365** | **+5.80 pp** |
+
+| Partition | Released $J$ | Selected $J$ | $\Delta J$ | Released TV | Selected TV | $\Delta$TV |
+|---|---:|---:|---:|---:|---:|---:|
+| 20260822 | -4.3559 | -4.9910 | $-0.6351$ | 0.01001 | 0.00822 | $-0.00179$ |
+| 20260823 | -4.3972 | -4.9834 | $-0.5862$ | 0.01052 | 0.00893 | $-0.00159$ |
+| 20260824 | -4.3068 | -4.9385 | $-0.6317$ | 0.01105 | 0.01072 | $-0.00033$ |
+
+![Multi-restart replicated at three partitions](runs/optuna_analysis/restart_pools.png)
+
+Across 20 restarts, 7 landed in the better basin: a landing rate of 0.35 with a
+Wilson 95% interval of $[0.18,0.57]$, so about **three training runs per usable
+model**. A pool of six has a 92% chance of containing at least one success, a
+pool of eight 97%.
+
+Validation selection picked a better-basin run in all three pools, and in all
+three the regret against a test-set oracle was exactly zero. That is not luck:
+the basins are separated by roughly 0.5 nats in validation joint NLL, an order of
+magnitude beyond the noise in that quantity, so the ranking is unambiguous.
+
+![Validation selection against held-out outcome](runs/optuna_analysis/restart_selection.png)
+
+The gain is consistent across three independent partitions: about +6 points of
+reconstructed-PID top-1 accuracy, about 0.6 nats of joint likelihood, and a
+smaller PID response total-variation distance in every pool.
+
+### 13.4.4 Which model to use
+
+| | released `gpu_optuna_best.yaml` | restart search at $\lambda=2$ |
+|---|---|---|
+| held-out PID top-1 | 0.6796 $\pm$ 0.0010 (6 seeds) | 0.7365-0.7404 (3 partitions) |
+| held-out $J$ | $-4.3417\pm0.0416$ | $-4.94$ to $-4.99$ |
+| PID closure TV | 0.01054 | 0.00822-0.01072 |
+| training cost | one run | about three runs |
+| reproducible in one run | yes | no, by construction |
+
+**For the best model, use the restart search.** Run
+`experiments/run_tuning_pipeline.sh 10` with `RESTART_SPLIT_SEED` set to the
+partition you intend to release on, and take the checkpoint that
+`restart_selection.json` names. The published example is
+`runs/pid_restart_102/model.pt`, which on partition 20260822 improves on the
+released recipe in every held-out quantity measured, including moment closure
+(0.01493 against 0.03152) and the physical sampled fraction (99.18% against
+99.08%).
+
+**For a single deterministic run, use `configs/gpu_optuna_best.yaml`.** It is
+reproducible in one run, has the smallest seed-to-seed spread of anything
+measured here, and still beats the hand-written baseline on every held-out
+quantity.
+
+What should **not** be done is to set `pid_loss_weight >= 2` in a single run and
+expect the gain. That lands in the better basin about a third of the time and
+occasionally destabilizes outright. The weight is the entry ticket to a search,
+not a setting.
 
 ### 13.5 How precisely can these closure numbers be read?
 
@@ -1352,6 +1435,8 @@ experiments/compare_final_models.py held-out comparison tables and figures
 experiments/summarize_seed_repeats.py seed-repeat statistics
 experiments/plot_pid_weight_stability.py  seed-by-seed view of the lambda finding
 experiments/compare_pid_strategies.py     strategies for reaching that solution
+experiments/select_restart.py             restart search, validation-only selection
+experiments/summarize_restart_pools.py    landing rate across restart pools
 experiments/closure_sampling_uncertainty.py  resolution floor of the closure metrics
 tests/                   scaling, leakage, likelihood, loader, and sampling tests
 docs/figures/            process diagrams and result figures
@@ -1413,18 +1498,18 @@ sample.py                stochastic inference entry point
     schedule had not stopped improving. The reported numbers are a lower bound
     on what this architecture can reach, not a converged optimum.
 
-11. **A better PID solution exists but is only reached by luck.** Section 13.4
-    shows that $\lambda_{\mathrm{PID}}\ge2$ can reach a solution roughly six
-    points better in reconstructed-PID top-1 accuracy, in two of six seeds, and
-    destabilizes outright in one. Sections 13.4.1 and 13.4.2 show that three
-    independent interventions -- learning-rate warm-up, fine-tuning from the
-    released checkpoint, and a smaller trunk learning rate -- each stabilize
-    training and each remove the gain, the last two reproducing the released
-    accuracy to four decimal places in all six seeds. The better solution
-    behaves like a separate basin entered only by a large undamped perturbation
-    of the shared trunk early in training. Until that is understood, an
-    apparently large gain from this direction must be checked across seeds
-    before it is believed.
+11. **The best PID solution is reached by luck, so obtaining it costs several
+    training runs.** Section 13.4 shows that $\lambda_{\mathrm{PID}}\ge2$ can
+    reach a solution roughly six points better in reconstructed-PID top-1
+    accuracy, but only sometimes. Sections 13.4.1 and 13.4.2 show that three
+    interventions -- warm-up, fine-tuning from the released checkpoint, and a
+    smaller trunk learning rate -- each stabilize training and each remove the
+    gain, so it behaves like a separate basin entered only by a large undamped
+    perturbation of the shared trunk early in training. Section 13.4.3 obtains
+    it reliably as a restart search at about three training runs per usable
+    model, but *why* the basin exists is not understood, and no single-run
+    setting reaches it. Any large apparent gain from this direction must still
+    be checked across seeds before it is believed.
 
 ## 17. Roadmap to the full forward foundation model
 
