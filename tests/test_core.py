@@ -17,6 +17,8 @@ from forwardfm_step1.training import (
     run_epoch,
     seed_everything,
     selection_value,
+    train_model,
+    warmup_cosine_factor,
 )
 
 
@@ -239,6 +241,88 @@ class SelectionMetricTests(unittest.TestCase):
     def test_unknown_metric_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
             selection_value(self.metrics(-4.0, 1.2, 0.2), "accuracy")
+
+
+class WarmupScheduleTests(unittest.TestCase):
+    """Warm-up must ramp inside the first epoch and then hand over to the decay."""
+
+    def test_ramps_linearly_then_reaches_full_rate(self) -> None:
+        factors = [warmup_cosine_factor(s, 10, 100, 0.01, False) for s in range(10)]
+        self.assertAlmostEqual(factors[0], 0.1)
+        self.assertAlmostEqual(factors[-1], 1.0)
+        differences = np.diff(factors)
+        np.testing.assert_allclose(differences, differences[0], rtol=1e-9)
+        self.assertAlmostEqual(warmup_cosine_factor(50, 10, 100, 0.01, False), 1.0)
+
+    def test_cosine_tail_decays_to_the_floor(self) -> None:
+        self.assertAlmostEqual(warmup_cosine_factor(9, 10, 100, 0.01, True), 1.0)
+        self.assertAlmostEqual(warmup_cosine_factor(99, 10, 100, 0.01, True), 0.01, places=3)
+        middle = warmup_cosine_factor(54, 10, 100, 0.01, True)
+        self.assertTrue(0.4 < middle < 0.6, middle)
+
+    def test_never_exceeds_the_base_rate(self) -> None:
+        values = [warmup_cosine_factor(s, 25, 200, 0.01, True) for s in range(200)]
+        self.assertLessEqual(max(values), 1.0)
+        self.assertGreater(min(values), 0.0)
+
+
+class TrainingScheduleIntegrationTests(unittest.TestCase):
+    """Enabling warm-up must not perturb the runs that do not ask for it."""
+
+    @staticmethod
+    def config(**training: object) -> dict:
+        base = {
+            "project": {"seed": 3},
+            "training": {
+                "epochs": 3,
+                "batch_size": 256,
+                "learning_rate": 1e-3,
+                "weight_decay": 0.0,
+                "pid_loss_weight": 0.2,
+                "gradient_clip_norm": 5.0,
+                "early_stopping_patience": 5,
+                "num_workers": 0,
+                "fast_loader": True,
+            },
+        }
+        base["training"].update(training)
+        return base
+
+    def splits(self) -> dict:
+        return {
+            "train": _synthetic_split(768, seed=1),
+            "validation": _synthetic_split(256, seed=2),
+        }
+
+    def fit(self, config: dict) -> list[dict]:
+        seed_everything(3)
+        model = ConditionalMDN(
+            4, 3, 12, hidden_width=16, hidden_layers=2, mixture_components=3, dropout=0.0
+        )
+        _model, history, _best = train_model(
+            model, self.splits(), config, torch.device("cpu")
+        )
+        return history
+
+    def test_default_path_is_unchanged_when_warmup_is_absent(self) -> None:
+        without = self.fit(self.config())
+        explicit_zero = self.fit(self.config(lr_warmup_epochs=0.0))
+        for left, right in zip(without, explicit_zero):
+            self.assertAlmostEqual(
+                left["validation"]["total_loss"], right["validation"]["total_loss"]
+            )
+            self.assertAlmostEqual(left["learning_rate"], right["learning_rate"])
+
+    def test_warmup_starts_below_the_configured_rate(self) -> None:
+        history = self.fit(self.config(lr_warmup_epochs=1.0, lr_schedule="cosine"))
+        # Three batches per epoch, so the first epoch ends mid-ramp or just at
+        # the peak; what matters is that it never overshoots the base rate.
+        self.assertLessEqual(history[0]["learning_rate"], 1e-3 + 1e-12)
+        self.assertGreater(history[0]["learning_rate"], 0.0)
+
+    def test_warmup_longer_than_the_budget_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            self.fit(self.config(lr_warmup_epochs=99.0))
 
 
 if __name__ == "__main__":

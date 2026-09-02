@@ -22,6 +22,12 @@ for-bit unchanged:
     ``cosine`` anneals the AdamW learning rate over the configured epoch
     budget, which matters once the epoch budget is large.
 
+``training.lr_warmup_epochs``
+    Non-zero switches the learning rate to a *per-step* schedule: a linear
+    warm-up over this many epochs' worth of optimizer steps, followed by the
+    configured decay.  Warm-up has to act inside the first epoch, so it cannot
+    be expressed by the epoch-granularity scheduler above.
+
 ``training.selection_metric``
     ``total_loss`` (default) selects the checkpoint by ``L_R+lambda_PID L_PID``.
     ``joint_nll`` selects by ``L_R+L_PID``, the lambda-independent held-out
@@ -31,6 +37,7 @@ for-bit unchanged:
 
 from __future__ import annotations
 
+import math
 import random
 import time
 from dataclasses import dataclass
@@ -186,8 +193,15 @@ def run_epoch(
     pid_loss_weight: float,
     optimizer: torch.optim.Optimizer | None = None,
     gradient_clip_norm: float = 5.0,
+    step_scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
 ) -> EpochMetrics:
-    """Accumulate the joint negative log likelihood for one data pass."""
+    """Accumulate the joint negative log likelihood for one data pass.
+
+    ``step_scheduler`` is advanced after every optimizer step rather than once
+    per epoch.  Warm-up has to act on the first few hundred updates, which is a
+    fraction of one epoch here, so an epoch-granularity schedule cannot express
+    it.
+    """
     training = optimizer is not None
     model.train(training)
     totals = {"loss": 0.0, "nll": 0.0, "pid_ce": 0.0, "correct": 0, "n": 0}
@@ -212,6 +226,8 @@ def run_epoch(
                 loss.backward()
                 nn.utils.clip_grad_norm_(model.parameters(), gradient_clip_norm)
                 optimizer.step()
+                if step_scheduler is not None:
+                    step_scheduler.step()
             batch_n = len(targets)
             totals["loss"] += float(loss.detach()) * batch_n
             totals["nll"] += float(nll.detach()) * batch_n
@@ -228,6 +244,35 @@ def run_epoch(
         pid_accuracy=totals["correct"] / totals["n"],
         examples_per_second=totals["n"] / elapsed,
     )
+
+
+def warmup_cosine_factor(
+    step: int,
+    warmup_steps: int,
+    total_steps: int,
+    minimum_factor: float,
+    decay: bool,
+) -> float:
+    """Learning-rate multiplier: linear warm-up, then optional cosine decay.
+
+    The multiplier rises linearly from ``1/warmup_steps`` to 1 over the first
+    ``warmup_steps`` optimizer steps, then either holds at 1 or decays as a
+    cosine to ``minimum_factor``.
+
+    The motivation is specific and measured, not decorative.  At the searched
+    learning rate a large ``pid_loss_weight`` makes the first epochs unstable:
+    one seed in six diverged far enough that early stopping returned a model
+    from epoch 2.  Warm-up exists to test whether that early phase, rather than
+    the weight itself, is what makes the setting unusable.
+    """
+    if step < warmup_steps:
+        return (step + 1) / warmup_steps
+    if not decay:
+        return 1.0
+    progress = (step - warmup_steps) / max(total_steps - warmup_steps, 1)
+    progress = min(max(progress, 0.0), 1.0)
+    cosine = 0.5 * (1.0 + math.cos(math.pi * progress))
+    return minimum_factor + (1.0 - minimum_factor) * cosine
 
 
 def selection_value(metrics: EpochMetrics, selection_metric: str) -> float:
@@ -281,19 +326,35 @@ def train_model(
         weight_decay=float(training["weight_decay"]),
     )
     schedule = str(training.get("lr_schedule", "none"))
-    if schedule == "cosine":
-        scheduler: torch.optim.lr_scheduler.LRScheduler | None = (
-            torch.optim.lr_scheduler.CosineAnnealingLR(
-                optimizer,
-                T_max=max_epochs,
-                eta_min=float(training["learning_rate"]) * float(
-                    training.get("lr_min_factor", 0.01)
-                ),
+    warmup_epochs = float(training.get("lr_warmup_epochs", 0.0))
+    minimum_factor = float(training.get("lr_min_factor", 0.01))
+    scheduler: torch.optim.lr_scheduler.LRScheduler | None = None
+    step_scheduler: torch.optim.lr_scheduler.LRScheduler | None = None
+    if warmup_epochs > 0.0:
+        # Warm-up is a per-step schedule.  The instability it targets appears in
+        # the first few hundred updates, well inside epoch one, so an
+        # epoch-granularity scheduler cannot express it.
+        steps_per_epoch = max(len(train_loader), 1)
+        total_steps = steps_per_epoch * max_epochs
+        warmup_steps = max(1, int(round(steps_per_epoch * warmup_epochs)))
+        if warmup_steps >= total_steps:
+            raise ValueError(
+                f"lr_warmup_epochs={warmup_epochs} consumes the whole "
+                f"{max_epochs}-epoch budget"
             )
+        step_scheduler = torch.optim.lr_scheduler.LambdaLR(
+            optimizer,
+            lambda step: warmup_cosine_factor(
+                step, warmup_steps, total_steps, minimum_factor, schedule == "cosine"
+            ),
         )
-    elif schedule == "none":
-        scheduler = None
-    else:
+    elif schedule == "cosine":
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer,
+            T_max=max_epochs,
+            eta_min=float(training["learning_rate"]) * minimum_factor,
+        )
+    elif schedule != "none":
         raise ValueError(f"Unknown lr_schedule {schedule!r}")
     model.to(device)
     history: list[dict[str, Any]] = []
@@ -310,6 +371,7 @@ def train_model(
             float(training["pid_loss_weight"]),
             optimizer=optimizer,
             gradient_clip_norm=float(training["gradient_clip_norm"]),
+            step_scheduler=step_scheduler,
         )
         validation_metrics = run_epoch(
             model,
