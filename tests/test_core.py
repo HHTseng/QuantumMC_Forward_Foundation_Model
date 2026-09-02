@@ -5,7 +5,13 @@ import unittest
 import numpy as np
 import torch
 
-from forwardfm_step1.data import PreparedSplit, Standardizer, assert_event_disjoint
+from forwardfm_step1.data import (
+    PreparedSplit,
+    Standardizer,
+    assert_event_disjoint,
+    split_predicate,
+    split_seed,
+)
 from forwardfm_step1.evaluation import (
     conditional_pid_response_rows,
     integrated_correct_pid_response,
@@ -407,6 +413,40 @@ class OptimizerGroupTests(unittest.TestCase):
         base = {"learning_rate": 1e-3, "weight_decay": 1e-5}
         explicit = {**base, "pid_head_lr_multiplier": 1.0, "backbone_lr_multiplier": 1.0}
         np.testing.assert_allclose(fit(base), fit(explicit), rtol=1e-6, atol=1e-8)
+
+
+class SplitSeedTests(unittest.TestCase):
+    """The partition must be separable from the training seed."""
+
+    @staticmethod
+    def config(seed: int, split: int | None = None) -> dict:
+        data = {
+            "split_modulus": 10000,
+            "train_boundary": 8000,
+            "validation_boundary": 9000,
+        }
+        if split is not None:
+            data["split_seed"] = split
+        return {"project": {"seed": seed}, "data": data}
+
+    def test_defaults_to_the_training_seed(self) -> None:
+        self.assertEqual(split_seed(self.config(1234)), 1234)
+
+    def test_override_is_used(self) -> None:
+        self.assertEqual(split_seed(self.config(1234, 999)), 999)
+
+    def test_partition_is_identical_across_training_seeds(self) -> None:
+        """The property a restart study depends on."""
+        for name in ("train", "validation", "test"):
+            first = split_predicate(name, self.config(1, 20260822))
+            second = split_predicate(name, self.config(2, 20260822))
+            self.assertEqual(first, second)
+
+    def test_partition_still_moves_when_the_seed_is_not_pinned(self) -> None:
+        self.assertNotEqual(
+            split_predicate("train", self.config(1)),
+            split_predicate("train", self.config(2)),
+        )
 
 
 if __name__ == "__main__":

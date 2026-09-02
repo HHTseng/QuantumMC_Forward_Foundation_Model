@@ -106,6 +106,26 @@ class PreparedSplit:
         return len(self.targets)
 
 
+def split_seed(config: dict[str, Any]) -> int:
+    """Seed for the event partition, separate from the training seed.
+
+    ``project.seed`` drives model initialization, dropout, and batch order.  By
+    default it also drives the partition hash, which is what the published runs
+    used and what makes a seed repeat vary the data as well as the fit.
+
+    ``data.split_seed`` overrides only the partition.  That is what a restart
+    study needs: several independently initialized runs that share one training
+    set, one validation set and one test set, so the runs are comparable to each
+    other and a model chosen among them can be reported on a test split none of
+    them trained on.  Without it, varying the seed would move the partition too,
+    and selecting the best run would be selecting across different test sets.
+    """
+    configured = config["data"].get("split_seed")
+    if configured is None:
+        return int(config["project"]["seed"])
+    return int(configured)
+
+
 def _quote_sql_string(value: str) -> str:
     return value.replace("'", "''")
 
@@ -184,7 +204,7 @@ def split_predicate(split: str, config: dict[str, Any]) -> str:
     modulus = int(data["split_modulus"])
     train_boundary = int(data["train_boundary"])
     validation_boundary = int(data["validation_boundary"])
-    seed = int(config["project"]["seed"])
+    seed = split_seed(config)
     bucket = f"hash(source_file_id, event_id, {seed}) % {modulus}"
     if split == "train":
         return f"{bucket} < {train_boundary}"
@@ -202,7 +222,7 @@ def _load_frame(
 ) -> pd.DataFrame:
     configured_limit = config["data"]["max_rows_per_species"][split]
     limit = int(configured_limit) if configured_limit is not None else None
-    seed = int(config["project"]["seed"])
+    seed = split_seed(config)
     # `null` means no development subsampling: retain the complete physical
     # population in this event partition. Keeping this separate from a very
     # large Top-N also avoids DuckDB's finite arg_min/arg_max N limit.
@@ -397,6 +417,8 @@ def build_audit(
 
     return {
         "dataset_glob": config["data"]["parquet_glob"],
+        "split_seed": split_seed(config),
+        "training_seed": int(config["project"]["seed"]),
         "dataset_file_count": len(files),
         "dataset_total_bytes": sum(item["bytes"] for item in file_records),
         "dataset_metadata_sha256": fingerprint,

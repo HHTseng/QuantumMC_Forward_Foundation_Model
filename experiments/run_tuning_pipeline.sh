@@ -20,6 +20,9 @@
 #              phase to survive; (B) train from scratch at the large weight but
 #              give the shared trunk a smaller learning rate than the heads, so
 #              the PID term can be strong without large trunk updates.
+# Stage 10 treat the large weight as a search rather than a recipe: RESTARTS
+#          independently initialized runs on ONE pinned data partition, with the
+#          winner chosen on validation and reported on test.
 #
 # The test split is touched only in stages 3, 4 and 6, by train.py's own
 # evaluation. The search and the scan never see it.
@@ -43,6 +46,8 @@ WARMUP_SEEDS="${WARMUP_SEEDS:-20260822 20260823 20260824 20260825 20260826 20260
 FINETUNE_EPOCHS="${FINETUNE_EPOCHS:-20}"
 FINETUNE_LR_FACTOR="${FINETUNE_LR_FACTOR:-0.1}"
 BACKBONE_LR_MULTIPLIER="${BACKBONE_LR_MULTIPLIER:-0.25}"
+RESTART_SPLIT_SEED="${RESTART_SPLIT_SEED:-20260822}"
+RESTART_SEEDS="${RESTART_SEEDS:-101 102 103 104 105 106 107 108}"
 
 STAGES=("$@")
 stage_wanted() { [ "${#STAGES[@]}" -eq 0 ] || [[ " ${STAGES[*]} " == *" $1 "* ]]; }
@@ -307,6 +312,45 @@ PYEOF
     if [ "$gpu" -eq 1 ]; then wait "${pids[@]}"; pids=(); gpu=0; else gpu=1; fi
   done
   if [ "${#pids[@]}" -gt 0 ]; then wait "${pids[@]}"; fi
+fi
+
+if stage_wanted 10; then
+  echo "== stage 10: multi-restart at lambda_PID=$REFIT_PID_WEIGHT, split pinned to $RESTART_SPLIT_SEED =="
+  python - "$REFIT_PID_WEIGHT" "$RESTART_SPLIT_SEED" <<'PYEOF'
+import sys
+import yaml
+
+with open("configs/gpu_optuna_best.yaml", "r", encoding="utf-8") as handle:
+    config = yaml.safe_load(handle)
+config["project"]["name"] = "clas12-forward-fm-step1-pid-restart"
+config["training"]["pid_loss_weight"] = float(sys.argv[1])
+# Pinning the partition is what makes the restarts mutually comparable and lets
+# the winner be reported on a split none of them trained on.
+config["data"]["split_seed"] = int(sys.argv[2])
+config["output"]["run_dir"] = "runs/pid_restart"
+with open("configs/gpu_pid_restart.yaml", "w", encoding="utf-8") as handle:
+    yaml.safe_dump(config, handle, sort_keys=False)
+print("wrote configs/gpu_pid_restart.yaml")
+PYEOF
+
+  gpu=0; pids=()
+  for seed in $RESTART_SEEDS; do
+    dir="runs/pid_restart_$seed"
+    mkdir -p "$dir"
+    python train.py --config configs/gpu_pid_restart.yaml --seed "$seed" \
+      --run-dir "$dir" --device "cuda:$gpu" > "$dir/training.log" 2>&1 &
+    pids+=($!)
+    if [ "$gpu" -eq 1 ]; then wait "${pids[@]}"; pids=(); gpu=0; else gpu=1; fi
+  done
+  if [ "${#pids[@]}" -gt 0 ]; then wait "${pids[@]}"; fi
+
+  restart_args=""
+  for seed in $RESTART_SEEDS; do
+    restart_args="$restart_args --restart runs/pid_restart_$seed"
+  done
+  python experiments/select_restart.py $restart_args \
+    --reference runs/optuna_best --output-dir "$ANALYSIS" \
+    > "$ANALYSIS/restart_selection.log" 2>&1 || cat "$ANALYSIS/restart_selection.log"
 fi
 
 echo "pipeline complete; artifacts in $ANALYSIS"
