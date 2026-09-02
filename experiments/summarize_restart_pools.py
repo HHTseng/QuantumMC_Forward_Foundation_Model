@@ -183,7 +183,7 @@ def main() -> None:
     axes.legend(frameon=False, fontsize=9, loc="upper left")
 
     figure.suptitle(
-        "Multi-restart replicated at three independent data partitions", y=1.0
+        f"Multi-restart across {len(pools)} independent data partitions", y=1.0
     )
     figure.tight_layout()
     figure.savefig(output_dir / "restart_pools.png", dpi=160, bbox_inches="tight")

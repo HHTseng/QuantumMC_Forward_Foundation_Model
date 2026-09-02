@@ -513,16 +513,15 @@ only entered by a large, undamped perturbation of the shared trunk early in
 training. It is reached by luck, and every attempt here to reach it on purpose
 has instead prevented it.
 
-That closes off the "just stabilize it" family of fixes with evidence. What
-remains untried is changing the problem rather than the schedule: coupling the
-heads so PID and residual predictions are not conditionally independent
-(limitation 3), a different PID head parameterization, or an explicit
-multi-restart procedure that trains several seeds at $\lambda\ge2$ and keeps the
-one that lands well -- which is honest about being a search rather than a recipe,
-and at two successes in six seeds would cost about three training runs per
-usable model.
+That closes off the "just stabilize it" family of fixes with evidence: every
+intervention that makes the run safe also makes it ordinary. Two directions
+remain. Changing the problem rather than the schedule -- coupling the heads so
+PID and residual predictions are not conditionally independent (limitation 3),
+or a different PID head parameterization -- is untried here. Accepting that the
+solution is reached by luck and buying enough attempts is section 15, and it
+works.
 
-The released configuration is unchanged.
+The released configuration is unchanged by this section.
 
 ## 15. Multi-restart: the large weight works as a search, not as a recipe
 
@@ -547,40 +546,48 @@ validation history; the test numbers are read out afterwards and never influence
 the choice. `restart_selection.json` records `selection_used_test_split: false`
 and the regret against an oracle that did cheat.
 
-Three pools, each at its own partition, each with its own released-recipe
-reference from that same partition:
+Four pools, each at its own partition, each with its own released-recipe
+reference from that same partition. Partition 20260828 was used by nothing else
+in this study, so it is an out-of-sample test of the whole procedure:
 
 | Partition | Restarts | Landed in better basin | Selected | Released acc | Selected acc | Gain |
 |---|---:|---:|---|---:|---:|---:|
 | 20260822 | 8 | 4 | `pid_restart_102` | 0.6793 | **0.7404** | **+6.11 pp** |
 | 20260823 | 6 | 2 | `pid_restart_s23_203` | 0.6797 | **0.7398** | **+6.01 pp** |
 | 20260824 | 6 | 1 | `pid_restart_s24_305` | 0.6785 | **0.7365** | **+5.80 pp** |
+| 20260828 | 8 | 1 | `pid_restart_s28_405` | 0.6797 | **0.7400** | **+6.03 pp** |
 
 | Partition | Released $J$ | Selected $J$ | $\Delta J$ | Released TV | Selected TV | $\Delta$TV |
 |---|---:|---:|---:|---:|---:|---:|
 | 20260822 | -4.3559 | -4.9910 | $-0.6351$ | 0.01001 | 0.00822 | $-0.00179$ |
 | 20260823 | -4.3972 | -4.9834 | $-0.5862$ | 0.01052 | 0.00893 | $-0.00159$ |
 | 20260824 | -4.3068 | -4.9385 | $-0.6317$ | 0.01105 | 0.01072 | $-0.00033$ |
+| 20260828 | -4.3601 | -4.9465 | $-0.5864$ | 0.00907 | 0.00849 | $-0.00058$ |
 
 ![Multi-restart replicated at three partitions](restart_pools.png)
 
 ![Validation selection against held-out outcome](restart_selection.png)
 
-**The procedure works, and it replicates.** Across 20 restarts, 7 landed in the
-better basin: a landing rate of 0.35 with a Wilson 95% interval of
-$[0.18,0.57]$, so about three training runs per usable model. A pool of six has
-a 92% chance of containing at least one success and a pool of eight 97%.
+**The procedure works, and it replicates.** Across 28 restarts, 8 landed in the
+better basin: a pooled landing rate of 0.286 with a Wilson 95% interval of
+$[0.15,0.47]$, so about 3.5 training runs per usable model. A pool of eight has
+a 93% chance of containing at least one success; a pool of six only 87%.
 
-**Validation selection is reliable here.** In all three pools it picked a
-better-basin run, and in all three the regret against a test-set oracle was
+The rate varies across partitions -- 4/8, 2/6, 1/6, 1/8 -- and with pools this
+small that spread is compatible with one underlying rate. The practical
+consequence is to budget from the interval rather than the point estimate: eight
+restarts, not three.
+
+**Validation selection is reliable here.** In all four pools it picked a
+better-basin run, and in all four the regret against a test-set oracle was
 exactly zero. That is not luck: the two basins are separated by roughly 0.5 nats
 in validation joint NLL, which is an order of magnitude beyond any noise in that
 quantity, so the ranking is unambiguous.
 
-The gain is consistent in size and direction across three independent
-partitions: about +6 points of reconstructed-PID top-1 accuracy, about 0.6 nats
-of joint likelihood, and a smaller PID response total-variation distance in every
-pool. Section 6's full closure comparison, re-run with the selected checkpoint on
+The gain is consistent in size and direction across four independent partitions,
+including one used by nothing else in this study: +6.11, +6.01, +5.80 and +6.03
+points of reconstructed-PID top-1 accuracy, about 0.6 nats of joint likelihood,
+and a smaller PID response total-variation distance in every pool. Section 6's full closure comparison, re-run with the selected checkpoint on
 partition 20260822, improves on the released recipe on every held-out quantity
 including moment closure (0.01493 against 0.03152) and the physical sampled
 fraction (99.18% against 99.08%).
@@ -593,8 +600,8 @@ extra training cost is acceptable.
 **For the best model, use the restart search.** Run
 `experiments/run_tuning_pipeline.sh 10` with `RESTART_SPLIT_SEED` set to the
 partition you intend to release on, take the checkpoint that
-`restart_selection.json` names, and expect about three training runs per usable
-model. The published example is `runs/pid_restart_102/model.pt`.
+`restart_selection.json` names, and budget eight restarts: the pooled landing
+rate is 0.286, so eight gives a 93% chance of at least one success. The published example is `runs/pid_restart_102/model.pt`.
 
 **For a single deterministic run, use `configs/gpu_optuna_best.yaml`.** It is
 reproducible in one run, its seed-to-seed spread is the smallest of anything

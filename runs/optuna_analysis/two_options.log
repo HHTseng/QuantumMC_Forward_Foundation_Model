@@ -1,0 +1,7 @@
+=== OPTION A: one deterministic run, partition 20260828 (never used in tuning) ===
+option A done
+=== OPTION B: restart search at the same partition ===
+== stage 10: multi-restart at lambda_PID=2.0, split pinned to 20260828 ==
+wrote configs/gpu_pid_restart.yaml
+pipeline complete; artifacts in runs/optuna_analysis
+TWO_OPTIONS_DONE

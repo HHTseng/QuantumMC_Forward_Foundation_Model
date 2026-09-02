@@ -26,7 +26,7 @@ six points of reconstructed-PID top-1 accuracy. It cannot be turned into a
 single-run setting -- three interventions that stabilize training each remove it
 -- but it is reliably obtainable as a *search*: several restarts at a pinned data
 partition with the winner chosen on validation, replicated at three partitions
-for about three training runs per usable model.
+for about 3.5 training runs per usable model.
 
 ## 1. Where this model sits in the physics workflow
 
@@ -1254,27 +1254,36 @@ and the test numbers are read out afterwards and never influence the choice;
 `restart_selection.json` records `selection_used_test_split: false` alongside
 the regret against an oracle that did cheat.
 
-Three pools, each at its own partition, each against its own released-recipe
-reference from that same partition:
+Four pools, each at its own partition, each against its own released-recipe
+reference from that same partition. The last, 20260828, was never used in the
+search, the seed repeats, the scan, or any other pool, so it is an out-of-sample
+test of the whole procedure (section 13.4.5):
 
 | Partition | Restarts | Landed | Selected | Released acc | Selected acc | Gain |
 |---|---:|---:|---|---:|---:|---:|
 | 20260822 | 8 | 4 | `pid_restart_102` | 0.6793 | **0.7404** | **+6.11 pp** |
 | 20260823 | 6 | 2 | `pid_restart_s23_203` | 0.6797 | **0.7398** | **+6.01 pp** |
 | 20260824 | 6 | 1 | `pid_restart_s24_305` | 0.6785 | **0.7365** | **+5.80 pp** |
+| 20260828 | 8 | 1 | `pid_restart_s28_405` | 0.6797 | **0.7400** | **+6.03 pp** |
 
 | Partition | Released $J$ | Selected $J$ | $\Delta J$ | Released TV | Selected TV | $\Delta$TV |
 |---|---:|---:|---:|---:|---:|---:|
 | 20260822 | -4.3559 | -4.9910 | $-0.6351$ | 0.01001 | 0.00822 | $-0.00179$ |
 | 20260823 | -4.3972 | -4.9834 | $-0.5862$ | 0.01052 | 0.00893 | $-0.00159$ |
 | 20260824 | -4.3068 | -4.9385 | $-0.6317$ | 0.01105 | 0.01072 | $-0.00033$ |
+| 20260828 | -4.3601 | -4.9465 | $-0.5864$ | 0.00907 | 0.00849 | $-0.00058$ |
 
 ![Multi-restart replicated at three partitions](runs/optuna_analysis/restart_pools.png)
 
-Across 20 restarts, 7 landed in the better basin: a landing rate of 0.35 with a
-Wilson 95% interval of $[0.18,0.57]$, so about **three training runs per usable
-model**. A pool of six has a 92% chance of containing at least one success, a
-pool of eight 97%.
+Across 28 restarts, 8 landed in the better basin: a pooled landing rate of 0.286
+with a Wilson 95% interval of $[0.15,0.47]$, so about **3.5 training runs per
+usable model**. A pool of eight has a 93% chance of containing at least one
+success; a pool of six only 87%, which is why eight is the recommended pool size.
+
+The rate is not constant across partitions -- 4/8, 2/6, 1/6 and 1/8, so 0.50 down
+to 0.125 -- and with pools this small that spread is compatible with a single
+underlying rate. It does mean the cost of the procedure should be planned from
+the interval rather than from the point estimate: budget eight runs, not three.
 
 Validation selection picked a better-basin run in all three pools, and in all
 three the regret against a test-set oracle was exactly zero. That is not luck:
@@ -1315,6 +1324,34 @@ What should **not** be done is to set `pid_loss_weight >= 2` in a single run and
 expect the gain. That lands in the better basin about a third of the time and
 occasionally destabilizes outright. The weight is the entry ticket to a search,
 not a setting.
+
+### 13.4.5 Both options run out of sample
+
+Everything above was measured on partitions that had been used somewhere in the
+tuning. As a final check the two supported options of section 14.1 were run
+exactly as documented on partition **20260828**, which was not used by the
+search, the seed repeats, the $\lambda_{\mathrm{PID}}$ scan, the warm-up study,
+the fine-tune study, or any other restart pool.
+
+| | Option A, one run | Option B, eight restarts |
+|---|---:|---:|
+| held-out joint NLL $J$ | -4.3601 | **-4.9465** |
+| held-out PID top-1 | 0.6797 | **0.7400** |
+| PID closure, weighted mean TV | 0.00907 | **0.00849** |
+| restarts landed in the better basin | n/a | 1 of 8 |
+| selected by | n/a | validation only, zero oracle regret |
+| training runs | 1 | 8 |
+
+Both behave as the preceding sections predict. Option A lands at 0.6797, inside
+the six-seed released band of $0.6796\pm0.0010$, and $J=-4.3601$ against
+$-4.3417\pm0.0416$. Option B gains $+6.03$ points of PID top-1 accuracy, in line
+with the $+6.11$, $+6.01$ and $+5.80$ measured at the other three partitions,
+and validation selection again picked a better-basin run with zero regret.
+
+The one caution this run adds is about cost rather than outcome: only one of
+eight restarts landed, the lowest rate of the four pools. A pool of six would
+have had a real chance of returning nothing, which is why section 14.1
+recommends eight.
 
 ### 13.5 How precisely can these closure numbers be read?
 
@@ -1388,12 +1425,13 @@ python train.py --config configs/gpu_optuna_best.yaml --device cuda:0
 ```
 
 **Option B, the restart search of section 13.4.3.** About six points more
-reconstructed-PID top-1 accuracy, for about three training runs per usable
-model. Set `RESTART_SPLIT_SEED` to the partition you intend to release on, so
-that every restart shares one train/validation/test split:
+reconstructed-PID top-1 accuracy, for about 3.5 training runs per usable model;
+eight restarts give a 93% chance of at least one success. Set
+`RESTART_SPLIT_SEED` to the partition you intend to release on, so that every
+restart shares one train/validation/test split:
 
 ```bash
-RESTART_SPLIT_SEED=20260822 RESTART_SEEDS="101 102 103 104 105 106 107 108"   experiments/run_tuning_pipeline.sh 10
+RESTART_SPLIT_SEED=20260822 RESTART_SEEDS="101 102 103 104 105 106 107 108" experiments/run_tuning_pipeline.sh 10
 ```
 
 The winner is named in `runs/optuna_analysis/restart_selection.json`, chosen on
@@ -1522,7 +1560,7 @@ sample.py                stochastic inference entry point
     smaller trunk learning rate -- each stabilize training and each remove the
     gain, so it behaves like a separate basin entered only by a large undamped
     perturbation of the shared trunk early in training. Section 13.4.3 obtains
-    it reliably as a restart search at about three training runs per usable
+    it reliably as a restart search at about 3.5 training runs per usable
     model, but *why* the basin exists is not understood, and no single-run
     setting reaches it. Any large apparent gain from this direction must still
     be checked across seeds before it is believed.
