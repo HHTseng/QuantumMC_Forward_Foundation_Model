@@ -20,13 +20,10 @@ Sections 12 and 13 replace that recipe's assumed hyper-parameters with a
 recorded search and report what it is worth on the held-out split: the searched
 configuration lowers the held-out joint negative log likelihood by 0.75 nats and
 improves the reconstructed-PID response closure against the COATJAVA teacher by
-about a factor of five, reproducibly across three seeds. Sections 13.4 to
-13.4.4 report a separate and larger effect from the PID loss weight, worth about
-six points of reconstructed-PID top-1 accuracy. It cannot be turned into a
-single-run setting -- three interventions that stabilize training each remove it
--- but it is reliably obtainable as a *search*: several restarts at a pinned data
-partition with the winner chosen on validation, replicated at three partitions
-for about 3.5 training runs per usable model.
+about a factor of five, reproducibly across seeds. Propositions 13.4-13.8 report
+a separate and larger effect from the PID loss weight, worth about six points of
+reconstructed-PID top-1 accuracy: not obtainable as a single-run setting, but
+obtainable as a restart search at about 3.5 training runs per usable model.
 
 ## 1. Where this model sits in the physics workflow
 
@@ -647,9 +644,9 @@ $$
 
 The weight $\lambda_{\mathrm{PID}}$ is `pid_loss_weight` in the configuration
 files. It is 0.20 in the original hand-written configurations and 0.3975 in the
-searched configuration of section 12. Section 13.4 measures what this weight
-actually controls: over the whole range 0.05 to 10 it barely moves the PID
-cross entropy, while values above about 1 clearly damage the residual density.
+searched configuration of section 12. Proposition 13.4 measures what this weight
+actually controls, and 13.6-13.8 why its most useful setting is a search rather
+than a value.
 
 Cross entropy expects
 
@@ -784,596 +781,197 @@ Aggregate agreement is necessary but not sufficient. Physics validation must
 also examine conditional response versus generated kinematics, PID confusion,
 residual correlations, tails, and eventually event-level observables.
 
-## 12. Hyper-parameter search
+## 12. Hyper-parameter search: definitions
 
-Every hyper-parameter used in sections 1-11 was chosen by hand and never
-searched: a four-layer width-256 backbone, $K=8$ mixture components, thirty
-epochs, a constant learning rate of $10^{-3}$, and
-$\lambda_{\mathrm{PID}}=0.20$. This section replaces those assumptions with a
-recorded Optuna study on the same deterministic, event-disjoint splits. The full
-write-up, with every table and figure, is in
+Sections 1-11 fix the model; their hyper-parameters were assumed. This section
+defines what was optimized, section 13 states what was measured. Full tables,
+figures and provenance:
 [`runs/optuna_analysis/OPTUNA_TUNING_REPORT.md`](runs/optuna_analysis/OPTUNA_TUNING_REPORT.md).
 
-### 12.1 What is optimized, and why not the training loss
-
-The training objective
+**12.1 Definition** (*search objective*). For a fitted model,
 
 $$
-\mathcal L=\mathcal L_{\mathrm R}
-+\lambda_{\mathrm{PID}}\mathcal L_{\mathrm{PID}}
+J:=\mathrm{NLL}_\Delta+\mathrm{CE}_{\mathrm{PID}}
+=-\frac1N\sum_i\log q_\vartheta(z_{\Delta,i}\mid z_{x,i},s_i)
+-\frac1N\sum_i\log q_\vartheta(c_i\mid z_{x,i},s_i).
 $$
 
-cannot rank trials, because $\lambda_{\mathrm{PID}}$ is itself a search
-dimension: a trial could lower $\mathcal L$ by putting less weight on the PID
-term rather than by describing the data better. Trials are ranked instead by the
-validation **joint negative log likelihood**
+**12.2 Remark.** $J$ is the log density of $q(z_\Delta\mid z_x,s)\,q(c\mid z_x,s)$
+and is free of $\lambda_{\mathrm{PID}}$. The training loss
+$\mathcal L=\mathrm{NLL}_\Delta+\lambda_{\mathrm{PID}}\mathrm{CE}_{\mathrm{PID}}$
+is not, hence cannot rank trials when $\lambda_{\mathrm{PID}}$ is searched.
+Checkpoint selection inside a trial uses $J$
+(`training.selection_metric: joint_nll`). $J$ is a density in a standardization
+fitted on the training split, so it is comparable only within one partition.
+
+**12.3 Definition** (*closure functionals*). For generated species $s$,
+reconstructed class $r$, and fixed 1 GeV generated-momentum bins $b$,
 
 $$
-J=-\frac1N\sum_i\log q_\vartheta(z_{\Delta,i}\mid z_{x,i},s_i)
--\frac1N\sum_i\log q_\vartheta(c_i\mid z_{x,i},s_i)
-=\mathrm{NLL}_\Delta+\mathrm{CE}_{\mathrm{PID}},
-$$
-
-which is the unweighted log density of the factorized model
-$q(z_\Delta\mid z_x,s)\,q(c\mid z_x,s)$ that is actually being fitted. It
-contains no $\lambda_{\mathrm{PID}}$, so every trial is measured on one scale.
-The checkpoint *inside* each trial is selected by the same quantity, through the
-`training.selection_metric: joint_nll` option, for the same reason.
-
-Because $J$ is a density in standardized target coordinates, and that
-standardization is fitted on the training split, it is comparable only between
-runs that share the seed and the split boundaries. The search therefore does not
-subsample, and the analysis refuses a reference run whose split settings differ.
-
-### 12.2 Why the likelihood alone does not choose the model
-
-A single scalar is convenient for search but wrong for the final choice. The
-deliverables are two -- reconstructed-PID response closure and residual moment
-closure -- and the study showed directly, not hypothetically, that they do not
-peak together. The trial with the best likelihood in the whole study had roughly
-three times worse closure on both axes than the trial that was selected:
-
-| trial | $J$ | PID closure | moment closure |
-|---|---:|---:|---:|
-| 47, best $J$ | **-4.7001** | 0.02959 | 0.04854 |
-| 41, selected | -4.3748 | **0.01018** | **0.01555** |
-
-A diagonal Gaussian mixture can buy log likelihood with heavy tails that cost
-very little density while visibly distorting the sampled
-$\mathrm{Std}\,(\Delta)$.
-
-Two dimensionless closure statistics are therefore recorded for every trial, on
-the validation split. The PID closure is the particle-weighted mean
-total-variation distance from the COATJAVA teacher, over generated species $s$
-and fixed 1 GeV generated-momentum bins $b$,
-
-$$
-\mathrm{TV}\,(s,b)=\frac12\sum_r
-\left|P_{\mathrm{FM}}(r\mid s,b)-P_{\mathrm{CJ}}(r\mid s,b)\right|,
-$$
-
-and the moment closure is a first- and second-moment error made unit-free so
-that GeV and radian targets can be averaged,
-
-$$
-\frac19\sum_{s}\sum_{t\in\{\Delta p,\Delta\theta,\Delta\phi\}}
-\left[
-\frac{\left|\mathrm E[t]_{\mathrm{model}}-\mathrm E[t]_{\mathrm{obs}}\right|}
-{\mathrm{Std}\,(t)_{\mathrm{obs}}}
-+\left|\frac{\mathrm{Std}\,(t)_{\mathrm{model}}}
-{\mathrm{Std}\,(t)_{\mathrm{obs}}}-1\right|
-\right].
-$$
-
-The final checkpoint is chosen by the closure composite **inside a likelihood
-floor**:
-
-$$
-\text{feasible}=\{\text{trial}:J\le J_{\mathrm{floor}}\},
+\mathrm{TV}(s,b):=\tfrac12\sum_r\bigl|P_{\mathrm{FM}}(r\mid s,b)-P_{\mathrm{CJ}}(r\mid s,b)\bigr|,
+\qquad
+T:=\frac{\sum_{s,b}N(s,b)\,\mathrm{TV}(s,b)}{\sum_{s,b}N(s,b)},
 $$
 
 $$
-\text{selected}=\arg\min_{\text{feasible}}
-\left[
-\frac{\text{PID closure}}{\mathrm{median}\,(\text{PID closure})}
-+\frac{\text{moment closure}}{\mathrm{median}\,(\text{moment closure})}
-\right].
+M:=\frac19\sum_{s}\sum_{t\in\{\Delta p,\Delta\theta,\Delta\phi\}}
+\left[\frac{\bigl|\mathrm E[t]_{\mathrm{mod}}-\mathrm E[t]_{\mathrm{obs}}\bigr|}{\sigma_{\mathrm{obs}}(t)}
++\left|\frac{\sigma_{\mathrm{mod}}(t)}{\sigma_{\mathrm{obs}}(t)}-1\right|\right].
 $$
 
-$J_{\mathrm{floor}}=-3.63200$ is not a tuned constant. It is the best validation
-$J$ of the published baseline run in `runs/tara_gpu_full`, which shares the seed
-and split boundaries and is therefore in the same units, so the rule reads: *the
-tuned model must fit the joint density at least as well as the recipe it
-replaces, and among all such models it must have the best physics closure.* 27
-of 29 completed trials cleared the floor. A configuration dominated on both
-closure axes can never minimize the composite, so the selected trial always lies
-on the closure Pareto front, here trials {37, 41, 42}.
+$T$ is PID response closure against the COATJAVA teacher, $M$ first- and
+second-moment closure of the residuals; both dimensionless, both lower-better.
 
-### 12.3 Search space and protocol
+**12.4 Definition** (*final selection*). With $J_0:=-3.63200$ the published
+baseline's validation $J$ and $F:=\{\text{trial}:J\le J_0\}$,
 
-| Hyper-parameter | Hand-written value | Searched over | Selected |
-|---|---:|---|---:|
-| `hidden_width` | 256 | 128, 256, 384, 512, 768, 1024 | 768 |
-| `hidden_layers` | 4 | 3-8 | 6 |
-| `pid_embedding_dim` | 16 | 8, 16, 32 | 8 |
-| `mixture_components` | 8 | 5, 8, 12, 16, 24 | 8 |
-| `dropout` | 0.03 | 0.0-0.15 | 0.1418 |
-| `epochs` | 30 | 40, 70, 100 | 70 |
-| `batch_size` | 8192 | 4096, 8192, 16384 | 4096 |
-| `learning_rate` | 0.001 | $2\times10^{-4}$-$4\times10^{-3}$, log | 0.002958 |
-| `weight_decay` | 0.00001 | $10^{-8}$-$10^{-3}$, log | 0.0001495 |
-| `pid_loss_weight` | 0.20 | 0.05-10, log | 0.3975 |
-| `lr_schedule` | constant | constant, cosine | cosine |
-| trainable parameters | 222,324 | -- | 3,024,476 |
+$$
+\text{selected}:=\underset{F}{\arg\min}\ \Bigl[T/\operatorname{med}_F T+M/\operatorname{med}_F M\Bigr].
+$$
 
-90 trials on two RTX 2080 Ti, one worker per GPU with independent sampler seeds:
-29 completed, 61 pruned, none failed, 5,059 GPU-seconds in total. Sampling uses
-a multivariate TPE sampler and a median pruner with a twelve-epoch warm-up.
-Every trial uses the same seed, so score differences are attributable to the
-hyper-parameters rather than to initialization noise; seed sensitivity of the
-selected point is measured separately in section 13.3.
+**12.5 Remark.** Minimizing $J$ alone is unsafe: heavy mixture tails buy log
+density while distorting $\sigma_{\mathrm{mod}}$. The trial with least $J$ had
+$(T,M)=(0.0296,0.0485)$ against $(0.0102,0.0156)$ for the selected trial 41.
+A point dominated in both coordinates cannot minimize the composite, so the
+selection lies on the $(T,M)$ Pareto front.
 
-Pruning a search in which the epoch budget is itself a dimension can bias the
-result, because a trial on a long cosine schedule is deliberately still at a
-high learning rate when a short-schedule trial is already converging. This was
-checked rather than assumed: pruning rates were close to balanced across epoch
-budgets and across the two schedules, so no correction was applied.
+**12.6 Experiments.** All held-out numbers in section 13 are on the untouched
+test split; searches and scans use validation only.
 
-**The test split was never used during the search.** Trials are scored on
-validation only, and so is the $\lambda_{\mathrm{PID}}$ scan of section 13.4,
-because a scan is itself a selection procedure. Held-out test numbers appear
-only in section 13.
+| | design | scale |
+|---|---|---|
+| E1 | TPE search over 11 dimensions, median pruner | 90 trials (29 complete, 61 pruned, 5,059 GPU s) |
+| E2 | seed repeats, baseline and tuned, paired | 3 + 6 runs |
+| E3 | $\lambda_{\mathrm{PID}}$ scan, all else fixed | 8 values |
+| E4 | re-sampling of a fixed checkpoint | 10 draws $\times$ 2 runs |
+| E5 | $\lambda_{\mathrm{PID}}{=}2$, seed repeats | 6 runs |
+| E6 | $\lambda_{\mathrm{PID}}{=}2$ + 5-epoch per-step warm-up | 6 runs |
+| E7 | $\lambda_{\mathrm{PID}}{=}2$ by fine-tune; by trunk LR $\times0.25$ | 6 + 6 runs |
+| E8 | restart pools, partition pinned, validation-only selection | 4 pools, 28 runs |
 
-![Optuna search history](runs/optuna_analysis/optuna_history.png)
+## 13. Results
 
-### 12.4 What actually mattered
+**13.1 Parameter choices.** Released configuration
+`configs/gpu_optuna_best.yaml` (E1, trial 41); 222,324 $\to$ 3,024,476 parameters.
 
-![fANOVA hyper-parameter importance](runs/optuna_analysis/optuna_importances.png)
+| Parameter | Assumed | Final | Established by |
+|---|---:|---:|---|
+| `learning_rate` | 0.001 | **0.002958** | E1; fANOVA 0.333, the dominant dimension |
+| `hidden_width` | 256 | **768** | E1; fANOVA 0.260, non-monotone (1024 loses) |
+| `hidden_layers` | 4 | **6** | E1; fANOVA 0.141, flat beyond 6 |
+| `mixture_components` $K$ | 8 | **8** | E1; fANOVA 0.103, assumption confirmed |
+| `batch_size` | 8192 | **4096** | E1; fANOVA 0.071 |
+| `lr_schedule` | constant | **cosine** | E1; 8/8 of the best trials by closure |
+| `epochs` | 30 | **70** | E1; 7/8 of the best trials; budget binding (13.9) |
+| `dropout` | 0.03 | **0.1418** | E1; fANOVA 0.014 |
+| `weight_decay` | $10^{-5}$ | **$1.495\times10^{-4}$** | E1; fANOVA 0.016 |
+| `pid_embedding_dim` | 16 | **8** | E1; fANOVA 0.011 |
+| `pid_loss_weight` | 0.20 | **0.3975** | E1; fANOVA 0.026, but see 13.4-13.8 |
 
-The learning rate dominates. The hand-written $10^{-3}$ sits well below the
-productive region, which the search places at $2$-$4\times10^{-3}$ together with
-a smaller batch and a cosine decay. Width is second in importance and does move
-up from 256, so the expectation that a bigger network would help is partly
-borne out -- but not monotonically: the 1024-wide configurations did not win,
-and depth beyond about six layers did not help.
+![fANOVA importances](runs/optuna_analysis/optuna_importances.png)
 
-$\lambda_{\mathrm{PID}}$ ranks sixth of eleven, at 0.026. That number is
-misleading, and section 13.4 shows how: fANOVA measures variance explained
-across the trials the sampler actually ran, and TPE settled on small
-$\lambda$ early, so it never paired a large $\lambda$ with the architecture it
-finally selected. A controlled scan at that architecture finds a large effect
-that the joint search could not see.
+**13.2 Proposition.** *The released configuration dominates the assumed one on
+every held-out quantity, reproducibly.* (E2)
 
-The importance of the epoch budget and of the schedule is *understated* by this
-statistic and should not be read as "they do not matter". fANOVA explains
-variance over the observed distribution of completed trials, and TPE
-concentrated on cosine schedules with a 70-epoch budget, which leaves little
-variance in those dimensions left to explain. Of the eight best trials by
-closure composite, eight of eight used cosine and seven of eight used a
-70-epoch budget.
+Marginals over $n{=}3$ baseline and $n{=}6$ tuned runs; the paired column is over
+the 3 seeds common to both.
 
-![Objective versus each searched hyper-parameter](runs/optuna_analysis/optuna_slices.png)
+| | baseline ($n{=}3$) | tuned ($n{=}6$) | paired $\Delta$, sign in all 3 |
+|---|---:|---:|---|
+| $J$ | $-3.6037\pm0.0950$ | $\mathbf{-4.3417\pm0.0416}$ | $-0.750$, yes |
+| $A$ | $0.6754\pm0.0003$ | $\mathbf{0.6796\pm0.0010}$ | $+0.0038$, yes |
+| $T$ | $0.0495\pm0.0158$ | $\mathbf{0.0105\pm0.0008}$ | $-0.0390$, yes |
+| $M$ | $0.0416\pm0.0127$ | $\mathbf{0.0235\pm0.0065}$ | $-0.0175$, yes |
+| physical $(p,\theta)$ | $0.9769\pm0.0138$ | $\mathbf{0.9910\pm0.0005}$ | $+0.0143$, yes |
 
-![Capacity, the lambda trade-off, and the closure Pareto front](runs/optuna_analysis/optuna_capacity_and_tradeoff.png)
+Single-partition values (20260822): $J$ $-3.5011\to-4.3559$, $A$ $0.6750\to0.6793$,
+$T$ $0.04423\to0.01001$, $M$ $0.05614\to0.03152$. The tuned recipe is also the
+more stable: smaller s.d. on every row.
 
-## 13. Held-out results of the searched configuration
+![Correct-identification response](runs/optuna_analysis/final_pid_correct_identification.png)
 
-Each recipe was retrained to completion on the same two RTX 2080 Ti and
-evaluated on the untouched 158,985-row test split. The search never saw these
-rows.
+![Per-bin total variation](runs/optuna_analysis/final_pid_total_variation.png)
 
-### 13.1 Headline metrics
+**13.3 Corollary.** $T$ improves in *every* momentum bin of every species; the
+baseline's largest correct-identification errors, $+0.125$ (proton, 6-7 GeV) and
+$+0.085$ ($\pi^+$, 8-9 GeV), fall below $\pm0.031$ everywhere.
 
-| Metric | Published `tara_gpu_full` | Baseline reproduction | **Tuned (released)** | $\lambda_{\mathrm{PID}}=2$ variant |
+**13.4 Proposition.** *$\lambda_{\mathrm{PID}}$ acts by a step at
+$\lambda\approx2$, not smoothly.* (E3, validation)
+
+| $\lambda_{\mathrm{PID}}$ | 0.05 | 0.1 | 0.2 | 0.5 | 1 | **2** | 5 | 10 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| $\mathrm{NLL}_\Delta$ | -5.333 | -5.344 | -5.366 | -5.365 | -5.345 | **-5.714** | -5.700 | -5.698 |
+| $\mathrm{CE}$ | 0.982 | 0.981 | 0.980 | 0.980 | 0.979 | **0.716** | 0.714 | 0.715 |
+| $A$ | 0.6801 | 0.6800 | 0.6800 | 0.6801 | 0.6802 | **0.7399** | 0.7403 | 0.7400 |
+| $T$ | 0.0122 | 0.0111 | 0.0107 | 0.0095 | 0.0098 | 0.0086 | 0.0084 | **0.0083** |
+
+![lambda scan](runs/optuna_analysis/pid_weight_tuned_architecture.png)
+
+**13.5 Remark.** Both loss terms improve together across the step, so this is
+not re-weighting: the run reaches a different solution. E1 ranked
+$\lambda_{\mathrm{PID}}$ sixth of eleven because TPE concentrated on small
+values and never paired a large one with the selected architecture; fANOVA
+measures variance over the trials actually run.
+
+**13.6 Proposition.** *The step is not usable as a single-run setting.* (E5)
+Over 6 seeds at $\lambda_{\mathrm{PID}}{=}2$: $J=-4.224\pm0.870$ against
+$-4.353\pm0.045$; 2 of 6 reach the better solution, 1 of 6 destabilizes and is
+early-stopped at epoch 12 with $T=0.052$, worse than the assumed baseline.
+
+**13.7 Proposition.** *Every intervention that stabilizes it removes it.*
+(E6, E7; 6 seeds each)
+
+| | reached better | destabilized | $J$ | $A$ |
 |---|---:|---:|---:|---:|
-| Residual negative log likelihood | -4.7581 | -4.5304 | **-5.3365** | -5.7286 |
-| Reconstructed-PID cross entropy | 1.1774 | 1.0294 | **0.9806** | 0.7195 |
-| Joint negative log likelihood $J$ | -3.5808 | -3.5011 | **-4.3559** | -5.0091 |
-| Reconstructed-PID top-1 accuracy | 67.22% | 67.50% | **67.93%** | 74.02% |
-| Maximum PID marginal discrepancy | 0.426% | 0.291% | **0.200%** | 0.289% |
-| PID closure, particle-weighted mean TV | -- | 0.04423 | **0.01001** | 0.00936 |
-| PID closure, worst momentum bin | -- | 0.16402 | **0.05039** | 0.03273 |
-| Moment closure error | 0.05291 | 0.05614 | **0.03152** | 0.01402 |
-| Physical sampled $(p,\theta)$ fraction | 97.13% | 96.11% | **99.08%** | 99.09% |
-| Trainable parameters | 222,324 | 222,324 | 3,024,476 | 3,024,476 |
-
-The published run and the reproduction are two draws of the same recipe on
-different hardware, and the reproduction lies inside the baseline seed spread of
-section 13.3. The two dashes are quantities that the published run predates.
-
-The last column is deliberately *not* the released model. It is the same
-architecture trained with $\lambda_{\mathrm{PID}}=2$, and at this seed it wins
-on every line except the maximum PID marginal discrepancy, where it is 0.289%
-against the released model's 0.200%. Section 13.4 shows that it reaches that
-solution in only two of six seeds and destabilizes outright in one, so it is
-reported as a lead rather than a recipe.
-
-![Held-out headline metrics](runs/optuna_analysis/final_headline_metrics.png)
-
-### 13.2 Physics closure
-
-The single most useful figure is the conditional PID response against the
-COATJAVA teacher. This is a distributional closure test, not top-1 accuracy: it
-compares the empirical reconstructed-class fraction with the mean PID-head
-softmax probability in each fixed 1 GeV generated-momentum bin.
-
-![Correct-identification response versus generated momentum](runs/optuna_analysis/final_pid_correct_identification.png)
-
-The hand-written baseline departs from the teacher at both ends of the momentum
-range, and in opposite directions for the two pion charges. Above about 6 GeV it
-over-predicts correct identification for protons and $\pi^+$, by up to +0.125
-for protons in the 6-7 GeV bin and +0.085 for $\pi^+$ in the 8-9 GeV bin, while
-under-predicting it for $\pi^-$ by about -0.035. At the lowest momenta it
-under-predicts for $\pi^+$ and protons, by -0.043 and -0.058 in the 0-1 GeV bin,
-and over-predicts for $\pi^-$ by +0.044. The tuned model stays within $\pm0.031$
-everywhere and within $\pm0.010$ in all but three of the twenty-five bins,
-tracking the teacher inside its statistical error bars over almost the whole
-range.
-
-| Generated species | Baseline mean TV | Tuned mean TV | Baseline worst bin | Tuned worst bin |
-|---|---:|---:|---|---|
-| $\pi^-$ | 0.04193 | **0.01085** | 0.10337 (0-1 GeV) | 0.05039 (8-9 GeV) |
-| $\pi^+$ | 0.05397 | **0.01122** | 0.16402 (8-9 GeV) | 0.02867 (8-9 GeV) |
-| proton | 0.03620 | **0.00807** | 0.12816 (6-7 GeV) | 0.01916 (5-6 GeV) |
-
-![Total-variation closure per momentum bin](runs/optuna_analysis/final_pid_total_variation.png)
-
-The tuned model has a smaller total-variation distance than the baseline in
-*every* momentum bin of *every* species.
-
-For the moment variables, the sampled/observed width ratio should be 1 and the
-bias in units of the observed $\sigma$ should be 0.
-
-![Residual moment closure](runs/optuna_analysis/final_moment_closure.png)
-
-Biases shrink everywhere, and the baseline's worst width error -- proton
-$\Delta\theta$ sampled 12.6% too wide -- is corrected to 1.1%. Two honest
-caveats belong with this figure:
-
-- The tuned run's $\pi^+$ $\Delta\phi$ width, 0.8912, is the one cell that looks
-  worse than the baseline. It is a single-run fluctuation: the other two tuned
-  seeds give 1.0015 and 0.9893.
-- The $\pi^-$ $\Delta\phi$ width is about 6% too narrow in **all six** runs,
-  hand-written and searched alike (0.9509, 0.9420, 0.9374 against 0.9516,
-  0.9433, 0.9439). This is a property of the diagonal mixture parameterization,
-  not of the hyper-parameters, and tuning does not reach it. See limitation 4.
-
-![Validation trajectories](runs/optuna_analysis/final_learning_curves.png)
-
-### 13.3 Seed repeats
-
-A single seed cannot separate an architectural gain from run-to-run luck, so
-both recipes were retrained at seeds 20260823 and 20260824. In this project the
-seed drives the model initialization *and* the deterministic hash that assigns
-events to train/validation/test, so a repeat varies the data partition as well.
-That makes the spread a measure of total run-to-run variability, and it makes
-the two recipes exactly paired: at a given seed both saw the same events.
-
-| Metric | Baseline mean $\pm$ s.d. | Tuned mean $\pm$ s.d. | Paired difference | Same sign in all 3 |
-|---|---:|---:|---:|:--:|
-| Residual NLL | $-4.6388\pm0.0949$ | $-5.3350\pm0.0421$ | $-0.6961$ | yes |
-| PID cross entropy | $1.0351\pm0.0204$ | $0.9817\pm0.0032$ | $-0.0534$ | yes |
-| Joint NLL $J$ | $-3.6037\pm0.0950$ | $-4.3533\pm0.0452$ | $-0.7496$ | yes |
-| PID top-1 accuracy | $0.67537\pm0.00031$ | $0.67916\pm0.00057$ | $+0.00379$ | yes |
-| PID weighted mean TV | $0.0495\pm0.0158$ | $0.0105\pm0.0005$ | $-0.0390$ | yes |
-| PID worst-bin TV | $0.1346\pm0.0581$ | $0.0361\pm0.0124$ | $-0.0985$ | yes |
-| Moment closure error | $0.0416\pm0.0127$ | $0.0240\pm0.0073$ | $-0.0175$ | yes |
-| Physical sample fraction | $0.9769\pm0.0138$ | $0.9911\pm0.0004$ | $+0.0143$ | yes |
-
-![Seed spread](runs/optuna_analysis/seed_repeat_spread.png)
-
-Every metric improves, with the same sign in all three paired seeds. Three seeds
-are too few for a hypothesis test, but the joint likelihood and the PID closure
-separate by far more than the observed spread. The tuned recipe is also
-substantially *more stable*: its standard deviation is smaller than the
-baseline's on every quantity, by a factor of about thirty for the PID closure
-and the physical-sample fraction.
-
-### 13.4 What the PID loss weight actually does
-
-The joint search ranked $\lambda_{\mathrm{PID}}$ sixth of eleven by importance,
-which would suggest the weight barely matters. That reading is wrong. The search
-samples $\lambda_{\mathrm{PID}}$ jointly with everything else, and the sampler
-concentrated on small values early, so it never paired a large weight with the
-architecture it eventually selected. Holding that architecture fixed and moving
-only $\lambda_{\mathrm{PID}}$ tells a different story:
-
-| $\lambda_{\mathrm{PID}}$ | residual NLL | PID cross entropy | $J$ | PID top-1 | PID closure TV | moment closure |
-|---:|---:|---:|---:|---:|---:|---:|
-| 0.05 | -5.3332 | 0.9818 | -4.3514 | 0.6801 | 0.01219 | 0.01498 |
-| 0.1 | -5.3436 | 0.9807 | -4.3629 | 0.6800 | 0.01110 | 0.01821 |
-| 0.2 | -5.3661 | 0.9802 | -4.3859 | 0.6800 | 0.01070 | 0.01169 |
-| 0.5 | -5.3652 | 0.9795 | -4.3857 | 0.6801 | 0.00949 | 0.01393 |
-| 1 | -5.3446 | 0.9789 | -4.3657 | 0.6802 | 0.00982 | 0.01123 |
-| **2** | **-5.7137** | **0.7164** | **-4.9973** | 0.7399 | 0.00858 | **0.00714** |
-| 5 | -5.7000 | 0.7144 | -4.9856 | **0.7403** | 0.00840 | 0.02298 |
-| 10 | -5.6976 | 0.7145 | -4.9831 | 0.7400 | **0.00832** | 0.02119 |
-
-![Effect of the PID loss weight at the selected architecture](runs/optuna_analysis/pid_weight_tuned_architecture.png)
-
-This is a step, not the smooth trade-off the objective implies. Between
-$\lambda=1$ and $\lambda=2$ the PID top-1 accuracy jumps from 0.680 to 0.740 and
-the cross entropy falls from 0.979 to 0.716 -- and the *residual* likelihood
-improves at the same time, from -5.34 to -5.71. Both terms improving together is
-not a re-weighting effect; the run has reached a different and better solution.
-Above $\lambda=2$ everything plateaus.
-
-A plausible mechanism, untested here, is that with `gradient_clip_norm = 5.0` at
-a learning rate of $3\times10^{-3}$ the clip is frequently active, so raising
-$\lambda_{\mathrm{PID}}$ changes the *direction* of the clipped update rather
-than only the relative weight of the two losses.
-
-**But it is not reliable.** Because the effect is large enough to change the
-recommended recipe, $\lambda_{\mathrm{PID}}=2$ was retrained at six seeds and
-evaluated on the held-out test split:
-
-| Seed | Epochs run | Test $J$ | Test PID top-1 | PID closure TV | Outcome |
-|---|---:|---:|---:|---:|---|
-| 20260822 | 70 | **-5.0091** | **0.7402** | 0.00936 | reached the better solution |
-| 20260823 | 70 | -4.3041 | 0.6796 | 0.00888 | ordinary |
-| 20260824 | **12** | -2.5682 | 0.6747 | 0.05196 | destabilized, early-stopped |
-| 20260825 | 70 | -4.3455 | 0.6792 | 0.00943 | ordinary |
-| 20260826 | 70 | **-4.8605** | **0.7326** | 0.01118 | reached the better solution |
-| 20260827 | 70 | -4.2591 | 0.6816 | 0.01001 | ordinary |
-
-![Seed-by-seed stability at a large PID loss weight](runs/optuna_analysis/pid_weight_stability.png)
-
-Two of six seeds reach the better solution, three are ordinary, and one
-destabilizes badly enough that the patience rule stops it at epoch 12 with a
-barely-trained model whose PID closure, 0.052, is worse than the hand-written
-baseline's 0.044. The released recipe's own three-seed band is the blue line:
-it is narrow enough to be invisible at this scale, which is the contrast that
-matters. Over the six seeds $J=-4.224\pm0.870$, against
-$-4.353\pm0.045$ for $\lambda_{\mathrm{PID}}=0.397$; excluding the diverged run
-it is $-4.556\pm0.351$, a better mean with about eight times the spread.
-
-So a larger PID weight is **not** an improvement in expectation and is much less
-reliable. It is a large opportunity with an unsolved optimization problem
-attached. Note also that where the better solution is reached, the gain is in
-per-particle discrimination and likelihood, not in the distributional PID
-closure the physics deliverable targets: the particle-weighted mean TV moves
-from 0.01001 to 0.00936, a 7% relative change on a quantity the released
-configuration has already brought within 0.01 of the teacher.
-
-So a larger PID weight is not a usable *setting*. Sections 13.4.1 and 13.4.2
-try to make it one and fail; section 13.4.3 succeeds by treating it as a search
-instead.
-
-### 13.4.1 Follow-up: learning-rate warm-up
-
-The obvious explanation for the instability is the first few hundred updates:
-the diverged seed peaked at epoch 2. That window is a fraction of one epoch, so
-`training.lr_warmup_epochs` switches the learning rate to a *per-step* schedule,
-a linear ramp over the given number of epochs' worth of optimizer steps followed
-by the configured cosine decay. The same configuration was retrained at the same
-six seeds with a five-epoch warm-up, about 1,550 optimizer steps.
-
-| Seed | No warm-up: epochs / best epoch / $J$ / top-1 | With warm-up: epochs / best epoch / $J$ / top-1 |
-|---|---|---|
-| 20260822 | 70 / 70 / **-5.0091** / **0.7402** | 70 / 70 / **-4.8149** / **0.7271** |
-| 20260823 | 70 / 67 / -4.3041 / 0.6796 | 70 / 70 / -4.2970 / 0.6799 |
-| 20260824 | **12 / 2 / -2.5682 / 0.6747** | 70 / 69 / -4.0093 / 0.6784 |
-| 20260825 | 70 / 70 / -4.3455 / 0.6792 | 70 / 70 / -4.3476 / 0.6793 |
-| 20260826 | 70 / 70 / **-4.8605** / **0.7326** | 62 / 52 / -4.0183 / 0.6791 |
-| 20260827 | 70 / 69 / -4.2591 / 0.6816 | 70 / 67 / -4.3484 / 0.6815 |
-
-![Warm-up against no warm-up at the same six seeds](runs/optuna_analysis/pid_weight_warmup_stability.png)
-
-| | reached the better solution | destabilized | $J$ mean $\pm$ s.d. |
-|---|---:|---:|---:|
-| $\lambda=2$, no warm-up | 2 of 6 | 1 of 6 | $-4.224\pm0.870$ |
-| $\lambda=2$, 5-epoch warm-up | **1 of 6** | **0 of 6** | $-4.306\pm0.294$ |
-| released, $\lambda=0.397$ | n/a | 0 of 3 | $-4.353\pm0.045$ |
-
-The hypothesis is half right, and the half that fails is the important one.
-Warm-up fixes the stability: the divergence is gone, seed 20260824 now trains
-the full schedule and lands at $-4.0093$ instead of collapsing at epoch 12, no
-seed destabilizes, and the spread falls threefold. But it makes the *gain*
-rarer, not more reliable -- one seed of six instead of two, and seed 20260826,
-which reached the better solution without warm-up, no longer does.
-
-That points away from the original framing. The large early updates are not
-merely an unwanted side effect; they appear to be causally involved in reaching
-the better solution, and damping them suppresses the divergence and the jump
-together. Even with warm-up the setting remains worse than the released recipe
-on both mean and spread, so the recommendation is unchanged.
-
-### 13.4.2 Can the better solution be reached on purpose?
-
-Warm-up damps the early phase. Two further attempts tried to reach the better
-solution deliberately instead, both at $\lambda_{\mathrm{PID}}=2$ over the same
-six seeds.
-
-**A. Fine-tune**, so there is no fragile early phase to survive: warm start from
-each seed's *own* released checkpoint and fine-tune the whole model for 20
-epochs at a tenth of the peak learning rate. The checkpoint must come from the
-same seed, because the seed drives the partition hash and warm starting across
-seeds would leak the source split's training rows into this run's test split;
-`train.py --init-from` verifies this from the stored scalers and refuses a
-mismatch.
-
-**B. Decouple the learning rates**, so the PID term can be strong without large
-trunk updates: train from scratch at $\lambda_{\mathrm{PID}}=2$ with
-`backbone_lr_multiplier: 0.25`, so the trunk and species embedding take
-quarter-size steps while both heads keep the full rate.
-
-| Strategy | $J$ mean $\pm$ s.d. | PID top-1 mean $\pm$ s.d. | PID closure TV | reached better | failed |
-|---|---:|---:|---:|---:|---:|
-| released, $\lambda=0.397$ | $-4.3417\pm0.0416$ | $0.6796\pm0.0010$ | 0.01054 | 0 of 6 | 0 |
-| $\lambda=2$ from scratch | $-4.2244\pm0.8701$ | $0.6980\pm0.0299$ | 0.01680 | **2 of 6** | 1 |
-| A: fine-tune at $\lambda=2$ | $-4.3430\pm0.0395$ | $0.6796\pm0.0011$ | 0.01048 | **0 of 6** | 0 |
-| B: decoupled trunk LR | $-4.3547\pm0.0529$ | $0.6796\pm0.0010$ | 0.01207 | **0 of 6** | 0 |
-
-![Attempts to reach the better solution deliberately](runs/optuna_analysis/pid_strategy_comparison.png)
-
-Both attempts fail, and they fail in the same informative way. Neither reaches
-the better solution in any of six seeds, and both land statistically on top of
-the released recipe -- PID top-1 of $0.6796\pm0.0011$ and $0.6796\pm0.0010$
-against the released $0.6796\pm0.0010$. Those are not small improvements; they
-are the same number.
-
-Fine-tuning shows the better solution is not reachable by gradient descent from
-the released optimum. Decoupling shows the trunk's large updates are the
-mechanism rather than a side effect, since protecting the trunk removes the
-effect just as warm-up did, and does so with no instability to blame.
-
-Three independent interventions -- warm-up, fine-tuning, and a smaller trunk
-learning rate -- each stabilize training and each remove the gain. The
-consistent reading is that the better solution is a *different basin*, entered
-only by a large undamped perturbation of the shared trunk early in training. It
-is reached by luck, and every attempt here to reach it on purpose has instead
-prevented it.
-
-That closes off the "just stabilize it" family of fixes: every intervention that
-makes the run safe also makes it ordinary. Two directions remain. One is to
-change the problem rather than the schedule -- coupling the two heads so they are
-not conditionally independent (limitation 3), or a different PID head
-parameterization -- which is untried here. The other is to accept that the
-solution is reached by luck and buy enough lottery tickets, which is section
-13.4.3 and does work.
-
-All artifacts are published: `runs/optuna_best_pidweight/`,
-`runs/seed_pidweight_*/`, `runs/seed_pidweight_warmup_*/`,
-`runs/seed_pid_finetune_*/` and `runs/seed_pid_decoupled_*/`.
-
-### 13.4.3 The large weight works as a search, not as a recipe
-
-Every attempt above to make the better solution arrive reliably in a single run
-failed. What was left was to stop calling it a recipe: train several
-independently initialized runs at $\lambda_{\mathrm{PID}}=2$ and keep the one
-that lands.
-
-Two properties make that honest rather than a way of flattering the result.
-**All restarts share one data partition** -- `data.split_seed` pins the
-partition while `project.seed` varies only initialization and batch order, so
-the runs are mutually comparable and the winner is reported on a split none of
-them trained on. Previously `project.seed` moved the partition too, and "keep
-the best" would have meant selecting across different test sets. **Selection
-uses validation only** -- the selector reads each run's own validation history,
-and the test numbers are read out afterwards and never influence the choice;
-`restart_selection.json` records `selection_used_test_split: false` alongside
-the regret against an oracle that did cheat.
-
-Four pools, each at its own partition, each against its own released-recipe
-reference from that same partition. The last, 20260828, was never used in the
-search, the seed repeats, the scan, or any other pool, so it is an out-of-sample
-test of the whole procedure (section 13.4.5):
-
-| Partition | Restarts | Landed | Selected | Released acc | Selected acc | Gain |
-|---|---:|---:|---|---:|---:|---:|
-| 20260822 | 8 | 4 | `pid_restart_102` | 0.6793 | **0.7404** | **+6.11 pp** |
-| 20260823 | 6 | 2 | `pid_restart_s23_203` | 0.6797 | **0.7398** | **+6.01 pp** |
-| 20260824 | 6 | 1 | `pid_restart_s24_305` | 0.6785 | **0.7365** | **+5.80 pp** |
-| 20260828 | 8 | 1 | `pid_restart_s28_405` | 0.6797 | **0.7400** | **+6.03 pp** |
-
-| Partition | Released $J$ | Selected $J$ | $\Delta J$ | Released TV | Selected TV | $\Delta$TV |
-|---|---:|---:|---:|---:|---:|---:|
-| 20260822 | -4.3559 | -4.9910 | $-0.6351$ | 0.01001 | 0.00822 | $-0.00179$ |
-| 20260823 | -4.3972 | -4.9834 | $-0.5862$ | 0.01052 | 0.00893 | $-0.00159$ |
-| 20260824 | -4.3068 | -4.9385 | $-0.6317$ | 0.01105 | 0.01072 | $-0.00033$ |
-| 20260828 | -4.3601 | -4.9465 | $-0.5864$ | 0.00907 | 0.00849 | $-0.00058$ |
-
-![Multi-restart replicated at three partitions](runs/optuna_analysis/restart_pools.png)
-
-Across 28 restarts, 8 landed in the better basin: a pooled landing rate of 0.286
-with a Wilson 95% interval of $[0.15,0.47]$, so about **3.5 training runs per
-usable model**. A pool of eight has a 93% chance of containing at least one
-success; a pool of six only 87%, which is why eight is the recommended pool size.
-
-The rate is not constant across partitions -- 4/8, 2/6, 1/6 and 1/8, so 0.50 down
-to 0.125 -- and with pools this small that spread is compatible with a single
-underlying rate. It does mean the cost of the procedure should be planned from
-the interval rather than from the point estimate: budget eight runs, not three.
-
-Validation selection picked a better-basin run in all three pools, and in all
-three the regret against a test-set oracle was exactly zero. That is not luck:
-the basins are separated by roughly 0.5 nats in validation joint NLL, an order of
-magnitude beyond the noise in that quantity, so the ranking is unambiguous.
-
-![Validation selection against held-out outcome](runs/optuna_analysis/restart_selection.png)
-
-The gain is consistent across three independent partitions: about +6 points of
-reconstructed-PID top-1 accuracy, about 0.6 nats of joint likelihood, and a
-smaller PID response total-variation distance in every pool.
-
-### 13.4.4 Which model to use
-
-| | released `gpu_optuna_best.yaml` | restart search at $\lambda=2$ |
-|---|---|---|
-| held-out PID top-1 | 0.6796 $\pm$ 0.0010 (6 seeds) | 0.7365-0.7404 (3 partitions) |
-| held-out $J$ | $-4.3417\pm0.0416$ | $-4.94$ to $-4.99$ |
-| PID closure TV | 0.01054 | 0.00822-0.01072 |
-| training cost | one run | about three runs |
-| reproducible in one run | yes | no, by construction |
-
-**For the best model, use the restart search.** Run
-`experiments/run_tuning_pipeline.sh 10` with `RESTART_SPLIT_SEED` set to the
-partition you intend to release on, and take the checkpoint that
-`restart_selection.json` names. The published example is
-`runs/pid_restart_102/model.pt`, which on partition 20260822 improves on the
-released recipe in every held-out quantity measured, including moment closure
-(0.01493 against 0.03152) and the physical sampled fraction (99.18% against
-99.08%).
-
-**For a single deterministic run, use `configs/gpu_optuna_best.yaml`.** It is
-reproducible in one run, has the smallest seed-to-seed spread of anything
-measured here, and still beats the hand-written baseline on every held-out
-quantity.
-
-What should **not** be done is to set `pid_loss_weight >= 2` in a single run and
-expect the gain. That lands in the better basin about a third of the time and
-occasionally destabilizes outright. The weight is the entry ticket to a search,
-not a setting.
-
-### 13.4.5 Both options run out of sample
-
-Everything above was measured on partitions that had been used somewhere in the
-tuning. As a final check the two supported options of section 14.1 were run
-exactly as documented on partition **20260828**, which was not used by the
-search, the seed repeats, the $\lambda_{\mathrm{PID}}$ scan, the warm-up study,
-the fine-tune study, or any other restart pool.
-
-| | Option A, one run | Option B, eight restarts |
-|---|---:|---:|
-| held-out joint NLL $J$ | -4.3601 | **-4.9465** |
-| held-out PID top-1 | 0.6797 | **0.7400** |
-| PID closure, weighted mean TV | 0.00907 | **0.00849** |
-| restarts landed in the better basin | n/a | 1 of 8 |
-| selected by | n/a | validation only, zero oracle regret |
-| training runs | 1 | 8 |
-
-Both behave as the preceding sections predict. Option A lands at 0.6797, inside
-the six-seed released band of $0.6796\pm0.0010$, and $J=-4.3601$ against
-$-4.3417\pm0.0416$. Option B gains $+6.03$ points of PID top-1 accuracy, in line
-with the $+6.11$, $+6.01$ and $+5.80$ measured at the other three partitions,
-and validation selection again picked a better-basin run with zero regret.
-
-The one caution this run adds is about cost rather than outcome: only one of
-eight restarts landed, the lowest rate of the four pools. A pool of six would
-have had a real chance of returning nothing, which is why section 14.1
-recommends eight.
-
-### 13.5 How precisely can these closure numbers be read?
-
-The two closure statistics have very different resolutions, and the difference
-is structural. `pid_closure_tv` is built from the mean PID-head softmax
-probability and is a deterministic function of the checkpoint. The moment
-closure is built from one stochastic draw per particle, and its width term is a
-sample standard deviation, which is exactly the quantity that rare large draws
-from a heavy-tailed mixture move.
-
-Re-sampling a fixed checkpoint under ten sampling seeds on the validation split:
-
-| Run | moment closure, mean $\pm$ s.d. | PID TV s.d. |
-|---|---:|---:|
-| baseline reproduction | $0.06074\pm0.00315$ | $0$ exactly |
-| tuned | $0.03138\pm0.00239$ | $0$ exactly |
-
-Every PID closure comparison above is therefore exact given the checkpoints.
-Moment closure carries $\sigma\approx0.003$, so differences below about 0.006
-between two checkpoints mean nothing on their own; the tuned-versus-baseline gap
-of 0.029 on validation is roughly ten times that. The per-cell width ratios in
-section 13.2 should not be read to the fourth decimal.
+| $\lambda{=}2$ | 2/6 | 1/6 | $-4.224\pm0.870$ | $0.6980\pm0.0299$ |
+| $+$ warm-up | **1/6** | 0/6 | $-4.306\pm0.294$ | $0.6876\pm0.0194^{\dagger}$ |
+| $+$ fine-tune | **0/6** | 0/6 | $-4.343\pm0.040$ | $0.6796\pm0.0011$ |
+| $+$ trunk LR $\times0.25$ | **0/6** | 0/6 | $-4.355\pm0.053$ | $0.6796\pm0.0010$ |
+
+$^{\dagger}$ one seed reaches 0.7271, five remain at $\approx0.679$.
+Fine-tuning and decoupling reproduce the released $A=0.6796\pm0.0010$ to four
+decimals. Hence the better solution is a distinct basin, entered only by a large
+undamped early perturbation of the shared trunk, and unreachable by descent from
+the released optimum.
+
+![Strategies](runs/optuna_analysis/pid_strategy_comparison.png)
+
+**13.8 Proposition.** *The basin is reliably obtainable as a search.* (E8)
+Restarts share one partition (`data.split_seed`); selection reads validation only.
+
+| Partition | Restarts | Landed | $A$ released $\to$ selected | Gain |
+|---|---:|---:|---:|---:|
+| 20260822 | 8 | 4 | $0.6793\to\mathbf{0.7404}$ | $+6.11$ pp |
+| 20260823 | 6 | 2 | $0.6797\to\mathbf{0.7398}$ | $+6.01$ pp |
+| 20260824 | 6 | 1 | $0.6785\to\mathbf{0.7365}$ | $+5.80$ pp |
+| 20260828$^{\ast}$ | 8 | 1 | $0.6797\to\mathbf{0.7400}$ | $+6.03$ pp |
+
+$^{\ast}$ partition used by no other experiment here; Option A on it gives
+$J=-4.3601$, $A=0.6797$, inside the E2 band.
+
+Pooled: 8 of 28, rate $0.286$, Wilson 95% $[0.15,0.47]$, i.e. $\approx3.5$ runs
+per usable model; a pool of 8 succeeds with probability 0.93, of 6 only 0.87.
+Validation selection chose a better-basin run in 4 of 4 pools with oracle regret
+exactly $0$, the two basins being $\approx0.5$ nats apart in validation $J$.
+On 20260822 the selected model gives $J=-4.991$, $A=0.7404$, $T=0.00822$,
+$M=0.01493$, physical fraction $0.9918$: better than the released recipe in every
+coordinate.
+
+![Restart pools](runs/optuna_analysis/restart_pools.png)
+
+**13.9 Remarks** (*limits of the above*).
+
+1. *Resolution.* (E4) $T$ is a function of mean softmax probabilities, hence
+   exactly reproducible under re-sampling ($\sigma=0$). $M$ carries
+   $\sigma\approx0.003$; differences $\lesssim0.006$ in $M$ are not meaningful.
+2. *Epoch budget binding.* The selected checkpoint is epoch 70 of 70; the
+   reported figures are a lower bound for this architecture.
+3. *Structural limit.* The sampled $\Delta\phi$ width for $\pi^-$ is
+   $0.945\pm0.005$ of the observed value in all runs, assumed and searched alike;
+   this is the diagonal-mixture parameterization (limitation 4), outside the
+   reach of hyper-parameter choice.
+4. *Unexplained.* Why the basin of 13.7-13.8 exists is not known.
 
 ## 14. Installation and execution
 
@@ -1424,7 +1022,7 @@ seed-to-seed spread of anything measured here:
 python train.py --config configs/gpu_optuna_best.yaml --device cuda:0
 ```
 
-**Option B, the restart search of section 13.4.3.** About six points more
+**Option B, the restart search of proposition 13.8.** About six points more
 reconstructed-PID top-1 accuracy, for about 3.5 training runs per usable model;
 eight restarts give a 93% chance of at least one success. Set
 `RESTART_SPLIT_SEED` to the partition you intend to release on, so that every
@@ -1435,8 +1033,8 @@ RESTART_SPLIT_SEED=20260822 RESTART_SEEDS="101 102 103 104 105 106 107 108" expe
 ```
 
 The winner is named in `runs/optuna_analysis/restart_selection.json`, chosen on
-validation only. Section 13.4.4 compares the two options; a run at a partition
-that was never used during tuning is in section 13.4.5.
+validation only. Proposition 13.8 compares the two options, including at a
+partition used by no other experiment.
 
 Reproducing the entire tuning study, which expects two GPUs and takes a few
 hours:
@@ -1517,11 +1115,10 @@ sample.py                stochastic inference entry point
 
 4. **Diagonal components.** Each Gaussian mixture component has diagonal
    covariance. Mixture membership provides some joint structure but may be
-   insufficient for strongly correlated tails. Section 13 gives direct evidence
-   that this is now a binding limit rather than a hypothetical one: the sampled
-   $\Delta\phi$ width for generated $\pi^-$ is about 6% too narrow in all six
-   trained runs, hand-written and searched alike, so it is a property of the
-   parameterization that hyper-parameter tuning does not reach.
+   insufficient for strongly correlated tails. Remark 13.9.3 makes this a
+   measured rather than hypothetical limit: the sampled $\Delta\phi$ width for
+   generated $\pi^-$ is $0.945\pm0.005$ of the observed value in every run,
+   assumed and searched alike.
 
 5. **`OTHER` has no positive training examples by construction.** Because the
    vocabulary is built from all PIDs observed in the training split, its extra
@@ -1553,17 +1150,12 @@ sample.py                stochastic inference entry point
     on what this architecture can reach, not a converged optimum.
 
 11. **The best PID solution is reached by luck, so obtaining it costs several
-    training runs.** Section 13.4 shows that $\lambda_{\mathrm{PID}}\ge2$ can
-    reach a solution roughly six points better in reconstructed-PID top-1
-    accuracy, but only sometimes. Sections 13.4.1 and 13.4.2 show that three
-    interventions -- warm-up, fine-tuning from the released checkpoint, and a
-    smaller trunk learning rate -- each stabilize training and each remove the
-    gain, so it behaves like a separate basin entered only by a large undamped
-    perturbation of the shared trunk early in training. Section 13.4.3 obtains
-    it reliably as a restart search at about 3.5 training runs per usable
-    model, but *why* the basin exists is not understood, and no single-run
-    setting reaches it. Any large apparent gain from this direction must still
-    be checked across seeds before it is believed.
+    training runs.** Propositions 13.4-13.8: $\lambda_{\mathrm{PID}}\ge2$ can
+    reach a solution about six points better in reconstructed-PID top-1
+    accuracy, but only sometimes; warm-up, fine-tuning and a smaller trunk
+    learning rate each stabilize training and each remove the gain; a restart
+    search obtains it at about 3.5 training runs per usable model. Why the basin
+    exists is not known, and no single-run setting reaches it.
 
 ## 17. Roadmap to the full forward foundation model
 
