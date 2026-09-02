@@ -48,6 +48,10 @@ FINETUNE_LR_FACTOR="${FINETUNE_LR_FACTOR:-0.1}"
 BACKBONE_LR_MULTIPLIER="${BACKBONE_LR_MULTIPLIER:-0.25}"
 RESTART_SPLIT_SEED="${RESTART_SPLIT_SEED:-20260822}"
 RESTART_SEEDS="${RESTART_SEEDS:-101 102 103 104 105 106 107 108}"
+# Distinguishes restart pools run at different partitions; empty keeps the
+# original names for the first pool.
+RESTART_TAG="${RESTART_TAG:-}"
+RESTART_REFERENCE="${RESTART_REFERENCE:-runs/optuna_best}"
 
 STAGES=("$@")
 stage_wanted() { [ "${#STAGES[@]}" -eq 0 ] || [[ " ${STAGES[*]} " == *" $1 "* ]]; }
@@ -333,9 +337,10 @@ with open("configs/gpu_pid_restart.yaml", "w", encoding="utf-8") as handle:
 print("wrote configs/gpu_pid_restart.yaml")
 PYEOF
 
+  if [ -n "$RESTART_TAG" ]; then prefix="runs/pid_restart_${RESTART_TAG}"; else prefix="runs/pid_restart"; fi
   gpu=0; pids=()
   for seed in $RESTART_SEEDS; do
-    dir="runs/pid_restart_$seed"
+    dir="${prefix}_$seed"
     mkdir -p "$dir"
     python train.py --config configs/gpu_pid_restart.yaml --seed "$seed" \
       --run-dir "$dir" --device "cuda:$gpu" > "$dir/training.log" 2>&1 &
@@ -346,11 +351,13 @@ PYEOF
 
   restart_args=""
   for seed in $RESTART_SEEDS; do
-    restart_args="$restart_args --restart runs/pid_restart_$seed"
+    restart_args="$restart_args --restart ${prefix}_$seed"
   done
+  if [ -n "$RESTART_TAG" ]; then out="$ANALYSIS/restart_${RESTART_TAG}"; else out="$ANALYSIS"; fi
+  mkdir -p "$out"
   python experiments/select_restart.py $restart_args \
-    --reference runs/optuna_best --output-dir "$ANALYSIS" \
-    > "$ANALYSIS/restart_selection.log" 2>&1 || cat "$ANALYSIS/restart_selection.log"
+    --reference "$RESTART_REFERENCE" --output-dir "$out" \
+    > "$out/restart_selection.log" 2>&1 || cat "$out/restart_selection.log"
 fi
 
 echo "pipeline complete; artifacts in $ANALYSIS"
