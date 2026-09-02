@@ -1,0 +1,28 @@
+device=cuda:0 run_dir=/home/htseng/Downloads/QuantumMC_Forward_Foundation_Model/runs/seed_pid_finetune_20260824
+loading deterministic, event-disjoint data splits...
+loaded train=1,270,674, validation=159,300, test=159,267 in 4.94s
+warm started from runs/seed_tuned_20260824/model.pt (epoch 70)
+trainable_parameters=3,024,476
+epoch=01 train_loss=-3.28833 val_loss=-3.30372 val_nll=-5.27714 val_joint_nll=-4.29043 val_pid_acc=0.6759
+epoch=02 train_loss=-3.28959 val_loss=-3.30962 val_nll=-5.28287 val_joint_nll=-4.29625 val_pid_acc=0.6760
+epoch=03 train_loss=-3.29063 val_loss=-3.30910 val_nll=-5.28246 val_joint_nll=-4.29578 val_pid_acc=0.6760
+epoch=04 train_loss=-3.29108 val_loss=-3.31152 val_nll=-5.28420 val_joint_nll=-4.29786 val_pid_acc=0.6761
+epoch=05 train_loss=-3.29138 val_loss=-3.31275 val_nll=-5.28563 val_joint_nll=-4.29919 val_pid_acc=0.6760
+epoch=06 train_loss=-3.29199 val_loss=-3.31275 val_nll=-5.28546 val_joint_nll=-4.29911 val_pid_acc=0.6760
+epoch=07 train_loss=-3.29268 val_loss=-3.31487 val_nll=-5.28751 val_joint_nll=-4.30119 val_pid_acc=0.6761
+epoch=08 train_loss=-3.29416 val_loss=-3.31409 val_nll=-5.28629 val_joint_nll=-4.30019 val_pid_acc=0.6760
+epoch=09 train_loss=-3.29527 val_loss=-3.31401 val_nll=-5.28636 val_joint_nll=-4.30018 val_pid_acc=0.6762
+epoch=10 train_loss=-3.29563 val_loss=-3.31670 val_nll=-5.28938 val_joint_nll=-4.30304 val_pid_acc=0.6761
+epoch=11 train_loss=-3.29787 val_loss=-3.31550 val_nll=-5.28782 val_joint_nll=-4.30166 val_pid_acc=0.6760
+epoch=12 train_loss=-3.29875 val_loss=-3.31737 val_nll=-5.28957 val_joint_nll=-4.30347 val_pid_acc=0.6760
+epoch=13 train_loss=-3.29974 val_loss=-3.31802 val_nll=-5.28996 val_joint_nll=-4.30399 val_pid_acc=0.6761
+epoch=14 train_loss=-3.30156 val_loss=-3.31890 val_nll=-5.29105 val_joint_nll=-4.30498 val_pid_acc=0.6761
+epoch=15 train_loss=-3.30172 val_loss=-3.32081 val_nll=-5.29293 val_joint_nll=-4.30687 val_pid_acc=0.6761
+epoch=16 train_loss=-3.30239 val_loss=-3.32002 val_nll=-5.29198 val_joint_nll=-4.30600 val_pid_acc=0.6761
+epoch=17 train_loss=-3.30253 val_loss=-3.32135 val_nll=-5.29320 val_joint_nll=-4.30728 val_pid_acc=0.6762
+epoch=18 train_loss=-3.30332 val_loss=-3.32183 val_nll=-5.29373 val_joint_nll=-4.30778 val_pid_acc=0.6761
+epoch=19 train_loss=-3.30445 val_loss=-3.32180 val_nll=-5.29377 val_joint_nll=-4.30778 val_pid_acc=0.6761
+epoch=20 train_loss=-3.30438 val_loss=-3.32208 val_nll=-5.29399 val_joint_nll=-4.30803 val_pid_acc=0.6761
+test_nll=-5.293389
+test_pid_accuracy=0.6785
+checkpoint=/home/htseng/Downloads/QuantumMC_Forward_Foundation_Model/runs/seed_pid_finetune_20260824/model.pt

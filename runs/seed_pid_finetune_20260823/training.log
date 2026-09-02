@@ -1,0 +1,16 @@
+device=cuda:1 run_dir=/home/htseng/Downloads/QuantumMC_Forward_Foundation_Model/runs/seed_pid_finetune_20260823
+loading deterministic, event-disjoint data splits...
+loaded train=1,271,243, validation=159,550, test=158,448 in 5.04s
+warm started from runs/seed_tuned_20260823/model.pt (epoch 70)
+trainable_parameters=3,024,476
+epoch=01 train_loss=-3.35599 val_loss=-3.36111 val_nll=-5.32770 val_joint_nll=-4.34440 val_pid_acc=0.6782
+epoch=02 train_loss=-3.35763 val_loss=-3.35844 val_nll=-5.32488 val_joint_nll=-4.34166 val_pid_acc=0.6781
+epoch=03 train_loss=-3.35774 val_loss=-3.35953 val_nll=-5.32492 val_joint_nll=-4.34223 val_pid_acc=0.6782
+epoch=04 train_loss=-3.35869 val_loss=-3.36039 val_nll=-5.32585 val_joint_nll=-4.34312 val_pid_acc=0.6782
+epoch=05 train_loss=-3.36026 val_loss=-3.35688 val_nll=-5.32219 val_joint_nll=-4.33953 val_pid_acc=0.6782
+epoch=06 train_loss=-3.36110 val_loss=-3.36057 val_nll=-5.32541 val_joint_nll=-4.34299 val_pid_acc=0.6783
+epoch=07 train_loss=-3.36178 val_loss=-3.36140 val_nll=-5.32619 val_joint_nll=-4.34380 val_pid_acc=0.6785
+early stopping after epoch 7; best epoch was 1
+test_nll=-5.371134
+test_pid_accuracy=0.6796
+checkpoint=/home/htseng/Downloads/QuantumMC_Forward_Foundation_Model/runs/seed_pid_finetune_20260823/model.pt

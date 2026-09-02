@@ -20,11 +20,12 @@ Sections 12 and 13 replace that recipe's assumed hyper-parameters with a
 recorded search and report what it is worth on the held-out split: the searched
 configuration lowers the held-out joint negative log likelihood by 0.75 nats and
 improves the reconstructed-PID response closure against the COATJAVA teacher by
-about a factor of five, reproducibly across three seeds. Sections 13.4 and
-13.4.1 report a separate and larger effect from the PID loss weight that is
-**not** reproducible, together with the follow-up showing that the obvious fix
-removes the instability but also removes most of the gain, and explain why it is
-published as a lead rather than adopted.
+about a factor of five, reproducibly across three seeds. Sections 13.4 to
+13.4.2 report a separate and larger effect from the PID loss weight that is
+**not** reproducible, together with three follow-ups -- warm-up, fine-tuning and
+decoupled learning rates -- each of which stabilizes training and removes the
+gain, and explain why it is published as a documented dead end rather than
+adopted.
 
 ## 1. Where this model sits in the physics workflow
 
@@ -1174,13 +1175,63 @@ the better solution, and damping them suppresses the divergence and the jump
 together. Even with warm-up the setting remains worse than the released recipe
 on both mean and spread, so the recommendation is unchanged.
 
-The artifacts are published in `runs/optuna_best_pidweight/`,
-`runs/seed_pidweight_*/` and `runs/seed_pidweight_warmup_*/`. A more promising
-direction than damping the early phase, and untested here, is to make the better
-solution the target rather than an accident: fine-tune the PID head at a large
-weight after training the residual density at the released weight, or decouple
-the two heads' learning rates, so the PID term can be strong without putting the
-shared trunk's early updates at risk.
+### 13.4.2 Can the better solution be reached on purpose?
+
+Warm-up damps the early phase. Two further attempts tried to reach the better
+solution deliberately instead, both at $\lambda_{\mathrm{PID}}=2$ over the same
+six seeds.
+
+**A. Fine-tune**, so there is no fragile early phase to survive: warm start from
+each seed's *own* released checkpoint and fine-tune the whole model for 20
+epochs at a tenth of the peak learning rate. The checkpoint must come from the
+same seed, because the seed drives the partition hash and warm starting across
+seeds would leak the source split's training rows into this run's test split;
+`train.py --init-from` verifies this from the stored scalers and refuses a
+mismatch.
+
+**B. Decouple the learning rates**, so the PID term can be strong without large
+trunk updates: train from scratch at $\lambda_{\mathrm{PID}}=2$ with
+`backbone_lr_multiplier: 0.25`, so the trunk and species embedding take
+quarter-size steps while both heads keep the full rate.
+
+| Strategy | $J$ mean $\pm$ s.d. | PID top-1 mean $\pm$ s.d. | PID closure TV | reached better | failed |
+|---|---:|---:|---:|---:|---:|
+| released, $\lambda=0.397$ | $-4.3417\pm0.0416$ | $0.6796\pm0.0010$ | 0.01054 | 0 of 6 | 0 |
+| $\lambda=2$ from scratch | $-4.2244\pm0.8701$ | $0.6980\pm0.0299$ | 0.01680 | **2 of 6** | 1 |
+| A: fine-tune at $\lambda=2$ | $-4.3430\pm0.0395$ | $0.6796\pm0.0011$ | 0.01048 | **0 of 6** | 0 |
+| B: decoupled trunk LR | $-4.3547\pm0.0529$ | $0.6796\pm0.0010$ | 0.01207 | **0 of 6** | 0 |
+
+![Attempts to reach the better solution deliberately](runs/optuna_analysis/pid_strategy_comparison.png)
+
+Both attempts fail, and they fail in the same informative way. Neither reaches
+the better solution in any of six seeds, and both land statistically on top of
+the released recipe -- PID top-1 of $0.6796\pm0.0011$ and $0.6796\pm0.0010$
+against the released $0.6796\pm0.0010$. Those are not small improvements; they
+are the same number.
+
+Fine-tuning shows the better solution is not reachable by gradient descent from
+the released optimum. Decoupling shows the trunk's large updates are the
+mechanism rather than a side effect, since protecting the trunk removes the
+effect just as warm-up did, and does so with no instability to blame.
+
+Three independent interventions -- warm-up, fine-tuning, and a smaller trunk
+learning rate -- each stabilize training and each remove the gain. The
+consistent reading is that the better solution is a *different basin*, entered
+only by a large undamped perturbation of the shared trunk early in training. It
+is reached by luck, and every attempt here to reach it on purpose has instead
+prevented it.
+
+That closes off the "just stabilize it" family of fixes. What remains untried is
+changing the problem rather than the schedule: coupling the two heads so they
+are not conditionally independent (limitation 3), a different PID head
+parameterization, or an explicit multi-restart procedure that trains several
+seeds at $\lambda\ge2$ and keeps the one that lands well -- honest about being a
+search rather than a recipe, and at two successes in six seeds costing about
+three training runs per usable model.
+
+All artifacts are published: `runs/optuna_best_pidweight/`,
+`runs/seed_pidweight_*/`, `runs/seed_pidweight_warmup_*/`,
+`runs/seed_pid_finetune_*/` and `runs/seed_pid_decoupled_*/`.
 
 ### 13.5 How precisely can these closure numbers be read?
 
@@ -1300,6 +1351,7 @@ experiments/scan_pid_weight.py      controlled lambda_PID scan
 experiments/compare_final_models.py held-out comparison tables and figures
 experiments/summarize_seed_repeats.py seed-repeat statistics
 experiments/plot_pid_weight_stability.py  seed-by-seed view of the lambda finding
+experiments/compare_pid_strategies.py     strategies for reaching that solution
 experiments/closure_sampling_uncertainty.py  resolution floor of the closure metrics
 tests/                   scaling, leakage, likelihood, loader, and sampling tests
 docs/figures/            process diagrams and result figures
@@ -1361,16 +1413,18 @@ sample.py                stochastic inference entry point
     schedule had not stopped improving. The reported numbers are a lower bound
     on what this architecture can reach, not a converged optimum.
 
-11. **Training is not stable at a large PID loss weight, and stabilizing it
-    costs the gain.** Section 13.4 shows that $\lambda_{\mathrm{PID}}\ge2$ can
-    reach a solution roughly six points better in reconstructed-PID top-1
-    accuracy, but reaches it in only two of six seeds and destabilizes outright
-    in one. Section 13.4.1 shows that a learning-rate warm-up removes the
-    destabilization completely and cuts the spread threefold, yet makes the
-    better solution *rarer* -- one seed of six instead of two. The large early
-    updates appear to be causally involved in reaching it, so the two effects
-    cannot currently be separated. Until they can, an apparently large gain from
-    this direction must be checked across seeds before it is believed.
+11. **A better PID solution exists but is only reached by luck.** Section 13.4
+    shows that $\lambda_{\mathrm{PID}}\ge2$ can reach a solution roughly six
+    points better in reconstructed-PID top-1 accuracy, in two of six seeds, and
+    destabilizes outright in one. Sections 13.4.1 and 13.4.2 show that three
+    independent interventions -- learning-rate warm-up, fine-tuning from the
+    released checkpoint, and a smaller trunk learning rate -- each stabilize
+    training and each remove the gain, the last two reproducing the released
+    accuracy to four decimal places in all six seeds. The better solution
+    behaves like a separate basin entered only by a large undamped perturbation
+    of the shared trunk early in training. Until that is understood, an
+    apparently large gain from this direction must be checked across seeds
+    before it is believed.
 
 ## 17. Roadmap to the full forward foundation model
 

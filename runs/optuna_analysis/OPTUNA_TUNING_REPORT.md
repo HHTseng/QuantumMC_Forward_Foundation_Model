@@ -453,3 +453,71 @@ better solution the *target* rather than an accident: train at
 $\lambda_{\mathrm{PID}}=0.397$ for the residual density and fine-tune the PID
 head at a large weight, or decouple the two heads' learning rates, so that the
 PID term can be strong without the shared trunk's early updates being at risk.
+
+## 14. Can the better solution be reached on purpose?
+
+Section 13 showed that damping the early phase with a warm-up removes the
+instability and most of the gain together. Two further attempts were made to
+reach the better solution deliberately rather than by accident, both at
+$\lambda_{\mathrm{PID}}=2$ and both over the same six seeds.
+
+**A. Fine-tune, so there is no fragile early phase to survive.** Each seed's own
+released checkpoint is warm started and the whole model is fine-tuned for 20
+epochs at $\lambda_{\mathrm{PID}}=2$ with a tenth of the peak learning rate. The
+checkpoint must come from the same seed: the seed drives the partition hash, so
+warm starting across seeds would leak the source split's training rows into this
+run's test split. `train.py --init-from` verifies this by comparing the stored
+feature and target scalers and refuses a mismatch.
+
+**B. Decouple the learning rates, so the PID term can be strong without large
+trunk updates.** `pid_loss_weight` alone couples "how fast the PID head learns"
+to "how hard the PID term perturbs the shared trunk". Training from scratch at
+$\lambda_{\mathrm{PID}}=2$ with `backbone_lr_multiplier: 0.25` separates them:
+the trunk and the species embedding take quarter-size steps while both heads keep
+the full rate.
+
+Six seeds each, held-out test split. A run counts as a failure when its joint
+NLL is more than 0.5 nats worse than the released group's mean; failure is
+defined on the outcome rather than on early stopping, because an early best
+epoch means divergence for a from-scratch run but only "fine-tuning did not
+help" for a warm-started one.
+
+| Strategy | $J$ mean $\pm$ s.d. | PID top-1 mean $\pm$ s.d. | PID closure TV | reached better | failed |
+|---|---:|---:|---:|---:|---:|
+| released, $\lambda=0.397$ | $-4.3417\pm0.0416$ | $0.6796\pm0.0010$ | $0.01054$ | 0 of 6 | 0 |
+| $\lambda=2$ from scratch | $-4.2244\pm0.8701$ | $0.6980\pm0.0299$ | $0.01680$ | **2 of 6** | 1 |
+| A: fine-tune at $\lambda=2$ | $-4.3430\pm0.0395$ | $0.6796\pm0.0011$ | $0.01048$ | **0 of 6** | 0 |
+| B: decoupled trunk LR | $-4.3547\pm0.0529$ | $0.6796\pm0.0010$ | $0.01207$ | **0 of 6** | 0 |
+
+![Attempts to reach the better solution deliberately](pid_strategy_comparison.png)
+
+**Both attempts fail, and they fail in the same informative way.** Neither
+reaches the better solution in any of six seeds, and both land statistically on
+top of the released recipe: PID top-1 of $0.6796\pm0.0011$ and
+$0.6796\pm0.0010$ against the released $0.6796\pm0.0010$. These are not small
+improvements, they are the same number.
+
+Fine-tuning tells us the better solution is not reachable by gradient descent
+from the released optimum: starting there and raising the weight leaves the
+model where it already was, and in one seed the fine-tune never improved on its
+starting point at all. Decoupling tells us the trunk's large updates are the
+mechanism rather than a side effect, because protecting the trunk removes the
+effect just as warm-up did, and it does so without any instability to blame.
+
+Three independent interventions -- warm-up, fine-tuning, and a smaller trunk
+learning rate -- each stabilize training, and each removes the gain. The
+consistent reading is that the better solution is a *different basin* that is
+only entered by a large, undamped perturbation of the shared trunk early in
+training. It is reached by luck, and every attempt here to reach it on purpose
+has instead prevented it.
+
+That closes off the "just stabilize it" family of fixes with evidence. What
+remains untried is changing the problem rather than the schedule: coupling the
+heads so PID and residual predictions are not conditionally independent
+(limitation 3), a different PID head parameterization, or an explicit
+multi-restart procedure that trains several seeds at $\lambda\ge2$ and keeps the
+one that lands well -- which is honest about being a search rather than a recipe,
+and at two successes in six seeds would cost about three training runs per
+usable model.
+
+The released configuration is unchanged.
