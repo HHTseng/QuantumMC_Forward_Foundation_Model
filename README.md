@@ -15,15 +15,26 @@ This README distinguishes three objects that must not be conflated:
 2. the tensors actually passed to PyTorch;
 3. the parameters of the probability distributions predicted by the network.
 
-Sections 1-11 describe the model and the original hand-written training recipe.
-Sections 12 and 13 replace that recipe's assumed hyper-parameters with a
-recorded search and report what it is worth on the held-out split: the searched
-configuration lowers the held-out joint negative log likelihood by 0.75 nats and
-improves the reconstructed-PID response closure against the COATJAVA teacher by
-about a factor of five, reproducibly across seeds. Propositions 13.4-13.8 report
-a separate and larger effect from the PID loss weight, worth about six points of
-reconstructed-PID top-1 accuracy: not obtainable as a single-run setting, but
-obtainable as a restart search at about 3.5 training runs per usable model.
+Sections 1-11 describe the model and the original hand-written recipe, whose
+hyper-parameters were assumed. Sections 12-13 search them and state what that is
+worth.
+
+**Results.** Held-out test split; $J$ joint negative log likelihood, $A$
+reconstructed-PID top-1, $T$ PID response closure against the COATJAVA teacher
+(all lower-better except $A$).
+
+| Recipe | $J$ | $A$ | $T$ | Cost | Where |
+|---|---:|---:|---:|---:|---|
+| hand-written | $-3.604\pm0.095$ | $0.6754\pm0.0003$ | $0.0495\pm0.0158$ | 1 run | §11 |
+| **searched**, `configs/gpu_optuna_best.yaml` | $\mathbf{-4.342\pm0.042}$ | $0.6796\pm0.0010$ | $\mathbf{0.0105\pm0.0008}$ | 1 run | 13.1-13.2 |
+| **restart search** at $\lambda_{\mathrm{PID}}{=}2$ | $\mathbf{-4.94}$ to $\mathbf{-4.99}$ | $\mathbf{0.7365}$-$\mathbf{0.7404}$ | $0.0082$-$0.0107$ | $\approx3.5$ runs | 13.8 |
+
+The dominant lever was the learning rate, not network size (13.1). A large
+$\lambda_{\mathrm{PID}}$ is worth about six points of $A$ but is a *search*,
+not a value: it lands in the better basin about a third of the time, and every
+intervention that stabilizes training removes the gain (13.4-13.8).
+
+Scale: 90 search trials and 62 full training runs on two RTX 2080 Ti.
 
 ## 1. Where this model sits in the physics workflow
 
