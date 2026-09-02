@@ -1112,10 +1112,14 @@ evaluated on the held-out test split:
 | 20260826 | 70 | **-4.8605** | **0.7326** | 0.01118 | reached the better solution |
 | 20260827 | 70 | -4.2591 | 0.6816 | 0.01001 | ordinary |
 
+![Seed-by-seed stability at a large PID loss weight](runs/optuna_analysis/pid_weight_stability.png)
+
 Two of six seeds reach the better solution, three are ordinary, and one
 destabilizes badly enough that the patience rule stops it at epoch 12 with a
 barely-trained model whose PID closure, 0.052, is worse than the hand-written
-baseline's 0.044. Over the six seeds $J=-4.224\pm0.870$, against
+baseline's 0.044. The released recipe's own three-seed band is the blue line:
+it is narrow enough to be invisible at this scale, which is the contrast that
+matters. Over the six seeds $J=-4.224\pm0.870$, against
 $-4.353\pm0.045$ for $\lambda_{\mathrm{PID}}=0.397$; excluding the diverged run
 it is $-4.556\pm0.351$, a better mean with about eight times the spread.
 
@@ -1252,6 +1256,8 @@ experiments/analyze_tuning.py       study analysis and configuration selection
 experiments/scan_pid_weight.py      controlled lambda_PID scan
 experiments/compare_final_models.py held-out comparison tables and figures
 experiments/summarize_seed_repeats.py seed-repeat statistics
+experiments/plot_pid_weight_stability.py  seed-by-seed view of the lambda finding
+experiments/closure_sampling_uncertainty.py  resolution floor of the closure metrics
 tests/                   scaling, leakage, likelihood, loader, and sampling tests
 docs/figures/            process diagrams and result figures
 runs/                    versioned metrics and reports

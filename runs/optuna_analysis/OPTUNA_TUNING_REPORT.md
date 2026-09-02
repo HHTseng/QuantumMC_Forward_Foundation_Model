@@ -333,9 +333,12 @@ survive.
 | 20260826 | 70 | **-4.8605** | **0.7326** | 0.01118 | reached the better solution |
 | 20260827 | 70 | -4.2591 | 0.6816 | 0.01001 | ordinary |
 
+![Seed-by-seed stability at a large PID loss weight](pid_weight_stability.png)
+
 Two of six seeds reach the better solution, three are ordinary, and one
 destabilizes badly enough that the patience rule stops it at epoch 12 with a
-barely-trained model. Over all six seeds
+barely-trained model. The released recipe's own three-seed band is the blue
+line, narrow enough to be invisible at this scale. Over all six seeds
 
 $$
 J=-4.224\pm0.870,
