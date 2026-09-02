@@ -826,7 +826,7 @@ second-moment closure of the residuals; both dimensionless, both lower-better.
 baseline's validation $J$ and $F:=\{\text{trial}:J\le J_0\}$,
 
 $$
-\text{selected}:=\underset{F}{\arg\min}\ \Bigl[T/\operatorname{med}_F T+M/\operatorname{med}_F M\Bigr].
+\text{selected}:=\underset{F}{\arg\min}\ \Bigl[T/\mathrm{med}_F\,T+M/\mathrm{med}_F\,M\Bigr].
 $$
 
 **12.5 Remark.** Minimizing $J$ alone is unsafe: heavy mixture tails buy log
