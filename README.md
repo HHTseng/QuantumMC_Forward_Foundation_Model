@@ -1378,11 +1378,27 @@ Full selected-population training with the hand-written recipe:
 CUDA_VISIBLE_DEVICES=0 python train.py --config configs/gpu_full.yaml
 ```
 
-Training with the searched configuration of section 12:
+### 14.1 The two supported ways to train a model
+
+**Option A, one deterministic run.** Reproducible in a single run, smallest
+seed-to-seed spread of anything measured here:
 
 ```bash
 python train.py --config configs/gpu_optuna_best.yaml --device cuda:0
 ```
+
+**Option B, the restart search of section 13.4.3.** About six points more
+reconstructed-PID top-1 accuracy, for about three training runs per usable
+model. Set `RESTART_SPLIT_SEED` to the partition you intend to release on, so
+that every restart shares one train/validation/test split:
+
+```bash
+RESTART_SPLIT_SEED=20260822 RESTART_SEEDS="101 102 103 104 105 106 107 108"   experiments/run_tuning_pipeline.sh 10
+```
+
+The winner is named in `runs/optuna_analysis/restart_selection.json`, chosen on
+validation only. Section 13.4.4 compares the two options; a run at a partition
+that was never used during tuning is in section 13.4.5.
 
 Reproducing the entire tuning study, which expects two GPUs and takes a few
 hours:
