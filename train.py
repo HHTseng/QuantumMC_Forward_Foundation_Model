@@ -46,6 +46,12 @@ def parse_args() -> argparse.Namespace:
         type=int,
         help="Override the configured seed, for seed-sensitivity repeats",
     )
+    parser.add_argument(
+        "--init-from",
+        help="Warm start from a saved checkpoint's weights, for two-phase "
+        "training. The checkpoint must come from the same data split, which is "
+        "verified against its stored scalers.",
+    )
     return parser.parse_args()
 
 
@@ -105,6 +111,28 @@ def main() -> None:
         target_dim=len(TARGET_COLUMNS),
         dropout=float(model_config["dropout"]),
     )
+    if args.init_from:
+        initial = torch.load(args.init_from, map_location="cpu", weights_only=False)
+        # A checkpoint fitted on a different split carries different feature and
+        # target standardizations, and warm starting across them would silently
+        # train on a mismatched coordinate system and leak the other split's
+        # training rows into this one's test set.
+        for name, saved, current in (
+            ("feature_scaler", initial["feature_scaler"], feature_scaler.as_dict()),
+            ("target_scaler", initial["target_scaler"], target_scaler.as_dict()),
+        ):
+            if not np.allclose(saved["mean"], current["mean"], rtol=1e-5, atol=1e-8) or (
+                not np.allclose(saved["scale"], current["scale"], rtol=1e-5, atol=1e-8)
+            ):
+                raise SystemExit(
+                    f"--init-from checkpoint has a different {name}; it was fitted "
+                    "on another split and must not be used to warm start this run"
+                )
+        if initial["architecture"] != model.architecture_dict():
+            raise SystemExit("--init-from checkpoint has a different architecture")
+        model.load_state_dict(initial["model_state"])
+        print(f"warm started from {args.init_from} (epoch {initial['best_epoch']})")
+
     print(f"trainable_parameters={count_parameters(model):,}")
     model, history, best_epoch = train_model(model, splits, config, device)
 

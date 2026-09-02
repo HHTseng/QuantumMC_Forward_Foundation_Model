@@ -28,6 +28,14 @@ for-bit unchanged:
     configured decay.  Warm-up has to act inside the first epoch, so it cannot
     be expressed by the epoch-granularity scheduler above.
 
+``training.pid_head_lr_multiplier`` / ``training.backbone_lr_multiplier``
+    Separate learning rates for the categorical head and the shared trunk.
+    ``pid_loss_weight`` alone couples "how fast the PID head learns" to "how
+    hard the PID term perturbs the trunk"; these separate the two.
+
+``training.freeze_backbone``
+    Optimize only the heads, for refitting PID on a fixed residual density.
+
 ``training.selection_metric``
     ``total_loss`` (default) selects the checkpoint by ``L_R+lambda_PID L_PID``.
     ``joint_nll`` selects by ``L_R+L_PID``, the lambda-independent held-out
@@ -246,6 +254,79 @@ def run_epoch(
     )
 
 
+def current_learning_rate(optimizer: torch.optim.Optimizer) -> float:
+    """The base learning rate, independent of how many groups exist."""
+    for group in optimizer.param_groups:
+        if group.get("name") == "density_heads":
+            return float(group["lr"])
+    return float(optimizer.param_groups[0]["lr"])
+
+
+def build_optimizer(
+    model: ConditionalMDN, training: dict[str, Any]
+) -> torch.optim.Optimizer:
+    """AdamW, optionally with a different learning rate for trunk and PID head.
+
+    The shared trunk and the PID head are coupled through one loss weight:
+    raising ``pid_loss_weight`` makes the PID term learn faster *and* perturbs
+    the trunk harder, and the second effect is what destabilizes training. Two
+    multipliers separate those knobs, so the PID head can be driven hard while
+    the trunk takes smaller steps:
+
+    ``training.pid_head_lr_multiplier``   scales the categorical head only
+    ``training.backbone_lr_multiplier``   scales the backbone and the species
+                                          embedding only
+
+    With both at 1.0 no parameter groups are created at all, so the default
+    optimizer is byte-for-byte the one this project has always used.
+
+    ``training.freeze_backbone`` excludes the trunk from optimization entirely,
+    for refitting the PID head on a fixed residual density.
+    """
+    learning_rate = float(training["learning_rate"])
+    weight_decay = float(training["weight_decay"])
+    pid_multiplier = float(training.get("pid_head_lr_multiplier", 1.0))
+    backbone_multiplier = float(training.get("backbone_lr_multiplier", 1.0))
+    freeze_backbone = bool(training.get("freeze_backbone", False))
+
+    if pid_multiplier == 1.0 and backbone_multiplier == 1.0 and not freeze_backbone:
+        return torch.optim.AdamW(
+            model.parameters(), lr=learning_rate, weight_decay=weight_decay
+        )
+
+    trunk, pid_head, density = [], [], []
+    for name, parameter in model.named_parameters():
+        if name.startswith(("backbone.", "species_embedding.")):
+            trunk.append(parameter)
+        elif name.startswith("pid_head."):
+            pid_head.append(parameter)
+        else:
+            density.append(parameter)
+
+    if freeze_backbone:
+        for parameter in trunk:
+            parameter.requires_grad_(False)
+
+    groups: list[dict[str, Any]] = [
+        {"params": density, "lr": learning_rate, "name": "density_heads"},
+        {
+            "params": pid_head,
+            "lr": learning_rate * pid_multiplier,
+            "name": "pid_head",
+        },
+    ]
+    if not freeze_backbone:
+        groups.insert(
+            0,
+            {
+                "params": trunk,
+                "lr": learning_rate * backbone_multiplier,
+                "name": "backbone",
+            },
+        )
+    return torch.optim.AdamW(groups, lr=learning_rate, weight_decay=weight_decay)
+
+
 def warmup_cosine_factor(
     step: int,
     warmup_steps: int,
@@ -320,11 +401,7 @@ def train_model(
         device=device,
         fast=fast_loader,
     )
-    optimizer = torch.optim.AdamW(
-        model.parameters(),
-        lr=float(training["learning_rate"]),
-        weight_decay=float(training["weight_decay"]),
-    )
+    optimizer = build_optimizer(model, training)
     schedule = str(training.get("lr_schedule", "none"))
     warmup_epochs = float(training.get("lr_warmup_epochs", 0.0))
     minimum_factor = float(training.get("lr_min_factor", 0.01))
@@ -384,7 +461,7 @@ def train_model(
         history.append(
             {
                 "epoch": epoch,
-                "learning_rate": float(optimizer.param_groups[0]["lr"]),
+                "learning_rate": current_learning_rate(optimizer),
                 "train": train_metrics.as_dict(),
                 "validation": validation_metrics.as_dict(),
             }

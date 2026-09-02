@@ -15,6 +15,7 @@ from forwardfm_step1.training import (
     EpochMetrics,
     build_loader,
     run_epoch,
+    build_optimizer,
     seed_everything,
     selection_value,
     train_model,
@@ -323,6 +324,89 @@ class TrainingScheduleIntegrationTests(unittest.TestCase):
     def test_warmup_longer_than_the_budget_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
             self.fit(self.config(lr_warmup_epochs=99.0))
+
+
+class OptimizerGroupTests(unittest.TestCase):
+    """Decoupled head learning rates, without disturbing the default."""
+
+    @staticmethod
+    def model() -> ConditionalMDN:
+        return ConditionalMDN(
+            4, 3, 12, hidden_width=16, hidden_layers=2, mixture_components=3
+        )
+
+    def test_default_builds_a_single_group(self) -> None:
+        optimizer = build_optimizer(
+            self.model(), {"learning_rate": 1e-3, "weight_decay": 1e-5}
+        )
+        self.assertEqual(len(optimizer.param_groups), 1)
+        self.assertAlmostEqual(optimizer.param_groups[0]["lr"], 1e-3)
+
+    def test_multipliers_scale_only_their_own_group(self) -> None:
+        optimizer = build_optimizer(
+            self.model(),
+            {
+                "learning_rate": 1e-3,
+                "weight_decay": 1e-5,
+                "pid_head_lr_multiplier": 4.0,
+                "backbone_lr_multiplier": 0.25,
+            },
+        )
+        rates = {group["name"]: group["lr"] for group in optimizer.param_groups}
+        self.assertAlmostEqual(rates["backbone"], 2.5e-4)
+        self.assertAlmostEqual(rates["pid_head"], 4e-3)
+        self.assertAlmostEqual(rates["density_heads"], 1e-3)
+
+    def test_every_parameter_is_optimized_exactly_once(self) -> None:
+        model = self.model()
+        optimizer = build_optimizer(
+            model,
+            {
+                "learning_rate": 1e-3,
+                "weight_decay": 1e-5,
+                "pid_head_lr_multiplier": 2.0,
+            },
+        )
+        grouped = [p for group in optimizer.param_groups for p in group["params"]]
+        self.assertEqual(len(grouped), len(list(model.parameters())))
+        self.assertEqual(len({id(p) for p in grouped}), len(grouped))
+
+    def test_freezing_the_backbone_excludes_it(self) -> None:
+        model = self.model()
+        optimizer = build_optimizer(
+            model,
+            {"learning_rate": 1e-3, "weight_decay": 1e-5, "freeze_backbone": True},
+        )
+        names = {group["name"] for group in optimizer.param_groups}
+        self.assertNotIn("backbone", names)
+        self.assertFalse(model.backbone[0].weight.requires_grad)
+        self.assertTrue(model.pid_head.weight.requires_grad)
+        grouped = {id(p) for group in optimizer.param_groups for p in group["params"]}
+        self.assertNotIn(id(model.backbone[0].weight), grouped)
+
+    def test_unit_multipliers_train_identically_to_the_default(self) -> None:
+        split = _synthetic_split(512, seed=5)
+        device = torch.device("cpu")
+
+        def fit(training: dict) -> list[float]:
+            seed_everything(11)
+            model = ConditionalMDN(
+                4, 3, 12, hidden_width=16, hidden_layers=2, mixture_components=3,
+                dropout=0.0,
+            )
+            optimizer = build_optimizer(model, training)
+            model.to(device)
+            losses = []
+            for _ in range(3):
+                loader = build_loader(split, 128, False, 11, 0, device, True)
+                losses.append(
+                    run_epoch(model, loader, device, 0.2, optimizer=optimizer).total_loss
+                )
+            return losses
+
+        base = {"learning_rate": 1e-3, "weight_decay": 1e-5}
+        explicit = {**base, "pid_head_lr_multiplier": 1.0, "backbone_lr_multiplier": 1.0}
+        np.testing.assert_allclose(fit(base), fit(explicit), rtol=1e-6, atol=1e-8)
 
 
 if __name__ == "__main__":
