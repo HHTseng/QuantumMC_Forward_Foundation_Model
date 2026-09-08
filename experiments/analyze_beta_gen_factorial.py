@@ -15,6 +15,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+import torch
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -41,6 +42,7 @@ CONTRASTS = (
     ("delta_beta_target_without_input", "A_original", "C_beta_target"),
     ("combined_vs_original", "A_original", "D_input_target_pid02"),
     ("beta_input_with_target", "C_beta_target", "D_input_target_pid02"),
+    ("delta_beta_target_with_input", "B_beta_input", "D_input_target_pid02"),
     ("pid_weight_0.2_to_1.0", "D_input_target_pid02", "D_input_target_pid1"),
 )
 T_CRITICAL_95 = {
@@ -119,6 +121,8 @@ def paired_statistics(control: np.ndarray, treatment: np.ndarray) -> dict[str, A
 
 def collect_run(run_dir: Path, seed: int, variant: str) -> dict[str, Any]:
     metrics = json.loads((run_dir / "metrics.json").read_text(encoding="utf-8"))
+    checkpoint = torch.load(run_dir / "model.pt", map_location="cpu", weights_only=False)
+    checkpoint_selection = checkpoint["checkpoint_selection"]
     correct_rows = read_csv(run_dir / "pid_correct_id_closure_mae.csv")
     tv_rows = read_csv(run_dir / "pid_bin_closure_summary.csv")
     closure_rows = read_csv(run_dir / "closure_metrics.csv")
@@ -127,6 +131,15 @@ def collect_run(run_dir: Path, seed: int, variant: str) -> dict[str, Any]:
         "variant": variant,
         "test_pid_cross_entropy": float(metrics["test"]["pid_cross_entropy"]),
         "test_pid_accuracy": float(metrics["test"]["pid_accuracy"]),
+        "selected_epoch": int(checkpoint["best_epoch"]),
+        "min_total_loss_epoch": int(
+            checkpoint_selection["candidates"]["total_loss"]["epoch"]
+        ),
+        "min_pid_cross_entropy_epoch": int(
+            checkpoint_selection["candidates"]["pid_cross_entropy"]["epoch"]
+        ),
+        "feature_count": len(checkpoint["feature_names"]),
+        "target_count": len(checkpoint["target_names"]),
     }
 
     correct_by_species = {int(value["generated_pid"]): value for value in correct_rows}
@@ -231,6 +244,35 @@ def analyze_contrasts(per_run: list[dict[str, Any]], seeds: tuple[int, ...]) -> 
                     **paired_statistics(left, right),
                 }
             )
+    for metric in metrics:
+        effect_without_target = np.asarray(
+            [
+                indexed[(seed, "A_original")][metric]
+                - indexed[(seed, "B_beta_input")][metric]
+                for seed in seeds
+            ]
+        )
+        effect_with_target = np.asarray(
+            [
+                indexed[(seed, "C_beta_target")][metric]
+                - indexed[(seed, "D_input_target_pid02")][metric]
+                for seed in seeds
+            ]
+        )
+        rows.append(
+            {
+                "contrast": "factorial_interaction_beta_input_by_beta_target",
+                "control": "input_effect_with_target",
+                "treatment": "input_effect_without_target",
+                "metric": metric,
+                "control_mean": float(effect_with_target.mean()),
+                "control_sd": float(effect_with_target.std(ddof=1)),
+                "treatment_mean": float(effect_without_target.mean()),
+                "treatment_sd": float(effect_without_target.std(ddof=1)),
+                # Positive means beta_gen helps more when delta_beta is a target.
+                **paired_statistics(effect_with_target, effect_without_target),
+            }
+        )
     return rows
 
 
@@ -261,7 +303,6 @@ def plot_correct_id_curves(
         bin_indices = sorted(
             key[2] for key in records if key[0] == VARIANTS[0] and key[1] == species
         )
-        first = records[(VARIANTS[0], species, bin_indices[0])]
         centers = np.asarray(
             [
                 0.5
@@ -322,6 +363,243 @@ def plot_seed_metrics(per_run: list[dict[str, Any]], output_path: Path) -> None:
         axis.grid(axis="y", alpha=0.25)
         axis.legend(fontsize=8)
     figure.suptitle("PID closure across matched model seeds")
+    figure.tight_layout()
+    figure.savefig(output_path, dpi=180)
+    plt.close(figure)
+
+
+def plot_beta_response_curves(
+    run_root: Path, seeds: tuple[int, ...], output_path: Path
+) -> None:
+    """Compare the continuous beta response for the three target-beta models."""
+    variants = (
+        "C_beta_target",
+        "D_input_target_pid02",
+        "D_input_target_pid1",
+    )
+    records: dict[tuple[str, int, int], dict[str, list[float]]] = {}
+    for seed in seeds:
+        for variant in variants:
+            rows = read_csv(
+                run_root / f"seed_{seed}" / variant / "beta_closure_vs_gen_p.csv"
+            )
+            for row in rows:
+                key = (variant, int(row["generated_pid"]), int(row["bin_index"]))
+                values = records.setdefault(
+                    key,
+                    {"low": [], "high": [], "observed": [], "sampled": []},
+                )
+                values["low"].append(float(row["p_low_gev"]))
+                values["high"].append(float(row["p_high_gev"]))
+                values["observed"].append(float(row["observed_mean"]))
+                values["sampled"].append(float(row["sampled_mean"]))
+
+    colors = plt.cm.plasma(np.linspace(0.15, 0.85, len(variants)))
+    figure, axes = plt.subplots(1, 3, figsize=(15, 4.5), sharey=True)
+    for axis, species in zip(axes, GENERATED_SPECIES):
+        bins = sorted(
+            key[2] for key in records if key[0] == variants[0] and key[1] == species
+        )
+        centers = np.asarray(
+            [
+                0.5
+                * (
+                    np.mean(records[(variants[0], species, index)]["low"])
+                    + np.mean(records[(variants[0], species, index)]["high"])
+                )
+                for index in bins
+            ]
+        )
+        observed = np.asarray(
+            [np.mean(records[(variants[0], species, index)]["observed"]) for index in bins]
+        )
+        axis.plot(centers, observed, "ko--", linewidth=1.8, label="COATJAVA")
+        for color, variant in zip(colors, variants):
+            matrix = np.asarray(
+                [records[(variant, species, index)]["sampled"] for index in bins]
+            )
+            mean = matrix.mean(axis=1)
+            half_width = (
+                T_CRITICAL_95[len(seeds) - 1]
+                * matrix.std(axis=1, ddof=1)
+                / np.sqrt(len(seeds))
+            )
+            axis.plot(
+                centers,
+                mean,
+                marker="o",
+                linewidth=1.4,
+                color=color,
+                label=VARIANT_LABELS[variant],
+            )
+            axis.fill_between(
+                centers,
+                mean - half_width,
+                mean + half_width,
+                color=color,
+                alpha=0.15,
+            )
+        axis.set_title(f"generated {SPECIES_LABEL[species]}")
+        axis.set_xlabel(r"$p_{gen}$ [GeV]")
+        axis.grid(alpha=0.25)
+    axes[0].set_ylabel(r"mean reconstructed $\beta$")
+    axes[-1].legend(fontsize=7, loc="best")
+    figure.suptitle("Continuous beta-response closure: 95% intervals across seeds")
+    figure.tight_layout()
+    figure.savefig(output_path, dpi=180)
+    plt.close(figure)
+
+
+def plot_pid_total_variation(
+    run_root: Path, seeds: tuple[int, ...], output_path: Path
+) -> None:
+    records: dict[tuple[str, int, int], dict[str, list[float]]] = {}
+    for seed in seeds:
+        for variant in VARIANTS:
+            rows = read_csv(
+                run_root / f"seed_{seed}" / variant / "pid_bin_closure_summary.csv"
+            )
+            for row in rows:
+                key = (variant, int(row["generated_pid"]), int(row["bin_index"]))
+                values = records.setdefault(
+                    key, {"low": [], "high": [], "tv": []}
+                )
+                values["low"].append(float(row["p_low_gev"]))
+                values["high"].append(float(row["p_high_gev"]))
+                values["tv"].append(float(row["total_variation_distance"]))
+
+    colors = plt.cm.viridis(np.linspace(0.05, 0.9, len(VARIANTS)))
+    figure, axes = plt.subplots(1, 3, figsize=(15, 4.5), sharey=True)
+    for axis, species in zip(axes, GENERATED_SPECIES):
+        bins = sorted(
+            key[2] for key in records if key[0] == VARIANTS[0] and key[1] == species
+        )
+        centers = np.asarray(
+            [
+                0.5
+                * (
+                    np.mean(records[(VARIANTS[0], species, index)]["low"])
+                    + np.mean(records[(VARIANTS[0], species, index)]["high"])
+                )
+                for index in bins
+            ]
+        )
+        for color, variant in zip(colors, VARIANTS):
+            matrix = np.asarray(
+                [records[(variant, species, index)]["tv"] for index in bins]
+            )
+            mean = matrix.mean(axis=1)
+            half_width = (
+                T_CRITICAL_95[len(seeds) - 1]
+                * matrix.std(axis=1, ddof=1)
+                / np.sqrt(len(seeds))
+            )
+            axis.plot(
+                centers,
+                mean,
+                marker="o",
+                linewidth=1.4,
+                color=color,
+                label=VARIANT_LABELS[variant],
+            )
+            axis.fill_between(
+                centers,
+                mean - half_width,
+                mean + half_width,
+                color=color,
+                alpha=0.12,
+            )
+        axis.set_title(f"generated {SPECIES_LABEL[species]}")
+        axis.set_xlabel(r"$p_{gen}$ [GeV]")
+        axis.grid(alpha=0.25)
+        axis.set_ylim(bottom=0.0)
+    axes[0].set_ylabel("PID-response total variation")
+    axes[-1].legend(fontsize=7, loc="best")
+    figure.suptitle("Full PID-distribution closure versus generated momentum")
+    figure.tight_layout()
+    figure.savefig(output_path, dpi=180)
+    plt.close(figure)
+
+
+def plot_pid_migration_channels(
+    run_root: Path, seeds: tuple[int, ...], output_path: Path
+) -> None:
+    channels = (
+        (211, 2212, r"$\pi^+\rightarrow p$"),
+        (2212, 211, r"$p\rightarrow\pi^+$"),
+        (211, 321, r"$\pi^+\rightarrow K^+$"),
+        (2212, 321, r"$p\rightarrow K^+$"),
+    )
+    records: dict[tuple[str, int, int, int], dict[str, list[float]]] = {}
+    for seed in seeds:
+        for variant in VARIANTS:
+            rows = read_csv(
+                run_root / f"seed_{seed}" / variant / "pid_response_fixed_bins.csv"
+            )
+            for row in rows:
+                generated = int(row["generated_pid"])
+                reconstructed = row["reconstructed_pid"]
+                if not reconstructed.lstrip("-").isdigit():
+                    continue
+                key = (
+                    variant,
+                    generated,
+                    int(reconstructed),
+                    int(row["bin_index"]),
+                )
+                values = records.setdefault(
+                    key,
+                    {"low": [], "high": [], "coatjava": [], "fm": []},
+                )
+                values["low"].append(float(row["p_low_gev"]))
+                values["high"].append(float(row["p_high_gev"]))
+                values["coatjava"].append(float(row["coatjava_fraction"]))
+                values["fm"].append(float(row["fm_mean_probability"]))
+
+    colors = plt.cm.viridis(np.linspace(0.05, 0.9, len(VARIANTS)))
+    figure, axes = plt.subplots(2, 2, figsize=(13, 9))
+    for axis, (generated, reconstructed, title) in zip(axes.flat, channels):
+        bins = sorted(
+            key[3]
+            for key in records
+            if key[:3] == (VARIANTS[0], generated, reconstructed)
+        )
+        centers = np.asarray(
+            [
+                0.5
+                * (
+                    np.mean(records[(VARIANTS[0], generated, reconstructed, index)]["low"])
+                    + np.mean(records[(VARIANTS[0], generated, reconstructed, index)]["high"])
+                )
+                for index in bins
+            ]
+        )
+        observed = np.asarray(
+            [
+                np.mean(records[(VARIANTS[0], generated, reconstructed, index)]["coatjava"])
+                for index in bins
+            ]
+        )
+        axis.plot(centers, observed, "ko--", linewidth=1.8, label="COATJAVA")
+        for color, variant in zip(colors, VARIANTS):
+            matrix = np.asarray(
+                [records[(variant, generated, reconstructed, index)]["fm"] for index in bins]
+            )
+            mean = matrix.mean(axis=1)
+            half_width = (
+                T_CRITICAL_95[len(seeds) - 1]
+                * matrix.std(axis=1, ddof=1)
+                / np.sqrt(len(seeds))
+            )
+            axis.plot(centers, mean, marker="o", linewidth=1.3, color=color, label=VARIANT_LABELS[variant])
+            axis.fill_between(centers, mean - half_width, mean + half_width, color=color, alpha=0.12)
+        axis.set_title(title)
+        axis.set_xlabel(r"$p_{gen}$ [GeV]")
+        axis.set_ylabel("response probability")
+        axis.set_ylim(bottom=0.0)
+        axis.grid(alpha=0.25)
+    axes[0, 1].legend(fontsize=7, loc="best")
+    figure.suptitle("Selected PID migration-channel closure")
     figure.tight_layout()
     figure.savefig(output_path, dpi=180)
     plt.close(figure)
@@ -401,9 +679,30 @@ def write_report(
     lines.extend(
         [
             "",
+            "## Continuous beta response",
+            "",
+            "| Condition | Mean beta W1 across species |",
+            "|---|---:|",
+        ]
+    )
+    for variant in ("C_beta_target", "D_input_target_pid02", "D_input_target_pid1"):
+        row = aggregate_by_variant[variant]
+        lines.append(
+            f"| {variant} | {row['mean_beta_w1_mean']:.5f} ± {row['mean_beta_w1_sd']:.5f} |"
+        )
+
+    lines.extend(
+        [
+            "",
             "![Momentum-dependent correct-ID closure](pid_correct_id_vs_gen_p_factorial.png)",
             "",
             "![Seed-to-seed PID closure](pid_closure_across_conditions.png)",
+            "",
+            "![Full PID-distribution closure](pid_total_variation_vs_gen_p_factorial.png)",
+            "",
+            "![Selected PID migration channels](pid_migration_channels_factorial.png)",
+            "",
+            "![Continuous beta-response closure](beta_response_vs_gen_p_factorial.png)",
             "",
             "Machine-readable results: `per_run_metrics.csv`, `condition_summary.csv`, "
             "and `paired_contrasts.csv`.",
@@ -434,6 +733,15 @@ def main() -> None:
         run_root, seeds, output_dir / "pid_correct_id_vs_gen_p_factorial.png"
     )
     plot_seed_metrics(per_run, output_dir / "pid_closure_across_conditions.png")
+    plot_pid_total_variation(
+        run_root, seeds, output_dir / "pid_total_variation_vs_gen_p_factorial.png"
+    )
+    plot_pid_migration_channels(
+        run_root, seeds, output_dir / "pid_migration_channels_factorial.png"
+    )
+    plot_beta_response_curves(
+        run_root, seeds, output_dir / "beta_response_vs_gen_p_factorial.png"
+    )
     write_report(
         output_dir / "BETA_GEN_FACTORIAL_REPORT.md", aggregate, contrasts, per_run
     )

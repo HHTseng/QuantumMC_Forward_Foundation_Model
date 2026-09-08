@@ -180,7 +180,8 @@ The reconstructed PID label $\widehat s_i$ is allowed to differ from the
 generated PID. Such rows describe physical/reconstruction contamination and
 must not automatically be deleted as corrupted data.
 
-The opt-in beta baseline adds the continuous timing response
+The physics-informed beta branch independently controls a truth input and a
+continuous timing-response target:
 
 $$
 \beta_{\mathrm{gen}}
@@ -189,56 +190,59 @@ $$
 \Delta\beta=\beta_{\mathrm{rec}}-\beta_{\mathrm{gen}},
 $$
 
-so its response vector is
+where $m_s$ is the generated-species mass. When enabled, $\beta_{\mathrm{gen}}$
+is the fifth continuous input; $\Delta\beta$ is the fourth response target.
+The switches are independent so their effects can be identified separately.
+The four-target response vector is
 
 $$
 (\Delta p,\Delta\theta,\Delta\phi,\Delta\beta)\in\mathbb R^4.
 $$
 
-The beta model still predicts reconstructed PID with the categorical head; it
-does not replace PID with a hand-written beta cut.
+The model still predicts reconstructed PID with its categorical head; it does
+not replace PID with a hand-written beta cut.
 
 ## 4. Correct computational input to the network
 
 The code does **not** pass the raw tuple
-`(gen_p, gen_theta, gen_phi, gen_pid)` as one four-dimensional tensor.
+`(gen_p, gen_theta, gen_phi, gen_pid)` as one tensor.
 
 ### 4.1 Continuous feature map
 
-The raw kinematics are mapped to
+The base continuous map is
 
 $$
-\Phi(p,\theta,\phi)
+\Phi_0(p,\theta,\phi)
 =\left[
 \log(1+p),\ \theta,\ \sin\phi,\ \cos\phi
 \right]\in\mathbb R^4.
 $$
 
+The physics-informed map appends the exact relativistic coordinate
+
+$$
+\Phi_\beta(p,\theta,\phi,s)
+=\left[\Phi_0(p,\theta,\phi),
+\frac{p}{\sqrt{p^2+m_s^2}}\right]\in\mathbb R^5.
+$$
+
 In the data, momentum is numerically stored in GeV and angles in radians. The
 logarithm compresses the momentum range. The pair
 $(\sin\phi,\cos\phi)$ respects the circular topology of azimuth and removes
-the artificial discontinuity between $-\pi$ and $+\pi$.
+the artificial discontinuity between $-\pi$ and $+\pi$. Because
+$\beta_{\mathrm{gen}}$ is determined by $(p,s)$, it adds no truth information;
+it supplies a useful nonlinear physics coordinate directly.
 
 The implementation is:
 
 ```python
-CONTINUOUS_FEATURES = (
+BASE_CONTINUOUS_FEATURES = (
     "log1p_gen_p",
     "gen_theta",
     "sin_gen_phi",
     "cos_gen_phi",
 )
-
-def _feature_matrix(frame):
-    phi = frame["gen_phi"].to_numpy(dtype=np.float64)
-    return np.column_stack(
-        [
-            np.log1p(frame["gen_p"].to_numpy(dtype=np.float64)),
-            frame["gen_theta"].to_numpy(dtype=np.float64),
-            np.sin(phi),
-            np.cos(phi),
-        ]
-    ).astype(np.float32)
+BETA_INPUT_FEATURE = "beta_gen"
 ```
 
 Each feature is standardized using training-set statistics only:
@@ -248,26 +252,21 @@ z_j=\frac{\Phi_j-\mu_j^{\mathrm{train}}}
 {\sigma_j^{\mathrm{train}}}.
 $$
 
-For a minibatch of size $B$, the continuous input is therefore
+For a minibatch of size $B$,
 
 $$
-\mathtt{continuous}\in\mathbb R^{B\times4}.
+\mathtt{continuous}\in\mathbb R^{B\times d_x},
+\qquad d_x\in\{4,5\}.
 $$
 
-For the development configuration, $B=2048$:
-
-```python
-continuous.shape
-# torch.Size([2048, 4])
-```
-
-Its columns are
+The ordered columns are
 
 ```text
 continuous[:, 0] = standardized log(1 + gen_p)
 continuous[:, 1] = standardized gen_theta
 continuous[:, 2] = standardized sin(gen_phi)
 continuous[:, 3] = standardized cos(gen_phi)
+continuous[:, 4] = standardized beta_gen  # physics-informed option
 ```
 
 ### 4.2 Generated species is a separate categorical input
@@ -304,21 +303,20 @@ and concatenates it with the continuous features:
 ```python
 species = self.species_embedding(species_index)   # [B, d_s]
 network_input = torch.cat([continuous, species], dim=-1)
-# shape: [B, 4 + d_s]
+# shape: [B, d_x + d_s]
 ```
 
-For the seed configuration, $d_s=8$, so the first backbone layer receives
-12 numbers per particle. For the full configuration, $d_s=16$, so it
-receives 20.
+For the full configuration, $d_s=16$, so the first backbone layer receives 20
+numbers without $\beta_{\mathrm{gen}}$ and 21 with it.
 
 The actual model input is therefore the pair
 
 $$
 (\mathtt{continuous},\mathtt{species\_index})
-\in\mathbb R^{B\times4}\times\{0,1,2\}^{B},
+\in\mathbb R^{B\times d_x}\times\{0,1,2\}^{B},
 $$
 
-not a single raw four-vector called `x`.
+not one raw vector called `x`.
 
 ## 5. Correct training labels
 
