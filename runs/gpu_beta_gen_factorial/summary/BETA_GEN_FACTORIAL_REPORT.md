@@ -20,6 +20,15 @@ Increasing $\lambda_{\rm PID}$ from 0.2 to 1.0 is the robust effect: macro TV fa
 
 The original condition already gives 2.06% $\pi^+$ and 2.09% proton MAE, so this controlled study does not reproduce the reported $18.4\%\rightarrow1.6\%$ and $23.3\%\rightarrow2.6\%$ $\beta_{\rm gen}$ improvements. The present result uses a beta-valid 158,482-particle test sample and a validation-PID checkpoint; exact reconciliation requires matching the checkpoint, selected population, and bin definition.
 
+## Comparison with supplied figure values
+
+| Species | Supplied no beta | Our A | Supplied beta, 0.2 | Our D, 0.2 | Supplied beta, 1.0 | Our D, 1.0 |
+|---|---:|---:|---:|---:|---:|---:|
+| $\pi^+$ | 18.4% | 2.06 ± 0.65% | 1.6% | 1.85 ± 0.80% | 1.3% | 1.19 ± 0.25% |
+| Proton | 23.3% | 2.09 ± 0.59% | 2.6% | 2.46 ± 1.07% | 1.5% | 1.19 ± 0.28% |
+
+The beta-informed endpoints agree within 0.11--0.31 percentage points. The no-beta controls differ by 16.34 and 21.21 points for $\pi^+$ and protons. Our condition C also gives only 1.79% and 2.34%, so whether the supplied no-beta model retained the $\Delta\beta$ target does not resolve the discrepancy.
+
 ## Paired primary contrasts
 
 Positive improvement favors the treatment because both metrics are lower-is-better.
@@ -60,6 +69,10 @@ Values are unweighted momentum-bin MAE in percent, averaged over seeds.
 | D_input_target_pid1 | 0.00534 ± 0.00067 |
 
 ![Momentum-dependent correct-ID closure](pid_correct_id_vs_gen_p_factorial.png)
+
+![Collaborator-style correct-ID MAE comparison](pid_closure_mae_comparison_our_10seed.png)
+
+![Collaborator-style momentum comparison](pid_closure_beta_comparison_our_10seed.png)
 
 ![Seed-to-seed PID closure](pid_closure_across_conditions.png)
 
