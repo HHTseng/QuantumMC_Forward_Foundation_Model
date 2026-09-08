@@ -300,8 +300,8 @@ $$
 | A | $(0,0,0.2)$ | $(4,3)$ | $0.03440\pm0.00541$ | $0.01851\pm0.00405$ |
 | B | $(1,0,0.2)$ | $(5,3)$ | $0.03413\pm0.00445$ | $0.01813\pm0.00279$ |
 | C | $(0,1,0.2)$ | $(4,4)$ | $0.03509\pm0.00682$ | $0.01880\pm0.00307$ |
-| D$_{0.2}$ | $(1,1,0.2)$ | $(5,4)$ | $0.03593\pm0.00738$ | $0.01941\pm0.00630$ |
-| D$_1$ | $(1,1,1)$ | $(5,4)$ | **$0.02418\pm0.00160$** | **$0.01202\pm0.00102$** |
+| $D_{0.2}$ | $(1,1,0.2)$ | $(5,4)$ | $0.03593\pm0.00738$ | $0.01941\pm0.00630$ |
+| $D_1$ | $(1,1,1)$ | $(5,4)$ | **$0.02418\pm0.00160$** | **$0.01202\pm0.00102$** |
 
 At $\lambda_{\rm PID}=0.2$, no seed-stable PID gain is attributable to
 $\beta_{\rm gen}$. The stable contrast is
@@ -316,10 +316,12 @@ $$
 It improves every matched run. Correct-ID MAE changes by species:
 
 $$
-\pi^+:\ 1.85\%\longrightarrow1.19\%,
+\pi^+:\ 1.85\longrightarrow1.19,
 \qquad
-p:\ 2.46\%\longrightarrow1.19\%.
+p:\ 2.46\longrightarrow1.19.
 $$
+
+Values are percentage points.
 
 ![Correct-PID closure summary](runs/gpu_beta_gen_factorial/summary/pid_closure_mae_comparison_our_10seed.png)
 
@@ -342,7 +344,7 @@ Full tables:
 
 ## 8. Minimal use
 
-Train D$_1$:
+Train $D_1$:
 
 ```bash
 python train.py \
