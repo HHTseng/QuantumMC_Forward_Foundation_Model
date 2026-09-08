@@ -22,7 +22,7 @@ Define
 
 $$
 \Sigma_{n-1}:=
-\left\{u\in[0,1]^n:\sum_{j=1}^{n}u_j=1\right\}
+\left\lbrace u\in[0,1]^n:\sum_{j=1}^{n}u_j=1\right\rbrace
 $$
 
 the probability simplex. The β-informed network is the parameter map
@@ -204,11 +204,10 @@ $$
 plus reciprocal matching, finite residuals, nonzero reconstructed PID, and
 <code>usable_for_hadron_response_training</code>.
 
-The split unit is the event key
+The split unit is the event key $E$, represented in the data by
+`(source_file_id, event_id)`. Event-disjointness means
 
 $$
-E:=(\mathrm{source\_file\_id},\mathrm{event\_id}),
-\qquad
 E_{\rm train}\cap E_{\rm val}
 =E_{\rm train}\cap E_{\rm test}
 =E_{\rm val}\cap E_{\rm test}
@@ -319,8 +318,8 @@ $\beta_{\rm gen}$. The stable contrast is
 $$
 D_{0.2}\longrightarrow D_1:
 \qquad
-\Delta{\rm TV}=0.01175,\quad
-{\rm CI}_{95\%}=[0.00688,0.01662].
+\Delta\mathrm{TV}=0.01175,\quad
+\mathrm{CI}_{95\%}=[0.00688,0.01662].
 $$
 
 It improves every matched run. Correct-ID MAE changes by species:
