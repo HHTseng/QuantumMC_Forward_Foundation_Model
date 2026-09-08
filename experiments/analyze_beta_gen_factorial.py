@@ -355,6 +355,162 @@ def plot_correct_id_curves(
     plt.close(figure)
 
 
+def plot_reference_style_mae_bars(
+    per_run: list[dict[str, Any]], output_path: Path
+) -> None:
+    """Match the collaborator's three-condition correct-ID MAE bar layout."""
+    variants = (
+        "A_original",
+        "D_input_target_pid02",
+        "D_input_target_pid1",
+    )
+    labels = (
+        r"A: no $\beta_{gen}$, $\lambda_{PID}=0.2$",
+        r"D: with $\beta_{gen}$, $\lambda_{PID}=0.2$",
+        r"D: with $\beta_{gen}$, $\lambda_{PID}=1.0$",
+    )
+    colors = ("tab:blue", "tab:orange", "tab:green")
+    x = np.arange(len(GENERATED_SPECIES))
+    width = 0.24
+    figure, axis = plt.subplots(figsize=(10.5, 5.8))
+    for index, (variant, label, color) in enumerate(zip(variants, labels, colors)):
+        means = []
+        standard_deviations = []
+        for species in GENERATED_SPECIES:
+            metric = f"correct_mae_unweighted_{SPECIES_KEY[species]}"
+            values = np.asarray(
+                [100.0 * row[metric] for row in per_run if row["variant"] == variant]
+            )
+            means.append(values.mean())
+            standard_deviations.append(values.std(ddof=1))
+        axis.bar(
+            x + (index - 1) * width,
+            means,
+            width,
+            yerr=standard_deviations,
+            capsize=4,
+            color=color,
+            label=label,
+        )
+    axis.set_xticks(x, (r"$\pi^-$", r"$\pi^+$", "proton"))
+    axis.set_ylabel("Correct-ID closure MAE [percentage points]")
+    axis.set_title("Our quantitative correct-PID closure: ten matched seeds")
+    axis.grid(axis="y", alpha=0.25)
+    axis.legend(fontsize=9)
+    figure.tight_layout()
+    figure.savefig(output_path, dpi=180)
+    plt.close(figure)
+
+
+def plot_reference_style_pid_rows(
+    run_root: Path, seeds: tuple[int, ...], output_path: Path
+) -> None:
+    """Match the collaborator's no-beta / beta-informed momentum layout."""
+    variants = (
+        "A_original",
+        "D_input_target_pid02",
+        "D_input_target_pid1",
+    )
+    records: dict[tuple[str, int, int], dict[str, list[float]]] = {}
+    for seed in seeds:
+        for variant in variants:
+            rows = read_csv(
+                run_root / f"seed_{seed}" / variant / "pid_response_fixed_bins.csv"
+            )
+            for row in rows:
+                species = int(row["generated_pid"])
+                if row["reconstructed_pid"] != str(species):
+                    continue
+                key = (variant, species, int(row["bin_index"]))
+                values = records.setdefault(
+                    key,
+                    {"coatjava": [], "fm": [], "low": [], "high": []},
+                )
+                values["coatjava"].append(float(row["coatjava_fraction"]))
+                values["fm"].append(float(row["fm_mean_probability"]))
+                values["low"].append(float(row["p_low_gev"]))
+                values["high"].append(float(row["p_high_gev"]))
+
+    figure, axes = plt.subplots(2, 3, figsize=(16, 8.5), sharey=True)
+    for column, species in enumerate(GENERATED_SPECIES):
+        bins = sorted(
+            key[2]
+            for key in records
+            if key[0] == "A_original" and key[1] == species
+        )
+        x = np.arange(len(bins))
+        bin_labels = [
+            f"{np.mean(records[('A_original', species, b)]['low']):g}–"
+            f"{np.mean(records[('A_original', species, b)]['high']):g}"
+            for b in bins
+        ]
+        coatjava = np.asarray(
+            [
+                np.mean(records[("A_original", species, b)]["coatjava"])
+                for b in bins
+            ]
+        )
+        for row_index, axis in enumerate(axes[:, column]):
+            axis.plot(x, coatjava, "o-", color="tab:blue", label="COATJAVA")
+            shown_variants = (
+                ("A_original",)
+                if row_index == 0
+                else ("D_input_target_pid02", "D_input_target_pid1")
+            )
+            styles = {
+                "A_original": ("tab:orange", "s", r"FM A: no $\beta_{gen}$"),
+                "D_input_target_pid02": (
+                    "tab:orange",
+                    "s",
+                    r"FM D: $\lambda_{PID}=0.2$",
+                ),
+                "D_input_target_pid1": (
+                    "tab:green",
+                    "^",
+                    r"FM D: $\lambda_{PID}=1.0$",
+                ),
+            }
+            for variant in shown_variants:
+                matrix = np.asarray(
+                    [records[(variant, species, b)]["fm"] for b in bins]
+                )
+                mean = matrix.mean(axis=1)
+                half_width = (
+                    T_CRITICAL_95[len(seeds) - 1]
+                    * matrix.std(axis=1, ddof=1)
+                    / np.sqrt(len(seeds))
+                )
+                color, marker, label = styles[variant]
+                axis.plot(x, mean, marker=marker, color=color, label=label)
+                axis.fill_between(
+                    x,
+                    mean - half_width,
+                    mean + half_width,
+                    color=color,
+                    alpha=0.15,
+                )
+            axis.set_xticks(x, bin_labels, rotation=35)
+            axis.set_ylim(0.0, 1.03)
+            axis.grid(alpha=0.25)
+            if column == 0:
+                axis.set_ylabel(
+                    "A: no beta input/target\nCorrect-ID response"
+                    if row_index == 0
+                    else "D: beta input + target\nCorrect-ID response"
+                )
+            if row_index == 1:
+                axis.set_xlabel(r"Generated momentum $p_{gen}$ [GeV]")
+        axes[0, column].set_title(f"Generated {SPECIES_LABEL[species]}")
+    axes[0, 0].legend(fontsize=8, loc="best")
+    axes[1, 0].legend(fontsize=8, loc="best")
+    figure.suptitle(
+        "Our collaborator-style PID closure — equal 1-GeV bins, ten-seed means"
+    )
+    figure.tight_layout()
+    figure.savefig(output_path, dpi=180)
+    plt.close(figure)
+
+
 def plot_seed_metrics(per_run: list[dict[str, Any]], output_path: Path) -> None:
     indexed = {(int(row["seed"]), row["variant"]): row for row in per_run}
     seeds = sorted({int(row["seed"]) for row in per_run})
@@ -703,6 +859,19 @@ def write_report(
             "158,482-particle test sample and a validation-PID checkpoint; exact "
             "reconciliation requires matching the checkpoint, selected population, "
             "and bin definition.",
+            "",
+            "## Comparison with supplied figure values",
+            "",
+            "| Species | Supplied no beta | Our A | Supplied beta, 0.2 | Our D, 0.2 | Supplied beta, 1.0 | Our D, 1.0 |",
+            "|---|---:|---:|---:|---:|---:|---:|",
+            "| $\\pi^+$ | 18.4% | 2.06 ± 0.65% | 1.6% | 1.85 ± 0.80% | 1.3% | 1.19 ± 0.25% |",
+            "| Proton | 23.3% | 2.09 ± 0.59% | 2.6% | 2.46 ± 1.07% | 1.5% | 1.19 ± 0.28% |",
+            "",
+            "The beta-informed endpoints agree within 0.11--0.31 percentage "
+            "points. The no-beta controls differ by 16.34 and 21.21 points for "
+            "$\\pi^+$ and protons. Our condition C also gives only 1.79% and "
+            "2.34%, so whether the supplied no-beta model retained the "
+            "$\\Delta\\beta$ target does not resolve the discrepancy.",
         ]
     )
     lines.extend(
@@ -765,6 +934,10 @@ def write_report(
             "",
             "![Momentum-dependent correct-ID closure](pid_correct_id_vs_gen_p_factorial.png)",
             "",
+            "![Collaborator-style correct-ID MAE comparison](pid_closure_mae_comparison_our_10seed.png)",
+            "",
+            "![Collaborator-style momentum comparison](pid_closure_beta_comparison_our_10seed.png)",
+            "",
             "![Seed-to-seed PID closure](pid_closure_across_conditions.png)",
             "",
             "![Full PID-distribution closure](pid_total_variation_vs_gen_p_factorial.png)",
@@ -800,6 +973,12 @@ def main() -> None:
     write_csv(output_dir / "paired_contrasts.csv", contrasts)
     plot_correct_id_curves(
         run_root, seeds, output_dir / "pid_correct_id_vs_gen_p_factorial.png"
+    )
+    plot_reference_style_mae_bars(
+        per_run, output_dir / "pid_closure_mae_comparison_our_10seed.png"
+    )
+    plot_reference_style_pid_rows(
+        run_root, seeds, output_dir / "pid_closure_beta_comparison_our_10seed.png"
     )
     plot_seed_metrics(per_run, output_dir / "pid_closure_across_conditions.png")
     plot_pid_total_variation(

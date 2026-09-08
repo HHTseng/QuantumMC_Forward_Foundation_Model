@@ -893,10 +893,37 @@ contrast likewise provides no seed-stable beta-input benefit. By contrast,
 $\lambda_{\rm PID}=1$ improves the full PID distribution in every seed and
 substantially reduces the $\pi^+$ and proton errors.
 
-![Momentum-dependent correct-ID closure for five conditions](runs/gpu_beta_gen_factorial/summary/pid_correct_id_vs_gen_p_factorial.png)
+#### Direct comparison with the supplied figures
 
-Gray lines below connect identical model seeds. The lower and much tighter
-$D,1.0$ distribution makes the loss-weight effect visible across seeds.
+To match the supplied layouts, the following plots show A (no beta input or
+target), D with $\lambda_{\rm PID}=0.2$, and D with
+$\lambda_{\rm PID}=1.0$. Our bars are ten-seed means with seed SD error bars;
+the supplied values do not show seed uncertainty.
+
+| Species | Supplied no beta | Our A | Supplied beta, 0.2 | Our D, 0.2 | Supplied beta, 1.0 | Our D, 1.0 |
+|---|---:|---:|---:|---:|---:|---:|
+| $\pi^+$ | 18.4% | 2.06 ± 0.65% | 1.6% | 1.85 ± 0.80% | 1.3% | 1.19 ± 0.25% |
+| Proton | 23.3% | 2.09 ± 0.59% | 2.6% | 2.46 ± 1.07% | 1.5% | 1.19 ± 0.28% |
+
+The beta-informed endpoints are similar: the absolute differences are
+0.11--0.31 percentage points. The no-beta controls are not similar: our
+$\pi^+$ and proton errors are lower by 16.34 and 21.21 points. The supplied
+upper momentum row shows a large no-beta deficit for $\pi^+$ and protons;
+our corresponding A curves already follow COATJAVA. Both studies show good
+beta-informed closure. The disagreement is therefore concentrated in the
+no-beta reference, not in the final beta-informed response. Even if “without
+$\beta_{\rm gen}$” means condition C, which retains the $\Delta\beta$ target,
+our C errors are only 1.79% for $\pi^+$ and 2.34% for protons.
+
+![Our result in the supplied MAE-bar layout](runs/gpu_beta_gen_factorial/summary/pid_closure_mae_comparison_our_10seed.png)
+
+The shaded bands in the momentum plot are 95% intervals across model seeds.
+
+![Our result in the supplied two-row momentum layout](runs/gpu_beta_gen_factorial/summary/pid_closure_beta_comparison_our_10seed.png)
+
+The broader five-condition factorial comparison is retained in the full
+report. Gray lines below connect identical model seeds. The lower and much
+tighter D, 1.0 distribution makes the loss-weight effect visible across seeds.
 
 ![PID closure across five matched conditions and ten seeds](runs/gpu_beta_gen_factorial/summary/pid_closure_across_conditions.png)
 
@@ -906,13 +933,12 @@ are 0.00475 (C), 0.00499 (D, 0.2), and 0.00534 (D, 1.0).
 
 ![Continuous beta-response closure](runs/gpu_beta_gen_factorial/summary/beta_response_vs_gen_p_factorial.png)
 
-The original condition already reaches 2.06% $\pi^+$ and 2.09% proton MAE,
-far below the reported 18.4% and 23.3%. Therefore this run does not reproduce
-the reported dominant $\beta_{\rm gen}$ gain. The present comparison uses a
-beta-valid 158,482-particle test population, newly trained checkpoints, and a
-predeclared validation-PID selector. Matching Dr. Joo's exact checkpoint,
-population, and bin definition is necessary before attributing the numerical
-difference to physics or implementation.
+The present comparison uses a beta-valid 158,482-particle test population,
+newly trained checkpoints, and a predeclared validation-PID selector. The
+supplied study used 158,985 particles and a different no-beta checkpoint.
+Running both evaluators on the same checkpoint and particle keys is the next
+required diagnostic; the plots alone cannot attribute the baseline difference
+to $\beta_{\rm gen}$.
 
 Full tables, the full-PID TV and migration-channel figures, and a concise
 report are in
