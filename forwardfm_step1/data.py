@@ -36,7 +36,15 @@ import numpy as np
 import pandas as pd
 
 
-CONTINUOUS_FEATURES = ("log1p_gen_p", "gen_theta", "sin_gen_phi", "cos_gen_phi")
+BASE_CONTINUOUS_FEATURES = (
+    "log1p_gen_p",
+    "gen_theta",
+    "sin_gen_phi",
+    "cos_gen_phi",
+)
+# Backward-compatible public name used by four-input checkpoints and callers.
+CONTINUOUS_FEATURES = BASE_CONTINUOUS_FEATURES
+BETA_INPUT_FEATURE = "beta_gen"
 BASE_TARGET_COLUMNS = ("delta_p", "delta_theta", "delta_phi")
 # Backward-compatible public name used by the original three-response model.
 TARGET_COLUMNS = BASE_TARGET_COLUMNS
@@ -95,6 +103,19 @@ def beta_validity_selection_enabled(config: dict[str, Any]) -> bool:
     )
 
 
+def continuous_feature_names(config: dict[str, Any]) -> tuple[str, ...]:
+    """Return the ordered generated-particle input coordinates.
+
+    ``beta_gen`` is a deterministic nonlinear coordinate derived from truth
+    momentum and the generated-species mass. Its switch is independent of the
+    ``delta_beta`` response-target switch.
+    """
+    beta_config = config["data"].get("beta_response", {})
+    if bool(beta_config.get("include_generated_beta", False)):
+        return (*BASE_CONTINUOUS_FEATURES, BETA_INPUT_FEATURE)
+    return BASE_CONTINUOUS_FEATURES
+
+
 @dataclass(frozen=True)
 class Standardizer:
     """Training-only affine coordinates z_j=(x_j-mu_j)/sigma_j.
@@ -138,6 +159,7 @@ class PreparedSplit:
     targets: np.ndarray
     rec_pid_index: np.ndarray
     raw_species: np.ndarray
+    feature_names: tuple[str, ...] = BASE_CONTINUOUS_FEATURES
     target_names: tuple[str, ...] = TARGET_COLUMNS
 
     def __len__(self) -> int:
@@ -281,25 +303,43 @@ def _load_frame(
     return frame
 
 
-def _feature_matrix(frame: pd.DataFrame) -> np.ndarray:
+def _feature_matrix(
+    frame: pd.DataFrame,
+    feature_names: tuple[str, ...] = BASE_CONTINUOUS_FEATURES,
+) -> np.ndarray:
     """Map truth kinematics to numerically smooth model coordinates.
 
     Momentum uses log(1+p/GeV) to compress its dynamic range.  Azimuth lives on
     the circle S^1, so (sin(phi),cos(phi)) makes phi=-pi and phi=+pi adjacent:
 
-        f(x) = [log(1+p_gen), theta_gen, sin(phi_gen), cos(phi_gen)].
+        f_base(x) = [log(1+p_gen), theta_gen, sin(phi_gen), cos(phi_gen)].
+
+    The physics-informed option appends
+
+        beta_gen = p_gen/sqrt(p_gen^2 + m_s^2),
+
+    where the generated-species mass hypothesis m_s is fixed by PDG code.
 
     Generated species s_gen enters separately through a learned embedding.
     """
     phi = frame["gen_phi"].to_numpy(dtype=np.float64)
-    values = np.column_stack(
-        [
-            np.log1p(frame["gen_p"].to_numpy(dtype=np.float64)),
-            frame["gen_theta"].to_numpy(dtype=np.float64),
-            np.sin(phi),
-            np.cos(phi),
-        ]
-    )
+    columns = [
+        np.log1p(frame["gen_p"].to_numpy(dtype=np.float64)),
+        frame["gen_theta"].to_numpy(dtype=np.float64),
+        np.sin(phi),
+        np.cos(phi),
+    ]
+    beta_features = (*BASE_CONTINUOUS_FEATURES, BETA_INPUT_FEATURE)
+    if tuple(feature_names) == beta_features:
+        columns.append(
+            generated_beta(
+                frame["gen_p"].to_numpy(dtype=np.float64),
+                frame["gen_pid"].to_numpy(dtype=np.int64),
+            )
+        )
+    elif tuple(feature_names) != BASE_CONTINUOUS_FEATURES:
+        raise ValueError(f"Unsupported feature ordering: {feature_names}")
+    values = np.column_stack(columns)
     return values.astype(np.float32)
 
 
@@ -365,6 +405,7 @@ def prepare_split(
     feature_scaler: Standardizer,
     target_scaler: Standardizer,
     rec_pid_vocabulary: list[int],
+    feature_names: tuple[str, ...] = BASE_CONTINUOUS_FEATURES,
     target_names: tuple[str, ...] = TARGET_COLUMNS,
 ) -> PreparedSplit:
     """Encode x, Delta, generated species, and reconstructed PID labels.
@@ -389,11 +430,12 @@ def prepare_split(
     return PreparedSplit(
         name=split,
         event_keys=_event_keys(frame),
-        continuous=feature_scaler.transform(_feature_matrix(frame)),
+        continuous=feature_scaler.transform(_feature_matrix(frame, feature_names)),
         species_index=species_index,
         targets=target_scaler.transform(raw_targets),
         rec_pid_index=rec_pid_index,
         raw_species=raw_species,
+        feature_names=feature_names,
         target_names=target_names,
     )
 
@@ -406,8 +448,9 @@ def load_all_splits(
     columns = assert_schema(con)
     frames = {name: _load_frame(con, name, config) for name in ("train", "validation", "test")}
 
+    feature_names = continuous_feature_names(config)
     target_names = response_target_names(config)
-    train_features = _feature_matrix(frames["train"])
+    train_features = _feature_matrix(frames["train"], feature_names)
     train_targets = _target_matrix(frames["train"], target_names)
     feature_scaler = Standardizer.fit(train_features)
     target_scaler = Standardizer.fit(train_targets)
@@ -419,7 +462,8 @@ def load_all_splits(
             feature_scaler,
             target_scaler,
             rec_pid_vocabulary,
-            target_names,
+            feature_names=feature_names,
+            target_names=target_names,
         )
         for name, frame in frames.items()
     }
@@ -486,11 +530,19 @@ def build_audit(
         """
     ).fetch_df()
 
+    feature_names = continuous_feature_names(config)
     target_names = response_target_names(config)
     beta_config = config["data"].get("beta_response", {})
     beta_response_audit: dict[str, Any] = {
         "enabled": bool(beta_config.get("enabled", False)),
+        "include_generated_beta": bool(
+            beta_config.get("include_generated_beta", False)
+        ),
         "validity_selection_enabled": beta_validity_selection_enabled(config),
+        "generated_beta_definition": "p/sqrt(p^2+m_generated_species^2), c=1",
+        "particle_mass_gev": {
+            str(pid): mass for pid, mass in PARTICLE_MASS_GEV.items()
+        },
     }
     if beta_response_audit["validity_selection_enabled"]:
         beta_min = float(beta_config["rec_beta_min_exclusive"])
@@ -523,7 +575,6 @@ def build_audit(
                 "definition": "rec_beta - gen_p/sqrt(gen_p^2 + generated_species_mass^2)",
                 "rec_beta_min_exclusive": beta_min,
                 "rec_beta_max_inclusive": beta_max,
-                "particle_mass_gev": {str(pid): mass for pid, mass in PARTICLE_MASS_GEV.items()},
                 "cutflow": beta_cutflow.to_dict(orient="records"),
             }
         )
@@ -555,6 +606,7 @@ def build_audit(
         "selected_population": counts.to_dict(orient="records"),
         "quality_cutflow": quality_cutflow.to_dict(orient="records"),
         "sampled_counts": sampled_counts,
+        "feature_names": list(feature_names),
         "target_names": list(target_names),
         "model_seed": int(config["project"]["seed"]),
         "data_split_seed": data_split_seed(config),

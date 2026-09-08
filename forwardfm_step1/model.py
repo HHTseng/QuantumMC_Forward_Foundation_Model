@@ -104,8 +104,11 @@ class ConditionalMDN(nn.Module):
     def forward(self, continuous: torch.Tensor, species_index: torch.Tensor) -> ModelOutput:
         """Evaluate response parameters conditioned on truth x and species s.
 
-        `continuous` represents (log(1+p), theta, sin(phi), cos(phi)); the
-        embedding supplies s_gen.  No reconstructed quantity is used as an
+        `continuous` represents
+
+            (log(1+p), theta, sin(phi), cos(phi)[, beta_gen]);
+
+        the embedding supplies s_gen. No reconstructed quantity is used as an
         input, avoiding target leakage.
         """
         species = self.species_embedding(species_index)
@@ -144,6 +147,49 @@ class ConditionalMDN(nn.Module):
             "target_dim": self.target_dim,
             "dropout": dropout,
         }
+
+
+def initialize_beta_input_from_control(
+    control: ConditionalMDN,
+    beta_model: ConditionalMDN,
+    beta_index: int = 4,
+) -> int:
+    """Embed a four-input model exactly inside a five-input beta model.
+
+    The first-layer domains are
+
+        control:    [x_0, ..., x_3, species embedding],
+        beta model: [x_0, ..., x_3, beta_gen, species embedding].
+
+    Shared parameters are copied and the new beta column is initialized to
+    zero. Therefore both models initially implement the same function for any
+    beta value, while gradient descent remains free to learn beta dependence.
+    The return value counts copied state tensors for provenance.
+    """
+    if control.n_continuous != beta_index:
+        raise ValueError("Control feature width does not match beta insertion index")
+    if beta_model.n_continuous != control.n_continuous + 1:
+        raise ValueError("Beta model must add exactly one continuous input")
+    if control.species_embedding.embedding_dim != beta_model.species_embedding.embedding_dim:
+        raise ValueError("Species embedding dimensions must match")
+
+    control_state = control.state_dict()
+    beta_state = beta_model.state_dict()
+    copied = 0
+    for name, source in control_state.items():
+        destination = beta_state.get(name)
+        if destination is not None and destination.shape == source.shape:
+            destination.copy_(source)
+            copied += 1
+
+    control_weight = control.backbone[0].weight
+    beta_weight = beta_model.backbone[0].weight
+    with torch.no_grad():
+        beta_weight[:, :beta_index].copy_(control_weight[:, :beta_index])
+        beta_weight[:, beta_index].zero_()
+        beta_weight[:, beta_index + 1 :].copy_(control_weight[:, beta_index:])
+    beta_model.load_state_dict(beta_state)
+    return copied
 
 
 def mixture_nll(output: ModelOutput, targets: torch.Tensor) -> torch.Tensor:

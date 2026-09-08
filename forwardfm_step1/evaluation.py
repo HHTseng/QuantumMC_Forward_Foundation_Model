@@ -404,6 +404,50 @@ def integrated_correct_pid_response(
     return rows
 
 
+def correct_id_closure_mae(
+    conditional_response_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Summarize momentum-binned diagonal PID closure for each species.
+
+    For populated bins B_s, the unweighted and particle-weighted errors are
+
+        MAE_s = (1/|B_s|) sum_b |P_FM(s|s,b)-P_CJ(s|s,b)|,
+
+        MAE_s^w = sum_b N_sb |P_FM-P_CJ| / sum_b N_sb.
+
+    The input rows come from mean PID-head softmax probabilities, never
+    argmax labels or sampled categorical predictions.
+    """
+    species_values = sorted(
+        int(row["generated_pid"]) for row in conditional_response_rows
+    )
+    summaries: list[dict[str, Any]] = []
+    for species in sorted(set(species_values)):
+        rows = [
+            row
+            for row in conditional_response_rows
+            if int(row["generated_pid"]) == species
+            and row["reconstructed_pid"] == species
+        ]
+        if not rows:
+            continue
+        errors = np.asarray([float(row["absolute_difference"]) for row in rows])
+        counts = np.asarray([int(row["n"]) for row in rows], dtype=np.float64)
+        summaries.append(
+            {
+                "generated_pid": species,
+                "generated_species": SPECIES_LABELS.get(species, str(species)),
+                "n_populated_bins": len(rows),
+                "particles_in_populated_bins": int(counts.sum()),
+                "correct_id_mae_unweighted": float(errors.mean()),
+                "correct_id_mae_particle_weighted": float(
+                    np.average(errors, weights=counts)
+                ),
+            }
+        )
+    return summaries
+
+
 def write_rows_csv(rows: list[dict[str, Any]], path: Path) -> None:
     with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
@@ -819,6 +863,7 @@ def evaluate_and_write(
         pid_probabilities,
         pid_labels,
     )
+    correct_id_mae = correct_id_closure_mae(conditional_pid_rows)
     inside_pid_momentum_range = (generated_momentum >= momentum_edges[0]) & (
         generated_momentum <= momentum_edges[-1]
     )
@@ -882,6 +927,7 @@ def evaluate_and_write(
     write_rows_csv(conditional_pid_rows, run_dir / "pid_response_fixed_bins.csv")
     write_rows_csv(conditional_pid_summary, run_dir / "pid_bin_closure_summary.csv")
     write_rows_csv(integrated_correct_pid, run_dir / "pid_integrated_correct_id.csv")
+    write_rows_csv(correct_id_mae, run_dir / "pid_correct_id_closure_mae.csv")
     plot_history(history, run_dir / "training_history.png")
     plot_closure(splits["test"], target_scaler, sampled_targets, run_dir / "residual_closure.png")
     plot_conditional_correct_pid_response(
@@ -898,6 +944,7 @@ def evaluate_and_write(
             "momentum_range_coverage": pid_momentum_coverage,
             "bin_summary": conditional_pid_summary,
             "integrated_correct_id": integrated_correct_pid,
+            "correct_id_closure_mae": correct_id_mae,
         },
         "joint_and_physical": joint_and_physical,
     }

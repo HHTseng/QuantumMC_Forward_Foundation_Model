@@ -23,7 +23,13 @@ import numpy as np
 import pandas as pd
 import torch
 
-from forwardfm_step1.data import BETA_TARGET_COLUMN, SPECIES, Standardizer, generated_beta
+from forwardfm_step1.data import (
+    BETA_TARGET_COLUMN,
+    CONTINUOUS_FEATURES,
+    Standardizer,
+    _feature_matrix,
+    generated_beta,
+)
 from forwardfm_step1.model import ConditionalMDN, sample_standardized_residuals
 from forwardfm_step1.training import choose_device, seed_everything
 
@@ -40,20 +46,16 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def build_features(frame: pd.DataFrame) -> np.ndarray:
+def build_features(
+    frame: pd.DataFrame,
+    feature_names: tuple[str, ...] = CONTINUOUS_FEATURES,
+) -> np.ndarray:
+    """Reconstruct the ordered truth coordinates stored in the checkpoint."""
     required = {"gen_pid", "gen_p", "gen_theta", "gen_phi"}
     missing = required.difference(frame.columns)
     if missing:
         raise ValueError(f"Input CSV is missing columns: {sorted(missing)}")
-    phi = frame["gen_phi"].to_numpy(dtype=np.float64)
-    return np.column_stack(
-        [
-            np.log1p(frame["gen_p"].to_numpy(dtype=np.float64)),
-            frame["gen_theta"].to_numpy(dtype=np.float64),
-            np.sin(phi),
-            np.cos(phi),
-        ]
-    ).astype(np.float32)
+    return _feature_matrix(frame, feature_names)
 
 
 def wrap_phi(phi: np.ndarray) -> np.ndarray:
@@ -74,11 +76,22 @@ def main() -> None:
     species_to_index = {pid: index for index, pid in enumerate(checkpoint["species_pids"])}
     unsupported = sorted(set(int(pid) for pid in frame.gen_pid).difference(species_to_index))
     if unsupported:
-        raise ValueError(f"Unsupported generated PIDs: {unsupported}; supported={list(SPECIES)}")
+        raise ValueError(
+            f"Unsupported generated PIDs: {unsupported}; "
+            f"supported={list(checkpoint['species_pids'])}"
+        )
     species_index = np.asarray([species_to_index[int(pid)] for pid in frame.gen_pid], dtype=np.int64)
     feature_scaler = Standardizer.from_dict(checkpoint["feature_scaler"])
     target_scaler = Standardizer.from_dict(checkpoint["target_scaler"])
-    features = feature_scaler.transform(build_features(frame))
+    feature_names = tuple(checkpoint.get("feature_names", CONTINUOUS_FEATURES))
+    raw_features = build_features(frame, feature_names)
+    expected_width = int(checkpoint["architecture"]["n_continuous"])
+    if raw_features.shape[1] != expected_width:
+        raise ValueError(
+            "Checkpoint feature names do not match the model input width: "
+            f"{raw_features.shape[1]} versus {expected_width}"
+        )
+    features = feature_scaler.transform(raw_features)
 
     generator = (
         torch.Generator(device=device.type).manual_seed(args.seed)

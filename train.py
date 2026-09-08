@@ -25,14 +25,19 @@ import yaml
 
 from forwardfm_step1.config import apply_smoke_overrides, load_config, resolve_run_dir
 from forwardfm_step1.data import (
-    CONTINUOUS_FEATURES,
+    BASE_CONTINUOUS_FEATURES,
+    PARTICLE_MASS_GEV,
     SPECIES,
     data_order_seed,
     data_split_seed,
     load_all_splits,
 )
 from forwardfm_step1.evaluation import evaluate_and_write
-from forwardfm_step1.model import ConditionalMDN, count_parameters
+from forwardfm_step1.model import (
+    ConditionalMDN,
+    count_parameters,
+    initialize_beta_input_from_control,
+)
 from forwardfm_step1.reporting import write_history, write_json, write_model_card
 from forwardfm_step1.training import choose_device, seed_everything, train_model
 
@@ -93,37 +98,69 @@ def main() -> None:
     )
 
     model_config = config["model"]
+    feature_names = splits["train"].feature_names
     target_names = splits["train"].target_names
-    model = ConditionalMDN(
-        n_continuous=len(CONTINUOUS_FEATURES),
-        n_species=len(SPECIES),
-        n_rec_pid_classes=len(rec_pid_vocabulary) + 1,
-        hidden_width=int(model_config["hidden_width"]),
-        hidden_layers=int(model_config["hidden_layers"]),
-        pid_embedding_dim=int(model_config["pid_embedding_dim"]),
-        mixture_components=int(model_config["mixture_components"]),
-        target_dim=len(target_names),
-        dropout=float(model_config["dropout"]),
-    )
+    model_arguments = {
+        "n_continuous": len(feature_names),
+        "n_species": len(SPECIES),
+        "n_rec_pid_classes": len(rec_pid_vocabulary) + 1,
+        "hidden_width": int(model_config["hidden_width"]),
+        "hidden_layers": int(model_config["hidden_layers"]),
+        "pid_embedding_dim": int(model_config["pid_embedding_dim"]),
+        "mixture_components": int(model_config["mixture_components"]),
+        "target_dim": len(target_names),
+        "dropout": float(model_config["dropout"]),
+    }
+    model = ConditionalMDN(**model_arguments)
     paired_initialization = bool(
         model_config.get("deterministic_component_initialization", False)
     )
+    nested_beta_initialization = bool(
+        model_config.get("nested_beta_input_initialization", False)
+    )
     if paired_initialization:
         model.reset_parameters(seed=seed)
+        if nested_beta_initialization and len(feature_names) > len(
+            BASE_CONTINUOUS_FEATURES
+        ):
+            control_arguments = dict(model_arguments)
+            control_arguments["n_continuous"] = len(BASE_CONTINUOUS_FEATURES)
+            control_model = ConditionalMDN(**control_arguments)
+            control_model.reset_parameters(seed=seed)
+            initialize_beta_input_from_control(control_model, model)
         # Constructing a wider response head consumes more values from
         # PyTorch's global RNG.  Restore the model/training seed so paired
         # no-beta and joint-beta runs receive the same dropout stream; the
         # DataLoader already uses its own identically seeded generator.
         seed_everything(seed)
+    if splits["train"].continuous.shape[1] != len(feature_names):
+        raise AssertionError("Prepared feature width does not match feature metadata")
+    if model.n_continuous != len(feature_names):
+        raise AssertionError("Model input width does not match feature metadata")
+    if model.target_dim != len(target_names):
+        raise AssertionError("Model target width does not match target metadata")
     print(f"trainable_parameters={count_parameters(model):,}")
-    model, history, best_epoch = train_model(model, splits, config, device)
+    model, history, best_epoch, checkpoint_candidates = train_model(
+        model, splits, config, device
+    )
+
+    checkpoint_metric = str(config["training"].get("checkpoint_metric", "total_loss"))
+    candidate_metadata = {
+        name: {
+            "epoch": int(candidate["epoch"]),
+            "validation_value": float(candidate["validation_value"]),
+        }
+        for name, candidate in checkpoint_candidates.items()
+    }
 
     checkpoint = {
         "format_version": 1,
         "model_state": {key: value.cpu() for key, value in model.state_dict().items()},
         "architecture": model.architecture_dict(),
-        "feature_names": list(CONTINUOUS_FEATURES),
+        "feature_names": list(feature_names),
         "target_names": list(target_names),
+        "particle_mass_gev": dict(PARTICLE_MASS_GEV),
+        "generated_beta_definition": "p/sqrt(p^2+m_species^2), c=1",
         "beta_response": config["data"].get("beta_response", {"enabled": False}),
         "species_pids": list(SPECIES),
         "rec_pid_vocabulary": rec_pid_vocabulary,
@@ -135,13 +172,36 @@ def main() -> None:
         "data_split_seed": data_split_seed(config),
         "data_order_seed": data_order_seed(config),
         "initialization_policy": (
-            "deterministic_component_streams_and_training_rng_reset"
+            "nested_zero_beta_column_from_four_input_control"
+            if paired_initialization
+            and nested_beta_initialization
+            and len(feature_names) > len(BASE_CONTINUOUS_FEATURES)
+            else "deterministic_component_streams_and_training_rng_reset"
             if paired_initialization
             else "legacy_global_stream"
         ),
         "best_epoch": best_epoch,
+        "checkpoint_selection": {
+            "primary_metric": checkpoint_metric,
+            "primary_epoch": best_epoch,
+            "candidates": candidate_metadata,
+            "uses_test_data": False,
+        },
     }
     torch.save(checkpoint, run_dir / "model.pt")
+    for metric_name, candidate in checkpoint_candidates.items():
+        candidate_checkpoint = dict(checkpoint)
+        candidate_checkpoint["model_state"] = candidate["model_state"]
+        candidate_checkpoint["best_epoch"] = int(candidate["epoch"])
+        candidate_checkpoint["checkpoint_selection"] = {
+            **checkpoint["checkpoint_selection"],
+            "saved_candidate_metric": metric_name,
+            "saved_candidate_epoch": int(candidate["epoch"]),
+        }
+        torch.save(
+            candidate_checkpoint,
+            run_dir / f"model_min_validation_{metric_name}.pt",
+        )
     write_json(audit, run_dir / "data_audit.json")
     write_history(history, run_dir / "history.json")
     write_json(environment_manifest(device), run_dir / "environment.json")

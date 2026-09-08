@@ -1,18 +1,24 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import torch
 
+from forwardfm_step1.config import load_config
 from forwardfm_step1.data import (
+    BASE_CONTINUOUS_FEATURES,
     BASE_TARGET_COLUMNS,
+    BETA_INPUT_FEATURE,
     BETA_TARGET_COLUMN,
     PreparedSplit,
     Standardizer,
+    _feature_matrix,
     _target_matrix,
     assert_event_disjoint,
+    continuous_feature_names,
     data_order_seed,
     data_split_seed,
     generated_beta,
@@ -23,9 +29,16 @@ from forwardfm_step1.data import (
 from forwardfm_step1.evaluation import (
     beta_closure_rows,
     conditional_pid_response_rows,
+    correct_id_closure_mae,
     integrated_correct_pid_response,
 )
-from forwardfm_step1.model import ConditionalMDN, mixture_nll, sample_standardized_residuals
+from forwardfm_step1.model import (
+    ConditionalMDN,
+    initialize_beta_input_from_control,
+    mixture_nll,
+    sample_standardized_residuals,
+)
+from sample import build_features
 
 
 class StandardizerTests(unittest.TestCase):
@@ -37,6 +50,95 @@ class StandardizerTests(unittest.TestCase):
 
 
 class BetaTargetTests(unittest.TestCase):
+    def test_beta_input_value_and_order(self) -> None:
+        frame = pd.DataFrame(
+            {
+                "gen_p": [1.0, 1.0],
+                "gen_pid": [211, 2212],
+                "gen_theta": [0.2, 0.3],
+                "gen_phi": [0.4, -0.5],
+            }
+        )
+        names = (*BASE_CONTINUOUS_FEATURES, BETA_INPUT_FEATURE)
+        matrix = _feature_matrix(frame, names)
+        self.assertEqual(matrix.shape, (2, 5))
+        np.testing.assert_allclose(
+            matrix[:, 4], generated_beta(frame.gen_p, frame.gen_pid)
+        )
+        self.assertGreater(matrix[0, 4], matrix[1, 4])
+
+    def test_beta_input_and_target_are_independent_switches(self) -> None:
+        frame = pd.DataFrame(
+            {
+                "gen_p": [1.0],
+                "gen_pid": [211],
+                "gen_theta": [0.2],
+                "gen_phi": [0.4],
+            }
+        )
+        for include_beta, target_beta in (
+            (False, False),
+            (True, False),
+            (False, True),
+            (True, True),
+        ):
+            config = {
+                "data": {
+                    "beta_response": {
+                        "include_generated_beta": include_beta,
+                        "enabled": target_beta,
+                        "target": "delta_beta",
+                    }
+                }
+            }
+            feature_names = continuous_feature_names(config)
+            target_names = response_target_names(config)
+            self.assertEqual(len(feature_names), 5 if include_beta else 4)
+            self.assertEqual(len(target_names), 4 if target_beta else 3)
+            self.assertEqual(
+                _feature_matrix(frame, feature_names).shape[1], len(feature_names)
+            )
+
+    def test_sampler_uses_checkpoint_feature_order(self) -> None:
+        frame = pd.DataFrame(
+            {
+                "gen_p": [0.8, 1.2],
+                "gen_pid": [211, 2212],
+                "gen_theta": [0.2, 0.3],
+                "gen_phi": [0.4, -0.5],
+            }
+        )
+        base = build_features(frame, BASE_CONTINUOUS_FEATURES)
+        beta = build_features(
+            frame, (*BASE_CONTINUOUS_FEATURES, BETA_INPUT_FEATURE)
+        )
+        self.assertEqual(base.shape, (2, 4))
+        self.assertEqual(beta.shape, (2, 5))
+        np.testing.assert_allclose(beta[:, :4], base)
+        np.testing.assert_allclose(
+            beta[:, 4], generated_beta(frame.gen_p, frame.gen_pid)
+        )
+
+    def test_factorial_configs_select_the_same_teacher_events(self) -> None:
+        config_dir = Path(__file__).resolve().parents[1] / "configs"
+        names = (
+            "gpu_beta_factorial_A_original.yaml",
+            "gpu_beta_factorial_B_beta_input.yaml",
+            "gpu_beta_factorial_C_beta_target.yaml",
+            "gpu_beta_factorial_D_beta_input_target.yaml",
+            "gpu_beta_factorial_D_beta_input_target_pid1.yaml",
+        )
+        configs = [load_config(config_dir / name) for name in names]
+        self.assertEqual(len({selection_sql(config) for config in configs}), 1)
+        self.assertEqual(
+            [len(continuous_feature_names(config)) for config in configs],
+            [4, 5, 4, 5, 5],
+        )
+        self.assertEqual(
+            [len(response_target_names(config)) for config in configs],
+            [3, 3, 4, 4, 4],
+        )
+
     def test_relativistic_generated_beta_uses_species_mass(self) -> None:
         momentum = np.asarray([0.0, 1.0, 1.0])
         pid = np.asarray([211, 211, 2212])
@@ -248,6 +350,34 @@ class ModelTests(unittest.TestCase):
         for name in paired_names:
             torch.testing.assert_close(control_state[name], treatment_state[name])
 
+    def test_nested_beta_input_initialization_preserves_initial_function(self) -> None:
+        arguments = {
+            "n_species": 3,
+            "n_rec_pid_classes": 6,
+            "hidden_width": 12,
+            "hidden_layers": 2,
+            "pid_embedding_dim": 4,
+            "mixture_components": 3,
+            "target_dim": 4,
+            "dropout": 0.0,
+        }
+        control = ConditionalMDN(**arguments, n_continuous=4)
+        beta_model = ConditionalMDN(**arguments, n_continuous=5)
+        control.reset_parameters(seed=1234)
+        beta_model.reset_parameters(seed=1234)
+        initialize_beta_input_from_control(control, beta_model)
+
+        base_features = torch.randn(9, 4)
+        beta_features = torch.cat([base_features, torch.rand(9, 1)], dim=1)
+        species = torch.randint(0, 3, (9,))
+        control_output = control(base_features, species)
+        beta_output = beta_model(beta_features, species)
+        for field in ("mixture_logits", "means", "log_scales", "pid_logits"):
+            torch.testing.assert_close(
+                getattr(control_output, field), getattr(beta_output, field)
+            )
+        self.assertTrue(torch.count_nonzero(beta_model.backbone[0].weight[:, 4]) == 0)
+
 
 class ConditionalPIDClosureTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -304,6 +434,22 @@ class ConditionalPIDClosureTests(unittest.TestCase):
         self.assertAlmostEqual(pi_row["fm_correct_mean_probability"], 0.5)
         self.assertAlmostEqual(proton_row["coatjava_correct_fraction"], 1.0)
         self.assertAlmostEqual(proton_row["fm_correct_mean_probability"], 0.8)
+
+    def test_correct_id_mae_uses_mean_softmax_bin_response(self) -> None:
+        rows, _ = conditional_pid_response_rows(
+            self.generated_species,
+            self.generated_momentum,
+            self.observed_pid_index,
+            self.probabilities,
+            self.labels,
+            np.asarray([0.0, 1.0, 2.0]),
+        )
+        summaries = correct_id_closure_mae(rows)
+        pi_row = next(row for row in summaries if row["generated_pid"] == 211)
+        proton_row = next(row for row in summaries if row["generated_pid"] == 2212)
+        self.assertAlmostEqual(pi_row["correct_id_mae_unweighted"], 0.1)
+        self.assertAlmostEqual(pi_row["correct_id_mae_particle_weighted"], 0.1)
+        self.assertAlmostEqual(proton_row["correct_id_mae_unweighted"], 0.2)
 
     def test_misaligned_inputs_fail(self) -> None:
         with self.assertRaises(ValueError):
@@ -363,3 +509,4 @@ class BetaClosureTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+    continuous_feature_names,

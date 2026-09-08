@@ -143,8 +143,21 @@ def train_model(
     splits: dict[str, PreparedSplit],
     config: dict[str, Any],
     device: torch.device,
-) -> tuple[ConditionalMDN, list[dict[str, Any]], int]:
-    """Fit on event-disjoint training data and select by validation likelihood."""
+) -> tuple[
+    ConditionalMDN,
+    list[dict[str, Any]],
+    int,
+    dict[str, dict[str, Any]],
+]:
+    """Fit on event-disjoint data and retain two validation-only checkpoints.
+
+    Candidate epochs minimize either
+
+        L_val = L_response,val + lambda_PID L_PID,val
+
+    or ``L_PID,val`` alone. ``training.checkpoint_metric`` declares which
+    candidate is primary before held-out test evaluation.
+    """
     training = config["training"]
     seed = int(config["project"]["seed"])
     train_loader = make_loader(
@@ -168,9 +181,16 @@ def train_model(
     )
     model.to(device)
     history: list[dict[str, Any]] = []
-    best_epoch = 0
-    best_validation_loss = float("inf")
-    best_state: dict[str, torch.Tensor] | None = None
+    checkpoint_metric = str(training.get("checkpoint_metric", "total_loss"))
+    checkpoint_metrics = ("total_loss", "pid_cross_entropy")
+    if checkpoint_metric not in checkpoint_metrics:
+        raise ValueError(
+            "training.checkpoint_metric must be 'total_loss' or "
+            "'pid_cross_entropy'"
+        )
+    best_values = {name: float("inf") for name in checkpoint_metrics}
+    best_epochs = {name: 0 for name in checkpoint_metrics}
+    best_states: dict[str, dict[str, torch.Tensor]] = {}
     stale_epochs = 0
 
     for epoch in range(1, int(training["epochs"]) + 1):
@@ -202,21 +222,43 @@ def train_model(
             f"val_nll={validation_metrics.residual_nll:.5f} "
             f"val_pid_acc={validation_metrics.pid_accuracy:.4f}"
         )
-        if validation_metrics.total_loss < best_validation_loss - 1e-5:
-            best_validation_loss = validation_metrics.total_loss
-            best_epoch = epoch
-            best_state = {
-                key: value.detach().cpu().clone() for key, value in model.state_dict().items()
-            }
+        validation_values = {
+            "total_loss": validation_metrics.total_loss,
+            "pid_cross_entropy": validation_metrics.pid_cross_entropy,
+        }
+        primary_improved = False
+        for name, value in validation_values.items():
+            if value < best_values[name] - 1e-5:
+                best_values[name] = value
+                best_epochs[name] = epoch
+                best_states[name] = {
+                    key: tensor.detach().cpu().clone()
+                    for key, tensor in model.state_dict().items()
+                }
+                if name == checkpoint_metric:
+                    primary_improved = True
+        if primary_improved:
             stale_epochs = 0
         else:
             stale_epochs += 1
             if stale_epochs >= int(training["early_stopping_patience"]):
-                print(f"early stopping after epoch {epoch}; best epoch was {best_epoch}")
+                print(
+                    f"early stopping after epoch {epoch}; "
+                    f"best {checkpoint_metric} epoch was {best_epochs[checkpoint_metric]}"
+                )
                 break
 
-    if best_state is None:
+    if set(best_states) != set(checkpoint_metrics):
         raise RuntimeError("Training did not produce a checkpoint")
-    model.load_state_dict(best_state)
+    best_epoch = best_epochs[checkpoint_metric]
+    model.load_state_dict(best_states[checkpoint_metric])
     model.to(device)
-    return model, history, best_epoch
+    candidates = {
+        name: {
+            "epoch": best_epochs[name],
+            "validation_value": best_values[name],
+            "model_state": best_states[name],
+        }
+        for name in checkpoint_metrics
+    }
+    return model, history, best_epoch, candidates
