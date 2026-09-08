@@ -55,8 +55,7 @@ $$
 where $\mathcal P(A)$ is the set of probability measures on $A$, and
 
 $$
-q_\vartheta(\delta,r\mid z,s)
-=
+q_\vartheta(\delta,r\mid z,s)=
 \left[
 \sum_{k=1}^{K}\pi_k(z,s)
 \prod_{j=1}^{4}
@@ -164,17 +163,14 @@ A draw $(\widehat\Delta,\widehat s_{\rm rec})$ is mapped back by
 $$
 \widehat p_{\rm rec}=p_{\rm gen}+\widehat{\Delta p},
 \qquad
-\widehat\theta_{\rm rec}
-=\theta_{\rm gen}+\widehat{\Delta\theta},
+\widehat\theta_{\rm rec}=\theta_{\rm gen}+\widehat{\Delta\theta},
 $$
 
 $$
-\widehat\phi_{\rm rec}
-=\mathrm{wrap}_{[-\pi,\pi)}
+\widehat\phi_{\rm rec}=\mathrm{wrap}_{[-\pi,\pi)}
 (\phi_{\rm gen}+\widehat{\Delta\phi}),
 \qquad
-\widehat\beta_{\rm rec}
-=\beta_{\rm gen}+\widehat{\Delta\beta}.
+\widehat\beta_{\rm rec}=\beta_{\rm gen}+\widehat{\Delta\beta}.
 $$
 
 ## 4. Conditional scope
@@ -192,8 +188,7 @@ The selected set satisfies
 
 $$
 s_{\rm gen}\in\mathcal S,\quad
-\theta_{\rm rec}<33^\circ,\quad
--5.5<z_{\rm gen}<-0.5\ {\rm cm},
+\theta_{\rm rec}<33^\circ,\quad -5.5<z_{\rm gen}<-0.5\ {\rm cm},
 $$
 
 $$
@@ -208,17 +203,15 @@ The split unit is the event key $E$, represented in the data by
 `(source_file_id, event_id)`. Event-disjointness means
 
 $$
-E_{\rm train}\cap E_{\rm val}
-=E_{\rm train}\cap E_{\rm test}
-=E_{\rm val}\cap E_{\rm test}
-=\varnothing.
+E_a\cap E_b=\varnothing
+\qquad
+(a\neq b;\ a,b\in\{{\rm train},{\rm val},{\rm test}\}).
 $$
 
 The intended larger factorization is
 
 $$
-P(Y\mid X)
-=
+P(Y\mid X)=
 P(T\mid x_e)
 \prod_i P(C_i\mid x_i,T)
 P(\Delta_i,s_{{\rm rec},i}\mid x_i,T,C_i).
@@ -233,11 +226,9 @@ This branch learns only the last factor for $C_i={\rm FD}$.
 For $\lambda_{\rm PID}>0$,
 
 $$
-\mathcal L(\vartheta)
-=
--\mathbb E_{\rm train}
+\mathcal L(\vartheta)=-\mathbb E_{\rm train}
 \log q_\vartheta(\delta\mid z,s)
--\lambda_{\rm PID}\,
+{}-\lambda_{\rm PID}\,
 \mathbb E_{\rm train}
 \log q_\vartheta(r\mid z,s).
 $$
