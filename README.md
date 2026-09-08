@@ -319,7 +319,7 @@ $$
 D_{0.2}\longrightarrow D_1:
 \qquad
 \Delta\mathrm{TV}=0.01175,\quad
-\mathrm{CI}_{95\%}=[0.00688,0.01662].
+\mathrm{CI}_{0.95}=[0.00688,0.01662].
 $$
 
 It improves every matched run. Correct-ID MAE changes by species:
