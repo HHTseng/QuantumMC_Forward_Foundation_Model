@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 from copy import deepcopy
 from datetime import datetime, timezone
+import fcntl
 import json
 import os
 from pathlib import Path
@@ -237,22 +238,30 @@ def train_one(config_path: Path, run_dir: Path, device: str) -> float:
     environment = os.environ.copy()
     environment["PYTHONUNBUFFERED"] = "1"
     start = time.perf_counter()
-    with (run_dir / "training.log").open("w", encoding="utf-8") as log:
-        process = subprocess.Popen(
-            command,
-            cwd=REPOSITORY_ROOT,
-            env=environment,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
-        )
-        assert process.stdout is not None
-        for line in process.stdout:
-            log.write(line)
-            log.flush()
-            print(line, end="", flush=True)
-        return_code = process.wait()
+    lock_path = run_dir / ".training.lock"
+    with lock_path.open("w", encoding="utf-8") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as error:
+            raise RuntimeError(f"Another worker is training in {run_dir}") from error
+        lock.write(f"pid={os.getpid()}\n")
+        lock.flush()
+        with (run_dir / "training.log").open("w", encoding="utf-8") as log:
+            process = subprocess.Popen(
+                command,
+                cwd=REPOSITORY_ROOT,
+                env=environment,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+            )
+            assert process.stdout is not None
+            for line in process.stdout:
+                log.write(line)
+                log.flush()
+                print(line, end="", flush=True)
+            return_code = process.wait()
     if return_code:
         raise RuntimeError(f"Training failed with code {return_code}: {config_path}")
     return time.perf_counter() - start

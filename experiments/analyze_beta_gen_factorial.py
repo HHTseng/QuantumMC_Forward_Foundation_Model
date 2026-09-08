@@ -654,6 +654,57 @@ def write_report(
             f"| {row['test_pid_cross_entropy_mean']:.5f} ± {row['test_pid_cross_entropy_sd']:.5f} "
             f"| {row['test_pid_accuracy_mean']:.4f} ± {row['test_pid_accuracy_sd']:.4f} |"
         )
+
+    contrast_by_key = {
+        (row["contrast"], row["metric"]): row for row in contrasts
+    }
+    input_only = contrast_by_key[
+        ("beta_input_without_target", "macro_weighted_bin_tv")
+    ]
+    input_with_target = contrast_by_key[
+        ("beta_input_with_target", "macro_weighted_bin_tv")
+    ]
+    pid_weight = contrast_by_key[
+        ("pid_weight_0.2_to_1.0", "macro_weighted_bin_tv")
+    ]
+    pid_weight_pi_plus = contrast_by_key[
+        ("pid_weight_0.2_to_1.0", "correct_mae_unweighted_pi_plus")
+    ]
+    pid_weight_proton = contrast_by_key[
+        ("pid_weight_0.2_to_1.0", "correct_mae_unweighted_proton")
+    ]
+    lines.extend(
+        [
+            "",
+            "## Interpretation",
+            "",
+            "At $\\lambda_{\\rm PID}=0.2$, adding $\\beta_{\\rm gen}$ alone changed "
+            f"macro TV by {input_only['mean_improvement']:+.5f} "
+            f"(95% CI [{input_only['ci95_low']:+.5f}, {input_only['ci95_high']:+.5f}]); "
+            "with $\\Delta\\beta$ already present, the corresponding change was "
+            f"{input_with_target['mean_improvement']:+.5f} "
+            f"([{input_with_target['ci95_low']:+.5f}, {input_with_target['ci95_high']:+.5f}]). "
+            "Neither input contrast is seed-stable.",
+            "",
+            "Increasing $\\lambda_{\\rm PID}$ from 0.2 to 1.0 is the robust effect: "
+            f"macro TV falls by {pid_weight['mean_improvement']:.5f} "
+            f"([{pid_weight['ci95_low']:.5f}, {pid_weight['ci95_high']:.5f}]) in "
+            f"{pid_weight['favorable_pairs']}/{pid_weight['n_pairs']} seeds "
+            f"(exact $p={pid_weight['exact_sign_flip_p']:.6f}$). Correct-ID MAE falls "
+            f"from {100.0 * pid_weight_pi_plus['control_mean']:.2f}% to "
+            f"{100.0 * pid_weight_pi_plus['treatment_mean']:.2f}% for $\\pi^+$ and "
+            f"from {100.0 * pid_weight_proton['control_mean']:.2f}% to "
+            f"{100.0 * pid_weight_proton['treatment_mean']:.2f}% for protons.",
+            "",
+            "The original condition already gives 2.06% $\\pi^+$ and 2.09% proton "
+            "MAE, so this controlled study does not reproduce the reported "
+            "$18.4\\%\\rightarrow1.6\\%$ and $23.3\\%\\rightarrow2.6\\%$ "
+            "$\\beta_{\\rm gen}$ improvements. The present result uses a beta-valid "
+            "158,482-particle test sample and a validation-PID checkpoint; exact "
+            "reconciliation requires matching the checkpoint, selected population, "
+            "and bin definition.",
+        ]
+    )
     lines.extend(
         [
             "",

@@ -255,7 +255,7 @@ $$
 For a minibatch of size $B$,
 
 $$
-\mathtt{continuous}\in\mathbb R^{B\times d_x},
+z_x\in\mathbb R^{B\times d_x},
 \qquad d_x\in\{4,5\}.
 $$
 
@@ -289,7 +289,7 @@ Hence
 For a batch,
 
 $$
-\mathtt{species\_index}\in\{0,1,2\}^{B}.
+s_{\rm index}\in\{0,1,2\}^{B}.
 $$
 
 The network maps this integer to a learned embedding
@@ -312,7 +312,7 @@ numbers without $\beta_{\mathrm{gen}}$ and 21 with it.
 The actual model input is therefore the pair
 
 $$
-(\mathtt{continuous},\mathtt{species\_index})
+(z_x,s_{\rm index})
 \in\mathbb R^{B\times d_x}\times\{0,1,2\}^{B},
 $$
 
@@ -488,9 +488,9 @@ $$
 where
 
 $$
-\pi=\mathrm{softmax}\,(\mathtt{mixture\_logits}),
+\pi=\mathrm{softmax}\,(\ell^{\rm mix}),
 \qquad
-\sigma=\exp(\mathtt{log\_scales}).
+\sigma=\exp(\ell^{\rm scale}).
 $$
 
 The component covariance matrices are diagonal. Dependence among the three
@@ -504,7 +504,7 @@ The categorical probabilities are
 
 $$
 q_\vartheta(\widehat s=c\mid z_x,s)
-=\mathrm{softmax}\,(\mathtt{pid\_logits})_c.
+=\mathrm{softmax}\,(\ell^{\rm PID})_c.
 $$
 
 For the displayed development batch,
@@ -621,7 +621,7 @@ The DataLoader produces tensors in the following order:
 
 ```python
 TensorDataset(
-    continuous,       # [B, 4]
+    continuous,       # [B, d_x], where d_x is 4 or 5
     species_index,    # [B]
     targets,          # [B, D]
     rec_pid_index,    # [B]
@@ -803,91 +803,122 @@ Aggregate agreement is necessary but not sufficient. Physics validation must
 also examine conditional response versus generated kinematics, PID confusion,
 residual correlations, tails, and eventually event-level observables.
 
-### Beta-response baseline
+### Physics-informed generated-beta study
 
-The `feature/beta-response-baseline` branch adds $\Delta\beta$ as a fourth
-joint continuous target while retaining the categorical PID head. The full run
-selected epoch 14 on 158,482 held-out particles. Checkpoint SHA-256:
+This branch tests Dr. Joo's proposed truth coordinate
 
-```text
-31e2c65ac417081123c87edf3fc7d874e618739b8b7cdd061c2ef3f92a102078
-```
+$$
+\beta_{\rm gen}(p_{\rm gen},s)
+=\frac{p_{\rm gen}}{\sqrt{p_{\rm gen}^2+m_s^2}}
+$$
 
-| Generated species | Beta W1 | Absolute mean difference | Sampled/observed width |
+independently from the auxiliary response target
+$\Delta\beta=\beta_{\rm rec}-\beta_{\rm gen}$. Because $\beta_{\rm gen}$ is
+determined by generated momentum and species, it adds physics-informed
+inductive bias rather than new truth information.
+
+| Condition | $\beta_{\rm gen}$ input | $\Delta\beta$ target | $\lambda_{\rm PID}$ |
 |---|---:|---:|---:|
-| $\pi^-$ | 0.006462 | 0.000356 | 0.9884 |
-| $\pi^+$ | 0.006624 | 0.001191 | 1.0181 |
-| proton | 0.002578 | 0.000032 | 1.0096 |
+| A: original | no | no | 0.2 |
+| B: input only | yes | no | 0.2 |
+| C: target only | no | yes | 0.2 |
+| D, 0.2: input + target | yes | yes | 0.2 |
+| D, 1.0: input + target | yes | yes | 1.0 |
 
-![Beta response closure versus generated momentum](runs/gpu_beta_baseline/beta_response_vs_gen_p.png)
+The controlled study trained these five conditions for ten matched seeds. Every
+model saw the same beta-valid 1,266,603/159,072/158,482
+train/validation/test rows and the same event-disjoint split. Every run
+completed 30 epochs; the locked test checkpoint minimizes validation PID cross
+entropy. Nested initialization makes each $A/B$ and $C/D$ pair initially
+identical before the zero-weight $\beta_{\rm gen}$ connection learns.
 
-![Observed and sampled beta versus reconstructed momentum](runs/gpu_beta_baseline/beta_vs_reconstructed_p.png)
-
-### Controlled ten-seed direct-PID ablation
-
-**Result:** adding $\Delta\beta$ did not produce a reliable improvement in the
-direct categorical PID head. The study trained 20 full-data models as ten
-matched no-beta/joint-beta pairs (seeds `20260822`--`20260831`) on the same
-158,482-particle test set. Within each pair, the data split, model
-initialization, batch order, optimizer, and early-stopping rule were matched;
-only the $\Delta\beta$ target and its response-head parameters differed.
-
-The main closure metric compares the complete reconstructed-PID distribution,
-not top-1 accuracy. For generated species $s$ and momentum bin $b$,
+The closure calculation follows the collaborator's definition. For particles
+$I_{s,b}$ with generated species $s$ in momentum bin $b$,
 
 $$
-\mathrm{TV}(s,b)=\frac{1}{2}\sum_r
-\left|P_{\mathrm{FM}}(r\mid s,b)-P_{\mathrm{CJ}}(r\mid s,b)\right|,
+P_{\rm CJ}(r\mid s,b)
+=\frac{1}{N_{s,b}}\sum_{i\in I_{s,b}}
+\mathbf 1(c_i^{\rm CJ}=r),
+\qquad
+P_{\rm FM}(r\mid s,b)
+=\frac{1}{N_{s,b}}\sum_{i\in I_{s,b}}q_{\vartheta,i}(r).
 $$
 
-where $r$ is the reconstructed class, $P_{\mathrm{CJ}}$ is the empirical
-COATJAVA fraction, and $P_{\mathrm{FM}}$ is the mean PID-head softmax
-probability. For any lower-is-better metric $M$, the paired improvement is
+Thus the Forward FM response is the mean softmax probability, not a top-1
+classification rate. The per-species correct-ID metric and full-distribution
+metric are
 
 $$
-d_j=M_j^{\mathrm{no\ beta}}-M_j^{\mathrm{joint}\ \Delta\beta}.
+\mathrm{MAE}_s
+=\frac{1}{|\mathcal B_s|}\sum_{b\in\mathcal B_s}
+\left|P_{\rm FM}(s\mid s,b)-P_{\rm CJ}(s\mid s,b)\right|,
 $$
 
-Thus $d_j>0$ favors joint beta. The 95% intervals use the ten seeds as the
-statistical replicates; exact $p$ values use all $2^{10}=1024$ paired sign
-flips.
+$$
+\mathrm{TV}(s,b)
+=\frac12\sum_r
+\left|P_{\rm FM}(r\mid s,b)-P_{\rm CJ}(r\mid s,b)\right|.
+$$
 
-| Primary metric | No-beta mean ± SD | Joint-$\Delta\beta$ mean ± SD | Mean improvement [95% CI] | Median improvement | Better pairs | Exact $p$ |
-|---|---:|---:|---:|---:|---:|---:|
-| Macro particle-weighted fixed-bin TV | 0.069213 ± 0.066470 | 0.063732 ± 0.045725 | 0.005481 [-0.058887, 0.069848] | -0.007215 | 2/10 | 0.876953 |
-| Macro integrated correct-ID MAE | 0.030145 ± 0.061366 | 0.019845 ± 0.029424 | 0.010299 [-0.040877, 0.061476] | 0.000146 | 6/10 | 0.845703 |
+#### Ten-seed result
 
-Neither metric shows a statistically supported or seed-stable beta benefit.
-Although the mean error is lower with beta, the TV metric is worse in 8/10
-pairs and its median effect is negative. Correct-ID error improves in 6/10
-pairs, but its median effect is nearly zero. Both confidence intervals include
-improvement and degradation, and both exact tests are consistent with seed
-variation.
+**The dominant improvement comes from increasing the PID loss weight, not from
+adding $\beta_{\rm gen}$ under this controlled protocol.** Values below are
+mean ± seed SD; all entries are percentage points and lower is better.
 
-The momentum-dependent curves also overlap broadly. Their bands are 95%
-intervals across the ten trained models, not per-particle error bars.
+| Metric | A | B | C | D, 0.2 | D, 1.0 |
+|---|---:|---:|---:|---:|---:|
+| Macro full-PID TV | 3.44 ± 0.54 | 3.41 ± 0.45 | 3.51 ± 0.68 | 3.59 ± 0.74 | **2.42 ± 0.16** |
+| $\pi^-$ correct-ID MAE | 1.40 ± 0.45 | 1.56 ± 0.46 | 1.51 ± 0.36 | 1.52 ± 0.42 | **1.22 ± 0.24** |
+| $\pi^+$ correct-ID MAE | 2.06 ± 0.65 | 1.92 ± 0.28 | 1.79 ± 0.37 | 1.85 ± 0.80 | **1.19 ± 0.25** |
+| Proton correct-ID MAE | 2.09 ± 0.59 | 1.96 ± 0.65 | 2.34 ± 0.60 | 2.46 ± 1.07 | **1.19 ± 0.28** |
 
-![Ten-seed correct-ID PID closure versus generated momentum](runs/gpu_beta_multiseed_ablation/summary/pid_correct_id_vs_gen_p_multiseed.png)
+For a lower-is-better metric $M$, paired improvement is
+$d_j=M_{\rm control,j}-M_{\rm treatment,j}$, so $d_j>0$ favors treatment.
+Intervals use the ten seeds as replicates; exact $p$ values enumerate all
+$2^{10}$ paired sign flips.
 
-The paired TV plot exposes an asymmetry hidden by the means: joint beta rescues
-one poor no-beta run but degrades most other seeds. Black points and lines show
-condition means; gray lines connect models trained from the same seed.
+| Paired contrast and metric | Mean improvement [95% CI] | Better seeds | Exact $p$ |
+|---|---:|---:|---:|
+| $A\rightarrow B$: macro TV | +0.03 [-0.18, +0.23] points | 5/10 | 0.7715 |
+| $C\rightarrow D(0.2)$: macro TV | -0.08 [-0.49, +0.32] points | 7/10 | 0.7969 |
+| $D(0.2)\rightarrow D(1.0)$: macro TV | **+1.17 [+0.69, +1.66] points** | 10/10 | 0.0020 |
+| $D(0.2)\rightarrow D(1.0)$: $\pi^+$ MAE | **+0.66 [+0.07, +1.24] points** | 8/10 | 0.0137 |
+| $D(0.2)\rightarrow D(1.0)$: proton MAE | **+1.26 [+0.54, +1.98] points** | 10/10 | 0.0020 |
 
-![Ten paired seeds for full PID-distribution TV](runs/gpu_beta_multiseed_ablation/summary/paired_weighted_bin_tv.png)
+At $\lambda_{\rm PID}=0.2$, the direct $A\rightarrow B$ changes are small:
+$\pi^+$ MAE changes from 2.06% to 1.92%, and proton MAE from 2.09% to
+1.96%; both paired confidence intervals include zero. The $C\rightarrow D$
+contrast likewise provides no seed-stable beta-input benefit. By contrast,
+$\lambda_{\rm PID}=1$ improves the full PID distribution in every seed and
+substantially reduces the $\pi^+$ and proton errors.
 
-Checkpoint selection is an important source of variance because early stopping
-minimizes the combined response loss, not PID closure alone. For example,
-no-beta seed `20260826` selected epoch 15 with validation PID accuracy 0.5235,
-although epoch 20 reached 0.6754. A follow-up ablation should therefore
-predefine a PID-aware validation criterion and task-loss weighting.
+![Momentum-dependent correct-ID closure for five conditions](runs/gpu_beta_gen_factorial/summary/pid_correct_id_vs_gen_p_factorial.png)
 
-$\Delta\beta$ remains useful for modeling continuous timing response, but these
-data do not show that it reliably improves direct categorical PID closure under
-the current training policy.
+Gray lines below connect identical model seeds. The lower and much tighter
+$D,1.0$ distribution makes the loss-weight effect visible across seeds.
 
-The full report and machine-readable per-run, paired, aggregate, fixed-bin,
-provenance, and checkpoint-hash tables are in
-[`runs/gpu_beta_multiseed_ablation/summary/`](runs/gpu_beta_multiseed_ablation/summary/).
+![PID closure across five matched conditions and ten seeds](runs/gpu_beta_gen_factorial/summary/pid_closure_across_conditions.png)
+
+The three models trained on $\Delta\beta$ all reproduce mean reconstructed
+beta versus momentum closely. Their mean species-averaged beta W1 distances
+are 0.00475 (C), 0.00499 (D, 0.2), and 0.00534 (D, 1.0).
+
+![Continuous beta-response closure](runs/gpu_beta_gen_factorial/summary/beta_response_vs_gen_p_factorial.png)
+
+The original condition already reaches 2.06% $\pi^+$ and 2.09% proton MAE,
+far below the reported 18.4% and 23.3%. Therefore this run does not reproduce
+the reported dominant $\beta_{\rm gen}$ gain. The present comparison uses a
+beta-valid 158,482-particle test population, newly trained checkpoints, and a
+predeclared validation-PID selector. Matching Dr. Joo's exact checkpoint,
+population, and bin definition is necessary before attributing the numerical
+difference to physics or implementation.
+
+Full tables, the full-PID TV and migration-channel figures, and a concise
+report are in
+[`runs/gpu_beta_gen_factorial/summary/`](runs/gpu_beta_gen_factorial/summary/).
+The current data contain only generated $\pi^-$, $\pi^+$, and protons; a
+generated $K^-$ sample remains the next out-of-species test.
 
 ## 12. Installation and execution
 
@@ -929,23 +960,17 @@ Full selected-population training:
 CUDA_VISIBLE_DEVICES=0 python train.py --config configs/gpu_full.yaml
 ```
 
-Beta-response baseline training:
+Controlled ten-seed generated-beta factorial study and aggregate analysis:
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 python train.py --config configs/gpu_beta_baseline.yaml
+python experiments/run_beta_gen_factorial.py --device cuda:0
+python experiments/analyze_beta_gen_factorial.py
 ```
 
-Controlled ten-paired-seed beta ablation and aggregate analysis:
-
-```bash
-python experiments/run_beta_multiseed_ablation.py --device cuda:0
-python experiments/analyze_beta_multiseed_ablation.py
-```
-
-The runner is resumable. By default it runs all ten pairs serially on one GPU;
+The runner is resumable and prevents concurrent workers from writing to the
+same run directory. By default it runs all five conditions for all ten seeds;
 independent seed subsets can be assigned to different GPUs with `--seeds`,
-`--manifest-name`, and `--first-variant` while preserving balanced execution
-order.
+`--manifest-name`, and `--first-variant`.
 
 Sample conditional FD response from generated hadrons:
 
