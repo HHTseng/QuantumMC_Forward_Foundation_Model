@@ -16,6 +16,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import yaml
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -76,6 +77,14 @@ def read_csv(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(handle))
 
 
+def load_yaml(path: Path) -> dict[str, Any]:
+    with path.open(encoding="utf-8") as handle:
+        value = yaml.safe_load(handle)
+    if not isinstance(value, dict):
+        raise TypeError(f"Configuration {path} is not a mapping")
+    return value
+
+
 def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
     if not rows:
         raise ValueError(f"Cannot write empty table {path}")
@@ -121,6 +130,14 @@ def paired_statistics(control: np.ndarray, treatment: np.ndarray) -> dict[str, A
 
 def collect_run(run_dir: Path, seed: int, variant: str) -> dict[str, Any]:
     metrics = json.loads((run_dir / "metrics.json").read_text(encoding="utf-8"))
+    history = json.loads((run_dir / "history.json").read_text(encoding="utf-8"))
+    config = load_yaml(run_dir / "resolved_config.yaml")
+    configured_epochs = int(config["training"]["epochs"])
+    if len(history) != configured_epochs:
+        raise ValueError(
+            f"Incomplete fixed-budget run at {run_dir}: "
+            f"found {len(history)} of {configured_epochs} epochs"
+        )
     checkpoint = torch.load(run_dir / "model.pt", map_location="cpu", weights_only=False)
     checkpoint_selection = checkpoint["checkpoint_selection"]
     correct_rows = read_csv(run_dir / "pid_correct_id_closure_mae.csv")
@@ -140,6 +157,7 @@ def collect_run(run_dir: Path, seed: int, variant: str) -> dict[str, Any]:
         ),
         "feature_count": len(checkpoint["feature_names"]),
         "target_count": len(checkpoint["target_names"]),
+        "trained_epochs": len(history),
     }
 
     correct_by_species = {int(value["generated_pid"]): value for value in correct_rows}
