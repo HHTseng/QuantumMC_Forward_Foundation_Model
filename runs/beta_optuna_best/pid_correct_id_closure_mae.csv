@@ -1,0 +1,4 @@
+generated_pid,generated_species,n_populated_bins,particles_in_populated_bins,correct_id_mae_unweighted,correct_id_mae_particle_weighted
+-211,pi-,9,45817,0.004476411878180104,0.0025576162989719036
+211,pi+,9,56774,0.005315874908290873,0.004216629734339124
+2212,proton,7,55891,0.004238948173276492,0.0047247098396125805

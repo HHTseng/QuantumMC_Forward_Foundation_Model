@@ -347,6 +347,37 @@ $$
 Full tables:
 [<code>runs/gpu_beta_gen_factorial/summary/</code>](runs/gpu_beta_gen_factorial/summary/).
 
+### Optuna-selected D10 endpoint
+
+The preceding 10-seed study fixes causal interpretation. Separately, 16
+fixed-seed Optuna trials kept $(I_\beta,T_\beta,\lambda_{\rm PID})=(1,1,1)$
+and minimized validation-only
+
+$$
+T_{\rm val}:=
+\frac{\sum_{s,b}N_{s,b}{\rm TV}_{s,b}}
+{\sum_{s,b}N_{s,b}}.
+$$
+
+| Test quantity | D10 default | Optuna |
+|---|---:|---:|
+| $T$ | 0.023674 | **0.008658** |
+| PID cross-entropy | 0.991976 | **0.977011** |
+| PID accuracy | 0.677787 | **0.679901** |
+| residual NLL | -4.952066 | **-5.816826** |
+| macro $W_1(\beta)$ | 0.005159 | **0.002497** |
+
+Thus Optuna helps chiefly in conditional PID closure ($T$: -63.4%) and
+continuous β closure (macro $W_1$: -51.6%); top-1 PID accuracy changes by only
++0.21 percentage points. This is a same-seed endpoint comparison, not a new
+multi-seed ablation.
+
+![D10 closure before and after Optuna](runs/beta_optuna_analysis/beta_optuna_test_closure.png)
+
+Configuration, trials, report, and checkpoint:
+[<code>runs/beta_optuna_analysis/</code>](runs/beta_optuna_analysis/) and
+[<code>runs/beta_optuna_best/</code>](runs/beta_optuna_best/).
+
 ## 8. Minimal use
 
 Train D10:
@@ -356,6 +387,14 @@ python train.py \
   --config configs/gpu_beta_factorial_D_beta_input_target_pid1.yaml \
   --device cuda:0 \
   --run-dir runs/beta_informed_pid1
+```
+
+Train the Optuna-selected D10 endpoint:
+
+```bash
+python train.py \
+  --config configs/gpu_beta_optuna_best.yaml \
+  --device cuda:0
 ```
 
 Sample from columns <code>gen_pid,gen_p,gen_theta,gen_phi</code>:
@@ -384,17 +423,19 @@ vocabulary.
 
 These are implementation choices, not the mathematical definition:
 
-| Quantity | Value |
-|---|---:|
-| $K$ | 8 |
-| Hidden width | 256 |
-| Hidden layers | 4 |
-| Activation | SiLU |
-| Normalization | LayerNorm |
-| Dropout | 0.03 |
-| Species-embedding dimension | 16 |
-| Batch size | 8192 |
-| Epoch budget | 30 |
+| Quantity | D10 default | Optuna D10 |
+|---|---:|---:|
+| $K$ | 8 | 8 |
+| Hidden width | 256 | 768 |
+| Hidden layers | 4 | 6 |
+| Activation | SiLU | SiLU |
+| Normalization | LayerNorm | LayerNorm |
+| Dropout | 0.03 | 0.14047 |
+| Species-embedding dimension | 16 | 16 |
+| Batch size | 8192 | 4096 |
+| Epoch budget | 30 | 70 |
+| Learning rate | 0.001 | 0.003360 |
+| Schedule | constant | cosine |
 
 For batch size $B$:
 

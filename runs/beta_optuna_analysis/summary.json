@@ -1,0 +1,29 @@
+{
+  "best_params": {
+    "batch_size": 4096,
+    "dropout": 0.14046985701659656,
+    "hidden_layers": 6,
+    "hidden_width": 768,
+    "learning_rate": 0.0033596374211420105,
+    "lr_schedule": "cosine",
+    "weight_decay": 5.849721620639462e-05
+  },
+  "best_trial": 10,
+  "best_user_attrs": {
+    "best_epoch": 50,
+    "epochs_run": 50,
+    "parameters": 3043716,
+    "seconds": 85.77006076835096,
+    "validation_pid_accuracy": 0.6804780225306779,
+    "validation_pid_cross_entropy": 0.9769414160674161,
+    "validation_pid_tv_by_species": "{\"pi-\": 0.011185527125913426, \"pi+\": 0.010053298891378971, \"proton\": 0.006437355794722602}",
+    "validation_residual_nll": -5.800402697411804,
+    "worker": "gpu1"
+  },
+  "best_validation_pid_tv": 0.00910401082313988,
+  "n_complete": 16,
+  "n_trials": 16,
+  "objective": "validation particle-weighted momentum-binned PID total variation",
+  "selection_used_test_split": false,
+  "study_name": "beta-response-capacity-fast"
+}
