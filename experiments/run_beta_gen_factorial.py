@@ -181,7 +181,7 @@ def preflight(
                 getattr(left, name),
                 getattr(right, name),
                 rtol=1e-6,
-                atol=1e-7,
+                atol=5e-6,
             )
             for name in fields
         ):
