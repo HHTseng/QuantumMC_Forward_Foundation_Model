@@ -39,6 +39,15 @@ VARIANT_LABELS = {
     "B_beta_input_pid1": r"B: $\beta_{gen}$ input, $\lambda=1.0$",
     "D_input_target_pid1": r"D: input + target, $\lambda=1.0$",
 }
+EXPECTED_TREATMENTS = {
+    "A_original": (False, False, 0.20, 4, 3),
+    "B_beta_input": (True, False, 0.20, 5, 3),
+    "C_beta_target": (False, True, 0.20, 4, 4),
+    "D_input_target_pid02": (True, True, 0.20, 5, 4),
+    "A_original_pid1": (False, False, 1.00, 4, 3),
+    "B_beta_input_pid1": (True, False, 1.00, 5, 3),
+    "D_input_target_pid1": (True, True, 1.00, 5, 4),
+}
 GENERATED_SPECIES = (-211, 211, 2212)
 SPECIES_KEY = {-211: "pi_minus", 211: "pi_plus", 2212: "proton"}
 SPECIES_LABEL = {-211: r"$\pi^-$", 211: r"$\pi^+$", 2212: "proton"}
@@ -134,6 +143,108 @@ def paired_statistics(control: np.ndarray, treatment: np.ndarray) -> dict[str, A
             np.mean(null_values >= abs(mean) - 1.0e-15)
         ),
     }
+
+
+def validate_provenance(
+    run_root: Path, seeds: tuple[int, ...]
+) -> list[dict[str, str]]:
+    """Fail if a nominal treatment pair differs in any controlled quantity."""
+    common: dict[str, Any] | None = None
+    for seed in seeds:
+        for variant in VARIANTS:
+            run_dir = run_root / f"seed_{seed}" / variant
+            audit = json.loads((run_dir / "data_audit.json").read_text(encoding="utf-8"))
+            config = load_yaml(run_dir / "resolved_config.yaml")
+            history = json.loads((run_dir / "history.json").read_text(encoding="utf-8"))
+            checkpoint = torch.load(
+                run_dir / "model.pt", map_location="cpu", weights_only=False
+            )
+
+            beta_input, beta_target, pid_weight, n_features, n_targets = (
+                EXPECTED_TREATMENTS[variant]
+            )
+            observed_treatment = (
+                bool(config["data"]["beta_response"]["include_generated_beta"]),
+                bool(config["data"]["beta_response"]["enabled"]),
+                float(config["training"]["pid_loss_weight"]),
+                len(checkpoint["feature_names"]),
+                len(checkpoint["target_names"]),
+            )
+            if observed_treatment != (
+                beta_input,
+                beta_target,
+                pid_weight,
+                n_features,
+                n_targets,
+            ):
+                raise ValueError(
+                    f"Unexpected treatment metadata at {run_dir}: {observed_treatment}"
+                )
+
+            selection = checkpoint["checkpoint_selection"]
+            signature = {
+                "dataset_metadata_sha256": audit["dataset_metadata_sha256"],
+                "selection_sql": checkpoint["selection_sql"],
+                "sampled_counts": audit["sampled_counts"],
+                "data_split_seed": int(checkpoint["data_split_seed"]),
+                "data_order_seed": int(checkpoint["data_order_seed"]),
+                "species_pids": checkpoint["species_pids"],
+                "rec_pid_vocabulary": checkpoint["rec_pid_vocabulary"],
+                "momentum_edges_gev": config["evaluation"]["pid_momentum_edges_gev"],
+                "training_budget": {
+                    "epochs_realized": len(history),
+                    "batch_size": int(config["training"]["batch_size"]),
+                    "learning_rate": float(config["training"]["learning_rate"]),
+                    "weight_decay": float(config["training"]["weight_decay"]),
+                    "gradient_clip_norm": float(
+                        config["training"]["gradient_clip_norm"]
+                    ),
+                },
+                "model_constants": {
+                    key: config["model"][key]
+                    for key in (
+                        "hidden_width",
+                        "hidden_layers",
+                        "pid_embedding_dim",
+                        "mixture_components",
+                        "dropout",
+                    )
+                },
+                "checkpoint_rule": selection["primary_metric"],
+                "test_used_for_selection": bool(selection["uses_test_data"]),
+            }
+            if common is None:
+                common = signature
+            elif signature != common:
+                differences = [
+                    key for key in signature if signature[key] != common[key]
+                ]
+                raise ValueError(
+                    f"Provenance mismatch at {run_dir}: {', '.join(differences)}"
+                )
+
+    if common is None:
+        raise ValueError("No runs supplied for provenance validation")
+    counts = common["sampled_counts"]
+    vocabulary = list(common["rec_pid_vocabulary"]) + ["OTHER"]
+    return [
+        {"quantity": "dataset_metadata_sha256", "common_value": common["dataset_metadata_sha256"]},
+        {"quantity": "selection_sql", "common_value": common["selection_sql"]},
+        {"quantity": "sampled_counts", "common_value": json.dumps(counts, sort_keys=True)},
+        {
+            "quantity": "data_split_seed / data_order_seed",
+            "common_value": f"{common['data_split_seed']} / {common['data_order_seed']}",
+        },
+        {"quantity": "generated_species", "common_value": json.dumps(common["species_pids"])},
+        {"quantity": "reconstructed_PID_vocabulary", "common_value": json.dumps(vocabulary)},
+        {"quantity": "momentum_edges_GeV", "common_value": json.dumps(common["momentum_edges_gev"])},
+        {"quantity": "training_budget", "common_value": json.dumps(common["training_budget"], sort_keys=True)},
+        {"quantity": "model_constants", "common_value": json.dumps(common["model_constants"], sort_keys=True)},
+        {
+            "quantity": "checkpoint_rule / uses_test",
+            "common_value": f"{common['checkpoint_rule']} / {common['test_used_for_selection']}",
+        },
+    ]
 
 
 def collect_run(run_dir: Path, seed: int, variant: str) -> dict[str, Any]:
@@ -794,6 +905,7 @@ def write_report(
     aggregate: list[dict[str, Any]],
     contrasts: list[dict[str, Any]],
     per_run: list[dict[str, Any]],
+    provenance: list[dict[str, str]],
 ) -> None:
     aggregate_by_variant = {row["variant"]: row for row in aggregate}
     contrast_rows = [
@@ -820,6 +932,23 @@ def write_report(
             f"| {row['test_pid_cross_entropy_mean']:.5f} ± {row['test_pid_cross_entropy_sd']:.5f} "
             f"| {row['test_pid_accuracy_mean']:.4f} ± {row['test_pid_accuracy_sd']:.4f} |"
         )
+
+    lines.extend(
+        [
+            "",
+            "## Provenance controls",
+            "",
+            "The analysis aborts unless every run agrees on these quantities:",
+            "",
+            "| Quantity | Common value |",
+            "|---|---|",
+        ]
+    )
+    for row in provenance:
+        value = row["common_value"].replace("\n", " ").replace("|", "\\|")
+        if row["quantity"] == "selection_sql":
+            value = "identical beta-valid FD selection (see `provenance.csv`)"
+        lines.append(f"| {row['quantity']} | `{value}` |")
 
     contrast_by_key = {
         (row["contrast"], row["metric"]): row for row in contrasts
@@ -954,7 +1083,7 @@ def write_report(
             "![Continuous beta-response closure](beta_response_vs_gen_p_factorial.png)",
             "",
             "Machine-readable results: `per_run_metrics.csv`, `condition_summary.csv`, "
-            "and `paired_contrasts.csv`.",
+            "`paired_contrasts.csv`, and `provenance.csv`.",
             "",
         ]
     )
@@ -968,6 +1097,7 @@ def main() -> None:
     output_dir = Path(args.output_dir).resolve() if args.output_dir else run_root / "summary"
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    provenance = validate_provenance(run_root, seeds)
     per_run = [
         collect_run(run_root / f"seed_{seed}" / variant, seed, variant)
         for seed in seeds
@@ -978,6 +1108,7 @@ def main() -> None:
     write_csv(output_dir / "per_run_metrics.csv", per_run)
     write_csv(output_dir / "condition_summary.csv", aggregate)
     write_csv(output_dir / "paired_contrasts.csv", contrasts)
+    write_csv(output_dir / "provenance.csv", provenance)
     plot_correct_id_curves(
         run_root, seeds, output_dir / "pid_correct_id_vs_gen_p_factorial.png"
     )
@@ -998,7 +1129,11 @@ def main() -> None:
         run_root, seeds, output_dir / "beta_response_vs_gen_p_factorial.png"
     )
     write_report(
-        output_dir / "BETA_GEN_FACTORIAL_REPORT.md", aggregate, contrasts, per_run
+        output_dir / "BETA_GEN_FACTORIAL_REPORT.md",
+        aggregate,
+        contrasts,
+        per_run,
+        provenance,
     )
     print(f"wrote factorial summary to {output_dir}")
 
