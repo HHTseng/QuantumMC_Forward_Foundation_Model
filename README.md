@@ -402,62 +402,20 @@ Machine-readable results and the checkpoint are in
 [<code>runs/trigger_electron_efficiency/</code>](runs/trigger_electron_efficiency/).
 This is a 1-seed baseline; no seed-robust comparative claim is made.
 
-## 8. β/PID result
+## 8. Companion β/PID ablation
 
-The matched ablation varies
-
-$$
-I_\beta:=\mathbf 1(\beta_{\rm gen}\ {\rm input}),\qquad
-T_\beta:=\mathbf 1(\Delta\beta\ {\rm target}),\qquad
-\lambda_{\rm PID}.
-$$
-
-| Model | $(I_\beta,T_\beta,\lambda_{\rm PID})$ | $(\dim z,\dim\delta)$ | Macro TV | Correct-ID MAE |
-|---|---:|---:|---:|---:|
-| A | $(0,0,0.2)$ | $(4,3)$ | $0.03440\pm0.00541$ | $0.01851\pm0.00405$ |
-| B | $(1,0,0.2)$ | $(5,3)$ | $0.03413\pm0.00445$ | $0.01813\pm0.00279$ |
-| C | $(0,1,0.2)$ | $(4,4)$ | $0.03509\pm0.00682$ | $0.01880\pm0.00307$ |
-| $D_{0.2}$ | $(1,1,0.2)$ | $(5,4)$ | $0.03593\pm0.00738$ | $0.01941\pm0.00630$ |
-| $D_1$ | $(1,1,1)$ | $(5,4)$ | **$0.02418\pm0.00160$** | **$0.01202\pm0.00102$** |
-
-At $\lambda_{\rm PID}=0.2$, no seed-stable PID gain is attributable to
-$\beta_{\rm gen}$. The stable contrast is
+The independent
+[`experiment/beta-pid-weight-completion`](https://github.com/HHTseng/QuantumMC_Forward_Foundation_Model/tree/experiment/beta-pid-weight-completion)
+branch compares the 6 primary conditions
 
 $$
-D_{0.2}\longrightarrow D_1:
-\qquad
-\Delta\mathrm{TV}=0.01175,\quad
-\mathrm{CI}_{0.95}=[0.00688,0.01662].
+(I_\beta,T_\beta,\lambda_{\rm PID})
+\in\{(0,0),(1,0),(1,1)\}\times\{0.2,1\}
 $$
 
-It improves every matched run. Correct-ID MAE changes by species:
-
-$$
-\pi^+:\ 1.85\longrightarrow1.19,
-\qquad
-p:\ 2.46\longrightarrow1.19.
-$$
-
-Values are percentage points.
-
-![Correct-PID closure summary](runs/gpu_beta_gen_factorial/summary/pid_closure_mae_comparison_our_10seed.png)
-
-![Correct-PID closure versus generated momentum](runs/gpu_beta_gen_factorial/summary/pid_closure_beta_comparison_our_10seed.png)
-
-For β response,
-
-$$
-W_1(C)=0.00475,\qquad
-W_1(D_{0.2})=0.00499,\qquad
-W_1(D_1)=0.00534.
-$$
-
-Thus $\lambda_{\rm PID}=1$ improves PID closure, not β closure.
-
-![Continuous β-response closure](runs/gpu_beta_gen_factorial/summary/beta_response_vs_gen_p_factorial.png)
-
-Full tables:
-[<code>runs/gpu_beta_gen_factorial/summary/</code>](runs/gpu_beta_gen_factorial/summary/).
+over 10 paired seeds, where $I_\beta$ adds $\beta_{\rm gen}$ to the input and
+$T_\beta$ adds $\Delta\beta$ to the target. Results remain on that branch so
+this efficiency baseline has one statistical scope.
 
 ## 9. Minimal use
 
@@ -551,30 +509,6 @@ by validation BCE.
 
 ## Appendix B. Experiment provenance
 
-Section 8 summarizes $10$ paired seeds,
-
-$$
-20260822,\ldots,20260831,
-$$
-
-with one teacher population and event split:
-
-| Split | $\pi^-$ | $\pi^+$ | $p$ | Total |
-|---|---:|---:|---:|---:|
-| Train | 364,925 | 455,246 | 446,432 | 1,266,603 |
-| Validation | 45,893 | 57,048 | 56,131 | 159,072 |
-| Test | 45,817 | 56,774 | 55,891 | 158,482 |
-
-All runs use 30 epochs and validation PID cross-entropy for checkpoint
-selection. In each paired 4/5-input comparison, the added β column starts with
-zero first-layer weight; both models therefore represent the same initial
-function.
-
-The collaborator-supplied β-informed endpoints agree within
-$0.11$–$0.31$ percentage points. The no-β controls do not: their reported
-$\pi^+$ and proton errors exceed ours by $16.34$ and $21.21$ points.
-Attribution requires identical checkpoints, particle keys, and bins.
-
 Section 7 uses seed 20260822. The 40 Parquet files contain 5,000,000 events and
 have metadata SHA-256
 <code>6a7245cb0ec4125610b9dcd8c1635d70a7773eeb2b29d146dd80d5f149eb43ab</code>.
@@ -614,22 +548,6 @@ python train.py \
   --smoke \
   --device cpu \
   --run-dir runs/smoke_beta_informed
-```
-
-Full matched experiment:
-
-```bash
-python experiments/run_beta_gen_factorial.py \
-  --device cuda:0 \
-  --parquet-glob '/path/to/particle_responses/*.parquet'
-
-python experiments/analyze_beta_gen_factorial.py
-```
-
-Per-run checkpoint:
-
-```text
-runs/gpu_beta_gen_factorial/seed_<seed>/<condition>/model.pt
 ```
 
 | Path | Definition |
