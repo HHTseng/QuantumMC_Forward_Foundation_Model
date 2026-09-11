@@ -139,6 +139,66 @@ def run_epoch(
     )
 
 
+def run_preloaded_epoch(
+    model: ConditionalMDN,
+    continuous: torch.Tensor,
+    species_index: torch.Tensor,
+    targets: torch.Tensor,
+    rec_pid_index: torch.Tensor,
+    batch_size: int,
+    pid_loss_weight: float,
+    shuffle: bool,
+    generator: torch.Generator,
+    optimizer: torch.optim.Optimizer | None = None,
+    gradient_clip_norm: float = 5.0,
+) -> EpochMetrics:
+    """Run one epoch from accelerator-resident split tensors."""
+    training = optimizer is not None
+    model.train(training)
+    order = (
+        torch.randperm(len(targets), device=continuous.device, generator=generator)
+        if shuffle
+        else None
+    )
+    totals = {"loss": 0.0, "nll": 0.0, "pid_ce": 0.0, "correct": 0}
+    start_time = time.perf_counter()
+    context = torch.enable_grad() if training else torch.no_grad()
+    with context:
+        for start in range(0, len(targets), batch_size):
+            stop = min(start + batch_size, len(targets))
+            index = order[start:stop] if order is not None else slice(start, stop)
+            batch_x = continuous[index]
+            batch_species = species_index[index]
+            batch_targets = targets[index]
+            batch_pid = rec_pid_index[index]
+            if training:
+                optimizer.zero_grad(set_to_none=True)
+            output = model(batch_x, batch_species)
+            nll = mixture_nll(output, batch_targets)
+            pid_ce = functional.cross_entropy(output.pid_logits, batch_pid)
+            loss = nll + pid_loss_weight * pid_ce
+            if training:
+                loss.backward()
+                nn.utils.clip_grad_norm_(model.parameters(), gradient_clip_norm)
+                optimizer.step()
+            n = len(batch_targets)
+            totals["loss"] += float(loss.detach()) * n
+            totals["nll"] += float(nll.detach()) * n
+            totals["pid_ce"] += float(pid_ce.detach()) * n
+            totals["correct"] += int(
+                (output.pid_logits.argmax(dim=-1) == batch_pid).sum().detach()
+            )
+    elapsed = max(time.perf_counter() - start_time, 1e-9)
+    n = len(targets)
+    return EpochMetrics(
+        total_loss=totals["loss"] / n,
+        residual_nll=totals["nll"] / n,
+        pid_cross_entropy=totals["pid_ce"] / n,
+        pid_accuracy=totals["correct"] / n,
+        examples_per_second=n / elapsed,
+    )
+
+
 def train_model(
     model: ConditionalMDN,
     splits: dict[str, PreparedSplit],
@@ -162,20 +222,45 @@ def train_model(
     """
     training = config["training"]
     seed = int(config["project"]["seed"])
-    train_loader = make_loader(
-        splits["train"],
-        int(training["batch_size"]),
-        shuffle=True,
-        seed=seed,
-        num_workers=int(training["num_workers"]),
-    )
-    validation_loader = make_loader(
-        splits["validation"],
-        int(training["batch_size"]),
-        shuffle=False,
-        seed=seed,
-        num_workers=int(training["num_workers"]),
-    )
+    preload = bool(training.get("preload_to_device", False))
+    if preload and device.type == "cpu":
+        raise ValueError("preload_to_device requires an accelerator")
+    if preload:
+        train_tensors = tuple(
+            torch.from_numpy(array).to(device)
+            for array in (
+                splits["train"].continuous,
+                splits["train"].species_index,
+                splits["train"].targets,
+                splits["train"].rec_pid_index,
+            )
+        )
+        validation_tensors = tuple(
+            torch.from_numpy(array).to(device)
+            for array in (
+                splits["validation"].continuous,
+                splits["validation"].species_index,
+                splits["validation"].targets,
+                splits["validation"].rec_pid_index,
+            )
+        )
+        generator = torch.Generator(device=device.type).manual_seed(seed)
+        print("preloaded train/validation response tensors to accelerator")
+    else:
+        train_loader = make_loader(
+            splits["train"],
+            int(training["batch_size"]),
+            shuffle=True,
+            seed=seed,
+            num_workers=int(training["num_workers"]),
+        )
+        validation_loader = make_loader(
+            splits["validation"],
+            int(training["batch_size"]),
+            shuffle=False,
+            seed=seed,
+            num_workers=int(training["num_workers"]),
+        )
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=float(training["learning_rate"]),
@@ -209,20 +294,40 @@ def train_model(
     stale_epochs = 0
 
     for epoch in range(1, int(training["epochs"]) + 1):
-        train_metrics = run_epoch(
-            model,
-            train_loader,
-            device,
-            float(training["pid_loss_weight"]),
-            optimizer=optimizer,
-            gradient_clip_norm=float(training["gradient_clip_norm"]),
-        )
-        validation_metrics = run_epoch(
-            model,
-            validation_loader,
-            device,
-            float(training["pid_loss_weight"]),
-        )
+        if preload:
+            train_metrics = run_preloaded_epoch(
+                model,
+                *train_tensors,
+                int(training["batch_size"]),
+                float(training["pid_loss_weight"]),
+                True,
+                generator,
+                optimizer,
+                float(training["gradient_clip_norm"]),
+            )
+            validation_metrics = run_preloaded_epoch(
+                model,
+                *validation_tensors,
+                int(training["batch_size"]),
+                float(training["pid_loss_weight"]),
+                False,
+                generator,
+            )
+        else:
+            train_metrics = run_epoch(
+                model,
+                train_loader,
+                device,
+                float(training["pid_loss_weight"]),
+                optimizer=optimizer,
+                gradient_clip_norm=float(training["gradient_clip_norm"]),
+            )
+            validation_metrics = run_epoch(
+                model,
+                validation_loader,
+                device,
+                float(training["pid_loss_weight"]),
+            )
         if epoch_callback is not None:
             epoch_callback(epoch, train_metrics, validation_metrics)
         history.append(
