@@ -6,6 +6,9 @@ import numpy as np
 import pandas as pd
 
 
+EVENT_KEY = ("source_file_id", "event_id")
+
+
 def reconstruction_exists(frame: pd.DataFrame) -> np.ndarray:
     """Return R=1 when a reconstructed candidate is actually associated."""
     reconstructed = frame["reconstructed"].fillna(False).to_numpy(dtype=bool)
@@ -38,3 +41,19 @@ def trigger_electron_pass(frame: pd.DataFrame) -> np.ndarray:
         raise AssertionError("Accepted trigger electron lacks its truth association")
     return accepted
 
+
+def broadcast_event_trigger_label(
+    particles: pd.DataFrame, electron_rows: pd.DataFrame
+) -> np.ndarray:
+    """Map the unique electron label T to all generated rows of each event."""
+    electron_index = pd.MultiIndex.from_frame(electron_rows[list(EVENT_KEY)])
+    if electron_index.has_duplicates:
+        raise AssertionError("Trigger table must contain exactly one electron per event")
+    event_label = pd.Series(
+        trigger_electron_pass(electron_rows), index=electron_index, dtype=bool
+    )
+    particle_index = pd.MultiIndex.from_frame(particles[list(EVENT_KEY)])
+    broadcast = event_label.reindex(particle_index)
+    if broadcast.isna().any():
+        raise AssertionError("At least one particle has no generated-electron event label")
+    return broadcast.to_numpy(dtype=bool)

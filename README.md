@@ -241,6 +241,9 @@ $$
 R_e:=\mathbf 1\{\mathrm{reconstructed}=1,\ \mathrm{matched\ index}\geq0\}.
 $$
 
+The unique electron row defines $T(E)$; an explicit many-to-one join broadcasts
+the same $T(E)$ to every generated particle in event $E$.
+
 The intended factorization is
 
 $$

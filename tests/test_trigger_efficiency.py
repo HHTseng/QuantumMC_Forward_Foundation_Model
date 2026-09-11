@@ -15,6 +15,7 @@ from forwardfm_full.evaluation import (
     expected_calibration_error,
 )
 from forwardfm_full.labels import (
+    broadcast_event_trigger_label,
     reconstruction_exists,
     response_quality_pass,
     trigger_electron_pass,
@@ -53,6 +54,43 @@ class TriggerLabelTests(unittest.TestCase):
         broken.loc[1, "trigger_mcindex"] = 7
         with self.assertRaises(AssertionError):
             trigger_electron_pass(broken)
+
+    def test_event_trigger_label_broadcasts_to_every_particle(self) -> None:
+        electrons = pd.DataFrame(
+            {
+                "source_file_id": [0, 0],
+                "event_id": [10, 11],
+                "mcindex": [0, 0],
+                "has_valid_trigger_electron": [True, False],
+                "trigger_mcindex": [0, np.nan],
+            }
+        )
+        particles = pd.DataFrame(
+            {
+                "source_file_id": [0, 0, 0, 0],
+                "event_id": [10, 10, 11, 11],
+            }
+        )
+        np.testing.assert_array_equal(
+            broadcast_event_trigger_label(particles, electrons),
+            [True, True, False, False],
+        )
+
+    def test_event_trigger_broadcast_rejects_missing_electron(self) -> None:
+        electrons = pd.DataFrame(
+            {
+                "source_file_id": [0],
+                "event_id": [10],
+                "mcindex": [0],
+                "has_valid_trigger_electron": [True],
+                "trigger_mcindex": [0],
+            }
+        )
+        particles = pd.DataFrame(
+            {"source_file_id": [0, 0], "event_id": [10, 11]}
+        )
+        with self.assertRaises(AssertionError):
+            broadcast_event_trigger_label(particles, electrons)
 
 
 class TriggerFeatureTests(unittest.TestCase):
