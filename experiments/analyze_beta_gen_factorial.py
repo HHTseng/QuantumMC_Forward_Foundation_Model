@@ -462,14 +462,14 @@ def plot_reference_style_pid_rows(
             ]
         )
         for row_index, axis in enumerate(axes[:, column]):
-            axis.plot(x, coatjava, "o-", color="tab:blue", label="COATJAVA")
+            axis.plot(x, coatjava, "o-", color="black", label="COATJAVA")
             styles = {
-                "A_original": ("tab:blue", "o", "FM A: original"),
+                "A_original": ("tab:blue", "x", "FM A: original"),
                 "B_beta_input": ("tab:orange", "s", r"FM B: $\beta_{gen}$ input"),
                 "D_input_target_pid02": (
                     "tab:green", "^", r"FM D: input + $\Delta\beta$ target",
                 ),
-                "A_original_pid1": ("tab:blue", "o", "FM A: original"),
+                "A_original_pid1": ("tab:blue", "x", "FM A: original"),
                 "B_beta_input_pid1": (
                     "tab:orange", "s", r"FM B: $\beta_{gen}$ input",
                 ),
