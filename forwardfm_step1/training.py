@@ -15,6 +15,7 @@ from __future__ import annotations
 import random
 import time
 from dataclasses import dataclass
+from collections.abc import Callable
 from typing import Any
 
 import numpy as np
@@ -143,6 +144,7 @@ def train_model(
     splits: dict[str, PreparedSplit],
     config: dict[str, Any],
     device: torch.device,
+    epoch_callback: Callable[[int, EpochMetrics, EpochMetrics], None] | None = None,
 ) -> tuple[
     ConditionalMDN,
     list[dict[str, Any]],
@@ -179,6 +181,19 @@ def train_model(
         lr=float(training["learning_rate"]),
         weight_decay=float(training["weight_decay"]),
     )
+    schedule = str(training.get("lr_schedule", "none"))
+    if schedule not in {"none", "cosine"}:
+        raise ValueError("training.lr_schedule must be 'none' or 'cosine'")
+    scheduler = (
+        torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer,
+            T_max=int(training["epochs"]),
+            eta_min=float(training["learning_rate"])
+            * float(training.get("lr_min_factor", 0.01)),
+        )
+        if schedule == "cosine"
+        else None
+    )
     model.to(device)
     history: list[dict[str, Any]] = []
     checkpoint_metric = str(training.get("checkpoint_metric", "total_loss"))
@@ -208,6 +223,8 @@ def train_model(
             device,
             float(training["pid_loss_weight"]),
         )
+        if epoch_callback is not None:
+            epoch_callback(epoch, train_metrics, validation_metrics)
         history.append(
             {
                 "epoch": epoch,
@@ -247,6 +264,8 @@ def train_model(
                     f"best {checkpoint_metric} epoch was {best_epochs[checkpoint_metric]}"
                 )
                 break
+        if scheduler is not None:
+            scheduler.step()
 
     if set(best_states) != set(checkpoint_metrics):
         raise RuntimeError("Training did not produce a checkpoint")
