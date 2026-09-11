@@ -26,6 +26,8 @@ VARIANTS = (
     "B_beta_input",
     "C_beta_target",
     "D_input_target_pid02",
+    "A_original_pid1",
+    "B_beta_input_pid1",
     "D_input_target_pid1",
 )
 VARIANT_LABELS = {
@@ -33,6 +35,8 @@ VARIANT_LABELS = {
     "B_beta_input": r"B: $\beta_{gen}$ input, $\lambda=0.2$",
     "C_beta_target": r"C: $\Delta\beta$ target, $\lambda=0.2$",
     "D_input_target_pid02": r"D: input + target, $\lambda=0.2$",
+    "A_original_pid1": r"A: original, $\lambda=1.0$",
+    "B_beta_input_pid1": r"B: $\beta_{gen}$ input, $\lambda=1.0$",
     "D_input_target_pid1": r"D: input + target, $\lambda=1.0$",
 }
 GENERATED_SPECIES = (-211, 211, 2212)
@@ -44,7 +48,11 @@ CONTRASTS = (
     ("combined_vs_original", "A_original", "D_input_target_pid02"),
     ("beta_input_with_target", "C_beta_target", "D_input_target_pid02"),
     ("delta_beta_target_with_input", "B_beta_input", "D_input_target_pid02"),
-    ("pid_weight_0.2_to_1.0", "D_input_target_pid02", "D_input_target_pid1"),
+    ("beta_input_pid1", "A_original_pid1", "B_beta_input_pid1"),
+    ("delta_beta_target_pid1", "B_beta_input_pid1", "D_input_target_pid1"),
+    ("pid_weight_original", "A_original", "A_original_pid1"),
+    ("pid_weight_beta_input", "B_beta_input", "B_beta_input_pid1"),
+    ("pid_weight_combined", "D_input_target_pid02", "D_input_target_pid1"),
 )
 T_CRITICAL_95 = {
     1: 12.7062,
@@ -358,45 +366,48 @@ def plot_correct_id_curves(
 def plot_reference_style_mae_bars(
     per_run: list[dict[str, Any]], output_path: Path
 ) -> None:
-    """Match the collaborator's three-condition correct-ID MAE bar layout."""
-    variants = (
-        "A_original",
-        "D_input_target_pid02",
-        "D_input_target_pid1",
+    """Show the Email-3 A/B/D sequence independently at both PID weights."""
+    rows = (
+        (
+            r"$\lambda_{PID}=0.2$",
+            ("A_original", "B_beta_input", "D_input_target_pid02"),
+        ),
+        (
+            r"$\lambda_{PID}=1.0$",
+            ("A_original_pid1", "B_beta_input_pid1", "D_input_target_pid1"),
+        ),
     )
-    labels = (
-        r"A: no $\beta_{gen}$, $\lambda_{PID}=0.2$",
-        r"D: with $\beta_{gen}$, $\lambda_{PID}=0.2$",
-        r"D: with $\beta_{gen}$, $\lambda_{PID}=1.0$",
-    )
+    labels = ("A: original", r"B: $\beta_{gen}$ input", r"D: input + $\Delta\beta$ target")
     colors = ("tab:blue", "tab:orange", "tab:green")
     x = np.arange(len(GENERATED_SPECIES))
     width = 0.24
-    figure, axis = plt.subplots(figsize=(10.5, 5.8))
-    for index, (variant, label, color) in enumerate(zip(variants, labels, colors)):
-        means = []
-        standard_deviations = []
-        for species in GENERATED_SPECIES:
-            metric = f"correct_mae_unweighted_{SPECIES_KEY[species]}"
-            values = np.asarray(
-                [100.0 * row[metric] for row in per_run if row["variant"] == variant]
+    figure, axes = plt.subplots(1, 2, figsize=(13, 5.3), sharey=True)
+    for axis, (title, variants) in zip(axes, rows):
+        for index, (variant, label, color) in enumerate(zip(variants, labels, colors)):
+            means = []
+            standard_deviations = []
+            for species in GENERATED_SPECIES:
+                metric = f"correct_mae_unweighted_{SPECIES_KEY[species]}"
+                values = np.asarray(
+                    [100.0 * row[metric] for row in per_run if row["variant"] == variant]
+                )
+                means.append(values.mean())
+                standard_deviations.append(values.std(ddof=1))
+            axis.bar(
+                x + (index - 1) * width,
+                means,
+                width,
+                yerr=standard_deviations,
+                capsize=3,
+                color=color,
+                label=label,
             )
-            means.append(values.mean())
-            standard_deviations.append(values.std(ddof=1))
-        axis.bar(
-            x + (index - 1) * width,
-            means,
-            width,
-            yerr=standard_deviations,
-            capsize=4,
-            color=color,
-            label=label,
-        )
-    axis.set_xticks(x, (r"$\pi^-$", r"$\pi^+$", "proton"))
-    axis.set_ylabel("Correct-ID closure MAE [percentage points]")
-    axis.set_title("Our quantitative correct-PID closure: ten matched seeds")
-    axis.grid(axis="y", alpha=0.25)
-    axis.legend(fontsize=9)
+        axis.set_xticks(x, (r"$\pi^-$", r"$\pi^+$", "proton"))
+        axis.set_title(title)
+        axis.grid(axis="y", alpha=0.25)
+    axes[0].set_ylabel("Correct-ID closure MAE [percentage points]")
+    axes[1].legend(fontsize=8)
+    figure.suptitle("Email-3 beta ablation: ten paired seeds")
     figure.tight_layout()
     figure.savefig(output_path, dpi=180)
     plt.close(figure)
@@ -405,12 +416,12 @@ def plot_reference_style_mae_bars(
 def plot_reference_style_pid_rows(
     run_root: Path, seeds: tuple[int, ...], output_path: Path
 ) -> None:
-    """Match the collaborator's no-beta / beta-informed momentum layout."""
-    variants = (
-        "A_original",
-        "D_input_target_pid02",
-        "D_input_target_pid1",
+    """Plot the A/B/D closure sequence in one row per PID-loss weight."""
+    row_variants = (
+        ("A_original", "B_beta_input", "D_input_target_pid02"),
+        ("A_original_pid1", "B_beta_input_pid1", "D_input_target_pid1"),
     )
+    variants = tuple(dict.fromkeys(variant for row in row_variants for variant in row))
     records: dict[tuple[str, int, int], dict[str, list[float]]] = {}
     for seed in seeds:
         for variant in variants:
@@ -452,25 +463,21 @@ def plot_reference_style_pid_rows(
         )
         for row_index, axis in enumerate(axes[:, column]):
             axis.plot(x, coatjava, "o-", color="tab:blue", label="COATJAVA")
-            shown_variants = (
-                ("A_original",)
-                if row_index == 0
-                else ("D_input_target_pid02", "D_input_target_pid1")
-            )
             styles = {
-                "A_original": ("tab:orange", "s", r"FM A: no $\beta_{gen}$"),
+                "A_original": ("tab:blue", "o", "FM A: original"),
+                "B_beta_input": ("tab:orange", "s", r"FM B: $\beta_{gen}$ input"),
                 "D_input_target_pid02": (
-                    "tab:orange",
-                    "s",
-                    r"FM D: $\lambda_{PID}=0.2$",
+                    "tab:green", "^", r"FM D: input + $\Delta\beta$ target",
+                ),
+                "A_original_pid1": ("tab:blue", "o", "FM A: original"),
+                "B_beta_input_pid1": (
+                    "tab:orange", "s", r"FM B: $\beta_{gen}$ input",
                 ),
                 "D_input_target_pid1": (
-                    "tab:green",
-                    "^",
-                    r"FM D: $\lambda_{PID}=1.0$",
+                    "tab:green", "^", r"FM D: input + $\Delta\beta$ target",
                 ),
             }
-            for variant in shown_variants:
+            for variant in row_variants[row_index]:
                 matrix = np.asarray(
                     [records[(variant, species, b)]["fm"] for b in bins]
                 )
@@ -494,9 +501,8 @@ def plot_reference_style_pid_rows(
             axis.grid(alpha=0.25)
             if column == 0:
                 axis.set_ylabel(
-                    "A: no beta input/target\nCorrect-ID response"
-                    if row_index == 0
-                    else "D: beta input + target\nCorrect-ID response"
+                    "$\\lambda_{PID}=0.2$\nCorrect-ID response"
+                    if row_index == 0 else "$\\lambda_{PID}=1.0$\nCorrect-ID response"
                 )
             if row_index == 1:
                 axis.set_xlabel(r"Generated momentum $p_{gen}$ [GeV]")
@@ -504,7 +510,7 @@ def plot_reference_style_pid_rows(
     axes[0, 0].legend(fontsize=8, loc="best")
     axes[1, 0].legend(fontsize=8, loc="best")
     figure.suptitle(
-        "Our collaborator-style PID closure — equal 1-GeV bins, ten-seed means"
+        "Email-3 PID closure — equal 1-GeV bins, ten-seed means"
     )
     figure.tight_layout()
     figure.savefig(output_path, dpi=180)
@@ -531,7 +537,11 @@ def plot_seed_metrics(per_run: list[dict[str, Any]], output_path: Path) -> None:
         means = matrix.mean(axis=0)
         half_width = T_CRITICAL_95[len(seeds) - 1] * matrix.std(axis=0, ddof=1) / np.sqrt(len(seeds))
         axis.errorbar(x, means, yerr=half_width, fmt="ko", capsize=4, label="mean ± 95% CI")
-        axis.set_xticks(x, ["A", "B", "C", "D, 0.2", "D, 1.0"])
+        axis.set_xticks(
+            x,
+            ["A02", "B02", "C02", "D02", "A10", "B10", "D10"],
+            rotation=25,
+        )
         axis.set_title(title)
         axis.set_ylabel("lower is better")
         axis.grid(axis="y", alpha=0.25)
@@ -814,64 +824,61 @@ def write_report(
     contrast_by_key = {
         (row["contrast"], row["metric"]): row for row in contrasts
     }
-    input_only = contrast_by_key[
+    input_pid02 = contrast_by_key[
         ("beta_input_without_target", "macro_weighted_bin_tv")
     ]
-    input_with_target = contrast_by_key[
-        ("beta_input_with_target", "macro_weighted_bin_tv")
+    input_pid1 = contrast_by_key[
+        ("beta_input_pid1", "macro_weighted_bin_tv")
     ]
-    pid_weight = contrast_by_key[
-        ("pid_weight_0.2_to_1.0", "macro_weighted_bin_tv")
+    target_pid02 = contrast_by_key[
+        ("delta_beta_target_with_input", "macro_weighted_bin_tv")
     ]
-    pid_weight_pi_plus = contrast_by_key[
-        ("pid_weight_0.2_to_1.0", "correct_mae_unweighted_pi_plus")
+    target_pid1 = contrast_by_key[
+        ("delta_beta_target_pid1", "macro_weighted_bin_tv")
     ]
-    pid_weight_proton = contrast_by_key[
-        ("pid_weight_0.2_to_1.0", "correct_mae_unweighted_proton")
-    ]
+    pid_weight_effects = {
+        variant: contrast_by_key[(contrast, "macro_weighted_bin_tv")]
+        for variant, contrast in (
+            ("A", "pid_weight_original"),
+            ("B", "pid_weight_beta_input"),
+            ("D", "pid_weight_combined"),
+        )
+    }
+    best_variant = min(
+        aggregate,
+        key=lambda row: float(row["macro_weighted_bin_tv_mean"]),
+    )
     lines.extend(
         [
             "",
             "## Interpretation",
             "",
-            "At $\\lambda_{\\rm PID}=0.2$, adding $\\beta_{\\rm gen}$ alone changed "
-            f"macro TV by {input_only['mean_improvement']:+.5f} "
-            f"(95% CI [{input_only['ci95_low']:+.5f}, {input_only['ci95_high']:+.5f}]); "
-            "with $\\Delta\\beta$ already present, the corresponding change was "
-            f"{input_with_target['mean_improvement']:+.5f} "
-            f"([{input_with_target['ci95_low']:+.5f}, {input_with_target['ci95_high']:+.5f}]). "
-            "Neither input contrast is seed-stable.",
+            "The sequential Email-3 contrasts are $A\\to B$ (add "
+            "$\\beta_{\\rm gen}$ input) and $B\\to D$ (also learn "
+            "$\\Delta\\beta$). For macro TV:",
             "",
-            "Increasing $\\lambda_{\\rm PID}$ from 0.2 to 1.0 is the robust effect: "
-            f"macro TV falls by {pid_weight['mean_improvement']:.5f} "
-            f"([{pid_weight['ci95_low']:.5f}, {pid_weight['ci95_high']:.5f}]) in "
-            f"{pid_weight['favorable_pairs']}/{pid_weight['n_pairs']} seeds "
-            f"(exact $p={pid_weight['exact_sign_flip_p']:.6f}$). Correct-ID MAE falls "
-            f"from {100.0 * pid_weight_pi_plus['control_mean']:.2f}% to "
-            f"{100.0 * pid_weight_pi_plus['treatment_mean']:.2f}% for $\\pi^+$ and "
-            f"from {100.0 * pid_weight_proton['control_mean']:.2f}% to "
-            f"{100.0 * pid_weight_proton['treatment_mean']:.2f}% for protons.",
+            f"- $A\\to B$, $\\lambda=0.2$: {input_pid02['mean_improvement']:+.5f} "
+            f"([{input_pid02['ci95_low']:+.5f}, {input_pid02['ci95_high']:+.5f}]);",
+            f"- $B\\to D$, $\\lambda=0.2$: {target_pid02['mean_improvement']:+.5f} "
+            f"([{target_pid02['ci95_low']:+.5f}, {target_pid02['ci95_high']:+.5f}]);",
+            f"- $A\\to B$, $\\lambda=1.0$: {input_pid1['mean_improvement']:+.5f} "
+            f"([{input_pid1['ci95_low']:+.5f}, {input_pid1['ci95_high']:+.5f}]);",
+            f"- $B\\to D$, $\\lambda=1.0$: {target_pid1['mean_improvement']:+.5f} "
+            f"([{target_pid1['ci95_low']:+.5f}, {target_pid1['ci95_high']:+.5f}]).",
             "",
-            "The original condition already gives 2.06% $\\pi^+$ and 2.09% proton "
-            "MAE, so this controlled study does not reproduce the reported "
-            "$18.4\\%\\rightarrow1.6\\%$ and $23.3\\%\\rightarrow2.6\\%$ "
-            "$\\beta_{\\rm gen}$ improvements. The present result uses a beta-valid "
-            "158,482-particle test sample and a validation-PID checkpoint; exact "
-            "reconciliation requires matching the checkpoint, selected population, "
-            "and bin definition.",
+            "The paired effect of increasing $\\lambda_{\\rm PID}:0.2\\to1.0$ is:",
             "",
-            "## Comparison with supplied figure values",
+            *[
+                f"- {variant}: {row['mean_improvement']:+.5f} "
+                f"([{row['ci95_low']:+.5f}, {row['ci95_high']:+.5f}]), "
+                f"{row['favorable_pairs']}/{row['n_pairs']} favorable pairs."
+                for variant, row in pid_weight_effects.items()
+            ],
             "",
-            "| Species | Supplied no beta | Our A | Supplied beta, 0.2 | Our D, 0.2 | Supplied beta, 1.0 | Our D, 1.0 |",
-            "|---|---:|---:|---:|---:|---:|---:|",
-            "| $\\pi^+$ | 18.4% | 2.06 ± 0.65% | 1.6% | 1.85 ± 0.80% | 1.3% | 1.19 ± 0.25% |",
-            "| Proton | 23.3% | 2.09 ± 0.59% | 2.6% | 2.46 ± 1.07% | 1.5% | 1.19 ± 0.28% |",
-            "",
-            "The beta-informed endpoints agree within 0.11--0.31 percentage "
-            "points. The no-beta controls differ by 16.34 and 21.21 points for "
-            "$\\pi^+$ and protons. Our condition C also gives only 1.79% and "
-            "2.34%, so whether the supplied no-beta model retained the "
-            "$\\Delta\\beta$ target does not resolve the discrepancy.",
+            f"The smallest mean macro TV is {best_variant['variant']} at "
+            f"{best_variant['macro_weighted_bin_tv_mean']:.5f}. Claims about either "
+            "beta coordinate use paired intervals above; test-set ranking is descriptive, "
+            "not a checkpoint-selection rule.",
         ]
     )
     lines.extend(
@@ -900,8 +907,8 @@ def write_report(
             "",
             "Values are unweighted momentum-bin MAE in percent, averaged over seeds.",
             "",
-            "| Species | A original | B beta input only | C beta target only | D input + target, 0.2 | D input + target, 1.0 |",
-            "|---|---:|---:|---:|---:|---:|",
+            "| Species | A02 | B02 | C02 diagnostic | D02 | A10 | B10 | D10 |",
+            "|---|---:|---:|---:|---:|---:|---:|---:|",
         ]
     )
     for species in GENERATED_SPECIES:

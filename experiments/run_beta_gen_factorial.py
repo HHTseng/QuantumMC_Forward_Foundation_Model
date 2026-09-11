@@ -25,6 +25,8 @@ VARIANT_CONFIGS = {
     "B_beta_input": "gpu_beta_factorial_B_beta_input.yaml",
     "C_beta_target": "gpu_beta_factorial_C_beta_target.yaml",
     "D_input_target_pid02": "gpu_beta_factorial_D_beta_input_target.yaml",
+    "A_original_pid1": "gpu_beta_factorial_A_original_pid1.yaml",
+    "B_beta_input_pid1": "gpu_beta_factorial_B_beta_input_pid1.yaml",
     "D_input_target_pid1": "gpu_beta_factorial_D_beta_input_target_pid1.yaml",
 }
 EXPECTED_TREATMENTS = {
@@ -32,6 +34,8 @@ EXPECTED_TREATMENTS = {
     "B_beta_input": (True, False, 0.20),
     "C_beta_target": (False, True, 0.20),
     "D_input_target_pid02": (True, True, 0.20),
+    "A_original_pid1": (False, False, 1.00),
+    "B_beta_input_pid1": (True, False, 1.00),
     "D_input_target_pid1": (True, True, 1.00),
 }
 
@@ -153,6 +157,7 @@ def preflight(
     for target_dim, pair in (
         (3, ("A_original", "B_beta_input")),
         (4, ("C_beta_target", "D_input_target_pid02")),
+        (3, ("A_original_pid1", "B_beta_input_pid1")),
     ):
         if any(variant not in configs for variant in pair):
             continue
