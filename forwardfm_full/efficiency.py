@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
+from collections.abc import Callable
 from typing import Any
 
 import torch
@@ -183,6 +184,7 @@ def train_model(
     splits: dict[str, TriggerSplit],
     config: dict[str, Any],
     device: torch.device,
+    epoch_callback: Callable[[int, EpochMetrics, EpochMetrics], None] | None = None,
 ) -> tuple[TriggerEfficiencyNet, list[dict[str, Any]], int, float]:
     """Minimize unweighted BCE; choose the checkpoint by validation BCE."""
     training = config["training"]
@@ -213,6 +215,19 @@ def train_model(
         model.parameters(),
         lr=float(training["learning_rate"]),
         weight_decay=float(training["weight_decay"]),
+    )
+    schedule = str(training.get("lr_schedule", "none"))
+    if schedule not in {"none", "cosine"}:
+        raise ValueError("training.lr_schedule must be 'none' or 'cosine'")
+    scheduler = (
+        torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer,
+            T_max=int(training["epochs"]),
+            eta_min=float(training["learning_rate"])
+            * float(training.get("lr_min_factor", 0.01)),
+        )
+        if schedule == "cosine"
+        else None
     )
     model.to(device)
     history: list[dict[str, Any]] = []
@@ -256,6 +271,8 @@ def train_model(
                 "validation": validation_metrics.as_dict(),
             }
         )
+        if epoch_callback is not None:
+            epoch_callback(epoch, train_metrics, validation_metrics)
         print(
             f"epoch={epoch:02d} train_bce={train_metrics.binary_cross_entropy:.6f} "
             f"val_bce={validation_metrics.binary_cross_entropy:.6f} "
@@ -274,6 +291,8 @@ def train_model(
             if stale >= int(training["early_stopping_patience"]):
                 print(f"early stopping after epoch {epoch}; best epoch={best_epoch}")
                 break
+        if scheduler is not None:
+            scheduler.step()
     if best_state is None:
         raise RuntimeError("Trigger training produced no checkpoint")
     model.load_state_dict(best_state)
