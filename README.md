@@ -309,12 +309,12 @@ $$
 For a lower-is-better metric $M={\rm TV}$, define the paired improvement
 $d=M_{\rm control}-M_{\rm treatment}$. The 4 sequential contrasts are
 
-| Contrast | $\lambda_{\rm PID}$ | $\bar d$ | $95\%$ CI |
+| Contrast | $\lambda_{\rm PID}$ | $\bar d$ | 95% CI |
 |---|---:|---:|---:|
-| A$\to$B: add $\beta_{\rm gen}$ | $0.2$ | $0.00027$ | $[-0.00179,0.00234]$ |
-| B$\to$D: add $\Delta\beta$ | $0.2$ | $-0.00180$ | $[-0.00639,0.00278]$ |
-| A$\to$B: add $\beta_{\rm gen}$ | $1$ | $-0.00004$ | $[-0.00073,0.00066]$ |
-| B$\to$D: add $\Delta\beta$ | $1$ | $0.00074$ | $[-0.00120,0.00268]$ |
+| $A\to B$: add $\beta_{\rm gen}$ | $0.2$ | $0.00027$ | $[-0.00179,0.00234]$ |
+| $B\to D$: add $\Delta\beta$ | $0.2$ | $-0.00180$ | $[-0.00639,0.00278]$ |
+| $A\to B$: add $\beta_{\rm gen}$ | $1$ | $-0.00004$ | $[-0.00073,0.00066]$ |
+| $B\to D$: add $\Delta\beta$ | $1$ | $0.00074$ | $[-0.00120,0.00268]$ |
 
 All 4 intervals contain $0$: neither β coordinate has a seed-stable PID effect
 under this matched protocol. In contrast, increasing
@@ -326,7 +326,7 @@ $$
 \bar d_D=0.01175,
 $$
 
-with positive $95\%$ intervals; favorable pairs are $10/10$, $9/10$, and
+with positive 95% intervals; favorable pairs are $10/10$, $9/10$, and
 $10/10$. Thus the robust improvement is associated with PID-loss weighting,
 not with adding $\beta_{\rm gen}$ or $\Delta\beta$.
 
