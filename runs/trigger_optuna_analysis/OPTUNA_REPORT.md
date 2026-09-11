@@ -11,7 +11,7 @@ BCE; the test split was evaluated once after selection.
 | Brier | 0.066687 | 0.064880 | -2.7% |
 | ECE | 0.003053 | 0.001548 | -50.7% |
 | ROC AUC | 0.946061 | 0.947502 | +0.00144 |
-| $|\epsilon_{\rm FM}-\epsilon_{\rm MC}|$ | 0.001744 | 0.000831 | -52.4% |
+| $\lvert\epsilon_{\rm FM}-\epsilon_{\rm MC}\rvert$ | 0.001744 | 0.000831 | -52.4% |
 
 Weighted binned-efficiency MAE falls by 60.0% in $p_e$, 57.7% in $\theta_e$,
 77.6% in $\phi_e$, 38.6% in $v_{z,e}$, and 47.0% in $(p_e,\theta_e)$.

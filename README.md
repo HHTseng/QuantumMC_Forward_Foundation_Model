@@ -414,7 +414,7 @@ selection.
 | Brier | 0.066687 | **0.064880** |
 | ECE | 0.003053 | **0.001548** |
 | ROC AUC | 0.946061 | **0.947502** |
-| $|\epsilon_{\rm FM}-\epsilon_{\rm MC}|$ | 0.001744 | **0.000831** |
+| $\lvert\epsilon_{\rm FM}-\epsilon_{\rm MC}\rvert$ | 0.001744 | **0.000831** |
 
 Optuna helps most in calibration (ECE: -50.7%) and binned closure: weighted
 MAE falls by 60.0% in $p_e$, 57.7% in $\theta_e$, 77.6% in $\phi_e$, 38.6%
