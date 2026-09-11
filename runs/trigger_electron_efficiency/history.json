@@ -1,0 +1,249 @@
+[
+  {
+    "epoch": 1,
+    "train": {
+      "binary_cross_entropy": 0.3702987677549476,
+      "accuracy": 0.8405987420565912,
+      "examples_per_second": 4031653.818128129
+    },
+    "validation": {
+      "binary_cross_entropy": 0.25404927678565314,
+      "accuracy": 0.9091141735825518,
+      "examples_per_second": 27474724.29674982
+    }
+  },
+  {
+    "epoch": 2,
+    "train": {
+      "binary_cross_entropy": 0.2578017780786916,
+      "accuracy": 0.9041040059909211,
+      "examples_per_second": 7133288.773971334
+    },
+    "validation": {
+      "binary_cross_entropy": 0.24352800907277267,
+      "accuracy": 0.9111174644175962,
+      "examples_per_second": 27677888.027402226
+    }
+  },
+  {
+    "epoch": 3,
+    "train": {
+      "binary_cross_entropy": 0.2478669978185919,
+      "accuracy": 0.9087114643876496,
+      "examples_per_second": 7153546.457296162
+    },
+    "validation": {
+      "binary_cross_entropy": 0.23639163379464917,
+      "accuracy": 0.914594233641291,
+      "examples_per_second": 24615846.822975043
+    }
+  },
+  {
+    "epoch": 4,
+    "train": {
+      "binary_cross_entropy": 0.24415571349324122,
+      "accuracy": 0.9105837522519087,
+      "examples_per_second": 7154280.04245187
+    },
+    "validation": {
+      "binary_cross_entropy": 0.23626496964491284,
+      "accuracy": 0.9147361833910795,
+      "examples_per_second": 27621678.03078907
+    }
+  },
+  {
+    "epoch": 5,
+    "train": {
+      "binary_cross_entropy": 0.24177721521830725,
+      "accuracy": 0.9116806709031514,
+      "examples_per_second": 7142434.862965109
+    },
+    "validation": {
+      "binary_cross_entropy": 0.23497296083117838,
+      "accuracy": 0.9148881296021208,
+      "examples_per_second": 24461125.60887274
+    }
+  },
+  {
+    "epoch": 6,
+    "train": {
+      "binary_cross_entropy": 0.24003473084017987,
+      "accuracy": 0.9125290513416437,
+      "examples_per_second": 7164944.515722846
+    },
+    "validation": {
+      "binary_cross_entropy": 0.23250388745874045,
+      "accuracy": 0.9164975598638082,
+      "examples_per_second": 27697644.967063297
+    }
+  },
+  {
+    "epoch": 7,
+    "train": {
+      "binary_cross_entropy": 0.2386242674947767,
+      "accuracy": 0.9131351445284712,
+      "examples_per_second": 7136040.978689745
+    },
+    "validation": {
+      "binary_cross_entropy": 0.23342354881379193,
+      "accuracy": 0.9155059109075387,
+      "examples_per_second": 27632958.060135867
+    }
+  },
+  {
+    "epoch": 8,
+    "train": {
+      "binary_cross_entropy": 0.23814280545205382,
+      "accuracy": 0.9133369255523036,
+      "examples_per_second": 7153883.758594838
+    },
+    "validation": {
+      "binary_cross_entropy": 0.23293549734341137,
+      "accuracy": 0.9158477898823817,
+      "examples_per_second": 27657092.440874252
+    }
+  },
+  {
+    "epoch": 9,
+    "train": {
+      "binary_cross_entropy": 0.23719477233538283,
+      "accuracy": 0.9138822593973823,
+      "examples_per_second": 7157039.740649685
+    },
+    "validation": {
+      "binary_cross_entropy": 0.23240196161096066,
+      "accuracy": 0.9159197644034012,
+      "examples_per_second": 27632697.877583962
+    }
+  },
+  {
+    "epoch": 10,
+    "train": {
+      "binary_cross_entropy": 0.23677601075818847,
+      "accuracy": 0.9140765392679124,
+      "examples_per_second": 7177051.04108326
+    },
+    "validation": {
+      "binary_cross_entropy": 0.2343517265833885,
+      "accuracy": 0.9154179420485148,
+      "examples_per_second": 27696492.263698023
+    }
+  },
+  {
+    "epoch": 11,
+    "train": {
+      "binary_cross_entropy": 0.23617062707950728,
+      "accuracy": 0.9143768354384486,
+      "examples_per_second": 7179333.316911947
+    },
+    "validation": {
+      "binary_cross_entropy": 0.22981881365295398,
+      "accuracy": 0.9175731790946006,
+      "examples_per_second": 27652373.246685747
+    }
+  },
+  {
+    "epoch": 12,
+    "train": {
+      "binary_cross_entropy": 0.23564022866188658,
+      "accuracy": 0.9146233733436516,
+      "examples_per_second": 7183511.305618307
+    },
+    "validation": {
+      "binary_cross_entropy": 0.23016684857297956,
+      "accuracy": 0.9171173404614766,
+      "examples_per_second": 27688814.308431678
+    }
+  },
+  {
+    "epoch": 13,
+    "train": {
+      "binary_cross_entropy": 0.23506240852479338,
+      "accuracy": 0.9149244196295181,
+      "examples_per_second": 7174115.946427064
+    },
+    "validation": {
+      "binary_cross_entropy": 0.23297993200796194,
+      "accuracy": 0.9158817778506408,
+      "examples_per_second": 27631719.748764496
+    }
+  },
+  {
+    "epoch": 14,
+    "train": {
+      "binary_cross_entropy": 0.23461602563695746,
+      "accuracy": 0.9150744426955645,
+      "examples_per_second": 7179964.264755911
+    },
+    "validation": {
+      "binary_cross_entropy": 0.2290254138646355,
+      "accuracy": 0.9181189858789989,
+      "examples_per_second": 27668811.948130935
+    }
+  },
+  {
+    "epoch": 15,
+    "train": {
+      "binary_cross_entropy": 0.23391611846180438,
+      "accuracy": 0.915504008741344,
+      "examples_per_second": 7185825.99775507
+    },
+    "validation": {
+      "binary_cross_entropy": 0.23188232589567784,
+      "accuracy": 0.916673497581856,
+      "examples_per_second": 27706739.97523742
+    }
+  },
+  {
+    "epoch": 16,
+    "train": {
+      "binary_cross_entropy": 0.23354734812019345,
+      "accuracy": 0.915751796838764,
+      "examples_per_second": 7172208.464800071
+    },
+    "validation": {
+      "binary_cross_entropy": 0.2299456841814059,
+      "accuracy": 0.9175791769713522,
+      "examples_per_second": 27667003.147645175
+    }
+  },
+  {
+    "epoch": 17,
+    "train": {
+      "binary_cross_entropy": 0.2337019630972694,
+      "accuracy": 0.9155915221965377,
+      "examples_per_second": 7167872.492018985
+    },
+    "validation": {
+      "binary_cross_entropy": 0.22935190531362698,
+      "accuracy": 0.917711130259888,
+      "examples_per_second": 27593537.345943194
+    }
+  },
+  {
+    "epoch": 18,
+    "train": {
+      "binary_cross_entropy": 0.2331985021886772,
+      "accuracy": 0.915860813600091,
+      "examples_per_second": 7154344.763053659
+    },
+    "validation": {
+      "binary_cross_entropy": 0.23203451374167797,
+      "accuracy": 0.9163316186070131,
+      "examples_per_second": 27634394.128488947
+    }
+  },
+  {
+    "epoch": 19,
+    "train": {
+      "binary_cross_entropy": 0.23324943320689,
+      "accuracy": 0.9157320438017346,
+      "examples_per_second": 7161940.70507115
+    },
+    "validation": {
+      "binary_cross_entropy": 0.23195963108856948,
+      "accuracy": 0.9163416150682658,
+      "examples_per_second": 27612851.72712139
+    }
+  }
+]

@@ -1,0 +1,108 @@
+{
+  "test": {
+    "n": 500438,
+    "observed_trigger_rate": 0.494380921125412,
+    "mean_predicted_probability": 0.49263671040534973,
+    "signed_integrated_difference": -0.0017442107200622559,
+    "binary_cross_entropy": 0.22877314384730815,
+    "brier_score": 0.06668683141469955,
+    "expected_calibration_error": 0.003053204941251153,
+    "roc_auc": 0.9460610170161733,
+    "average_precision": 0.9077643276349179,
+    "threshold_accuracy": 0.9185853192603279
+  },
+  "closure": {
+    "gen_p": {
+      "populated_bins": 8,
+      "particle_weighted_mean_absolute_error": 0.0023750415094527105,
+      "maximum_absolute_error": 0.006859332323074341,
+      "worst_bin": {
+        "variable": "gen_p",
+        "bin_index": 7,
+        "low": 7.0,
+        "high": 8.0,
+        "n": 41945,
+        "observed_efficiency": 0.43163666129112244,
+        "fm_mean_probability": 0.4247773289680481,
+        "signed_difference_fm_minus_mc": -0.006859332323074341,
+        "absolute_difference": 0.006859332323074341,
+        "observed_binomial_standard_error": 0.0024184220357371406,
+        "fm_mean_standard_error": 0.002122145126569114
+      }
+    },
+    "gen_theta": {
+      "populated_bins": 6,
+      "particle_weighted_mean_absolute_error": 0.0027017247023159692,
+      "maximum_absolute_error": 0.004518330097198486,
+      "worst_bin": {
+        "variable": "gen_theta",
+        "bin_index": 5,
+        "low": 25.0,
+        "high": 30.0,
+        "n": 44381,
+        "observed_efficiency": 0.7653500437736511,
+        "fm_mean_probability": 0.7698683738708496,
+        "signed_difference_fm_minus_mc": 0.004518330097198486,
+        "absolute_difference": 0.004518330097198486,
+        "observed_binomial_standard_error": 0.0020116005822449034,
+        "fm_mean_standard_error": 0.0012552423374739595
+      }
+    },
+    "gen_phi": {
+      "populated_bins": 6,
+      "particle_weighted_mean_absolute_error": 0.00453655146928952,
+      "maximum_absolute_error": 0.006394177675247192,
+      "worst_bin": {
+        "variable": "gen_phi",
+        "bin_index": 5,
+        "low": 120.0,
+        "high": 180.0,
+        "n": 83376,
+        "observed_efficiency": 0.4816853702068329,
+        "fm_mean_probability": 0.4752911925315857,
+        "signed_difference_fm_minus_mc": -0.006394177675247192,
+        "absolute_difference": 0.006394177675247192,
+        "observed_binomial_standard_error": 0.001730445531606438,
+        "fm_mean_standard_error": 0.0014801799865655338
+      }
+    },
+    "gen_vz": {
+      "populated_bins": 9,
+      "particle_weighted_mean_absolute_error": 0.0019898856560107226,
+      "maximum_absolute_error": 0.013651847839355469,
+      "worst_bin": {
+        "variable": "gen_vz",
+        "bin_index": 9,
+        "low": 4.0,
+        "high": 6.0,
+        "n": 1220,
+        "observed_efficiency": 0.49098360538482666,
+        "fm_mean_probability": 0.5046354532241821,
+        "signed_difference_fm_minus_mc": 0.013651847839355469,
+        "absolute_difference": 0.013651847839355469,
+        "observed_binomial_standard_error": 0.014312630688876981,
+        "fm_mean_standard_error": 0.012452900363985374
+      }
+    },
+    "gen_p_theta": {
+      "populated_bins": 32,
+      "particle_weighted_mean_absolute_error": 0.0036379028572017464,
+      "maximum_absolute_error": 0.015423357486724854,
+      "worst_bin": {
+        "p_bin": 4,
+        "theta_bin": 5,
+        "p_low_gev": 4.0,
+        "p_high_gev": 5.0,
+        "theta_low_deg": 25.0,
+        "theta_high_deg": 30.0,
+        "n": 5976,
+        "observed_efficiency": 0.7518407106399536,
+        "fm_mean_probability": 0.7672640681266785,
+        "signed_difference_fm_minus_mc": 0.015423357486724854,
+        "absolute_difference": 0.015423357486724854,
+        "observed_binomial_standard_error": 0.005587568921262625
+      }
+    }
+  },
+  "checkpoint_selection": "minimum validation binary cross-entropy"
+}
