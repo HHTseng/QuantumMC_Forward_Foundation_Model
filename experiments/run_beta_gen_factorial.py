@@ -112,6 +112,7 @@ def preflight(
     import torch
 
     from forwardfm_step1.data import (
+        BASE_CONTINUOUS_FEATURES,
         continuous_feature_names,
         data_order_seed,
         data_split_seed,
@@ -172,7 +173,18 @@ def preflight(
         left = control(base, species)
         right = treatment(informed, species)
         fields = ("mixture_logits", "means", "log_scales", "pid_logits")
-        if any(not torch.equal(getattr(left, name), getattr(right, name)) for name in fields):
+        beta_column = treatment.backbone[0].weight[:, len(BASE_CONTINUOUS_FEATURES)]
+        if torch.count_nonzero(beta_column).item() != 0:
+            raise AssertionError(f"Nested beta column is not exactly zero for {pair}")
+        if any(
+            not torch.allclose(
+                getattr(left, name),
+                getattr(right, name),
+                rtol=1e-6,
+                atol=1e-7,
+            )
+            for name in fields
+        ):
             raise AssertionError(f"Nested initialization failed for {pair}")
         exact_initial_function_pairs.append(list(pair))
 
