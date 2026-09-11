@@ -947,7 +947,7 @@ def write_report(
     for row in provenance:
         value = row["common_value"].replace("\n", " ").replace("|", "\\|")
         if row["quantity"] == "selection_sql":
-            value = "identical beta-valid FD selection (see `provenance.csv`)"
+            value = "identical beta-valid FD selection; see provenance.csv"
         lines.append(f"| {row['quantity']} | `{value}` |")
 
     contrast_by_key = {

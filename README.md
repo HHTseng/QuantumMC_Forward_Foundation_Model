@@ -1,7 +1,8 @@
 # QuantumMC Forward Foundation Model
 
-<code>Kyungseon_beta_response</code> learns a conditional stochastic map for
-selected CLAS12 Forward Detector (FD) hadrons.
+<code>experiment/beta-pid-weight-completion</code> isolates the effects of
+$\beta_{\rm gen}$, $\Delta\beta$, and $\lambda_{\rm PID}$ on the conditional
+CLAS12 Forward Detector (FD) hadron response.
 
 ## 1. Mathematical object
 
@@ -297,45 +298,49 @@ $$
 
 | Model | $(I_\beta,T_\beta,\lambda_{\rm PID})$ | $(\dim z,\dim\delta)$ | Macro TV | Correct-ID MAE |
 |---|---:|---:|---:|---:|
-| A | $(0,0,0.2)$ | $(4,3)$ | $0.03440\pm0.00541$ | $0.01851\pm0.00405$ |
-| B | $(1,0,0.2)$ | $(5,3)$ | $0.03413\pm0.00445$ | $0.01813\pm0.00279$ |
-| C | $(0,1,0.2)$ | $(4,4)$ | $0.03509\pm0.00682$ | $0.01880\pm0.00307$ |
-| $D_{0.2}$ | $(1,1,0.2)$ | $(5,4)$ | $0.03593\pm0.00738$ | $0.01941\pm0.00630$ |
-| $D_1$ | $(1,1,1)$ | $(5,4)$ | **$0.02418\pm0.00160$** | **$0.01202\pm0.00102$** |
+| A02 | $(0,0,0.2)$ | $(4,3)$ | $0.03440\pm0.00541$ | $0.01851\pm0.00405$ |
+| B02 | $(1,0,0.2)$ | $(5,3)$ | $0.03413\pm0.00445$ | $0.01813\pm0.00279$ |
+| C02 | $(0,1,0.2)$ | $(4,4)$ | $0.03509\pm0.00682$ | $0.01880\pm0.00307$ |
+| D02 | $(1,1,0.2)$ | $(5,4)$ | $0.03593\pm0.00738$ | $0.01941\pm0.00630$ |
+| A10 | $(0,0,1)$ | $(4,3)$ | $0.02489\pm0.00132$ | $0.01294\pm0.00114$ |
+| B10 | $(1,0,1)$ | $(5,3)$ | $0.02492\pm0.00190$ | $0.01283\pm0.00224$ |
+| D10 | $(1,1,1)$ | $(5,4)$ | **$0.02418\pm0.00160$** | **$0.01202\pm0.00102$** |
 
-At $\lambda_{\rm PID}=0.2$, no seed-stable PID gain is attributable to
-$\beta_{\rm gen}$. The stable contrast is
+For a lower-is-better metric $M={\rm TV}$, define the paired improvement
+$d=M_{\rm control}-M_{\rm treatment}$. The 4 sequential contrasts are
+
+| Contrast | $\lambda_{\rm PID}$ | $\bar d$ | $95\%$ CI |
+|---|---:|---:|---:|
+| A$\to$B: add $\beta_{\rm gen}$ | $0.2$ | $0.00027$ | $[-0.00179,0.00234]$ |
+| B$\to$D: add $\Delta\beta$ | $0.2$ | $-0.00180$ | $[-0.00639,0.00278]$ |
+| A$\to$B: add $\beta_{\rm gen}$ | $1$ | $-0.00004$ | $[-0.00073,0.00066]$ |
+| B$\to$D: add $\Delta\beta$ | $1$ | $0.00074$ | $[-0.00120,0.00268]$ |
+
+All 4 intervals contain $0$: neither β coordinate has a seed-stable PID effect
+under this matched protocol. In contrast, increasing
+$\lambda_{\rm PID}:0.2\to1$ gives
 
 $$
-D_{0.2}\longrightarrow D_1:
-\qquad
-\Delta\mathrm{TV}=0.01175,\quad
-\mathrm{CI}_{0.95}=[0.00688,0.01662].
+\bar d_A=0.00952,\qquad
+\bar d_B=0.00921,\qquad
+\bar d_D=0.01175,
 $$
 
-It improves every matched run. Correct-ID MAE changes by species:
-
-$$
-\pi^+:\ 1.85\longrightarrow1.19,
-\qquad
-p:\ 2.46\longrightarrow1.19.
-$$
-
-Values are percentage points.
+with positive $95\%$ intervals; favorable pairs are $10/10$, $9/10$, and
+$10/10$. Thus the robust improvement is associated with PID-loss weighting,
+not with adding $\beta_{\rm gen}$ or $\Delta\beta$.
 
 ![Correct-PID closure summary](runs/gpu_beta_gen_factorial/summary/pid_closure_mae_comparison_our_10seed.png)
 
 ![Correct-PID closure versus generated momentum](runs/gpu_beta_gen_factorial/summary/pid_closure_beta_comparison_our_10seed.png)
 
-For β response,
+For the 3 models that learn $\Delta\beta$,
 
 $$
-W_1(C)=0.00475,\qquad
-W_1(D_{0.2})=0.00499,\qquad
-W_1(D_1)=0.00534.
+W_1(C02)=0.00475,\qquad
+W_1(D02)=0.00499,\qquad
+W_1(D10)=0.00534.
 $$
-
-Thus $\lambda_{\rm PID}=1$ improves PID closure, not β closure.
 
 ![Continuous β-response closure](runs/gpu_beta_gen_factorial/summary/beta_response_vs_gen_p_factorial.png)
 
@@ -344,7 +349,7 @@ Full tables:
 
 ## 8. Minimal use
 
-Train $D_1$:
+Train D10:
 
 ```bash
 python train.py \
@@ -425,22 +430,19 @@ with one teacher population and event split:
 | Validation | 45,893 | 57,048 | 56,131 | 159,072 |
 | Test | 45,817 | 56,774 | 55,891 | 158,482 |
 
-All runs use 30 epochs and validation PID cross-entropy for checkpoint
-selection. In each paired 4/5-input comparison, the added β column starts with
-zero first-layer weight; both models therefore represent the same initial
-function.
-
-The collaborator-supplied β-informed endpoints agree within
-$0.11$–$0.31$ percentage points. The no-β controls do not: their reported
-$\pi^+$ and proton errors exceed ours by $16.34$ and $21.21$ points.
-Attribution requires identical checkpoints, particle keys, and bins.
+All 70 runs realize 30 epochs and select checkpoints by validation PID
+cross-entropy. In each paired 4/5-input comparison, the added β column starts
+with zero first-layer weight; both models therefore represent the same initial
+function. Before aggregation, <code>provenance.csv</code> verifies a common
+dataset fingerprint, selection, event split, row counts, PID vocabulary,
+momentum bins, optimizer budget, and checkpoint rule.
 
 ## Appendix C. Reproduction
 
 ```bash
 git clone https://github.com/HHTseng/QuantumMC_Forward_Foundation_Model.git
 cd QuantumMC_Forward_Foundation_Model
-git switch Kyungseon_beta_response
+git switch experiment/beta-pid-weight-completion
 
 conda create -n QuantumMC python=3.11 -y
 conda activate QuantumMC

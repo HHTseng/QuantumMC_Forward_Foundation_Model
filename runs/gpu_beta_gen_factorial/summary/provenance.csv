@@ -1,0 +1,25 @@
+quantity,common_value
+dataset_metadata_sha256,6a7245cb0ec4125610b9dcd8c1635d70a7773eeb2b29d146dd80d5f149eb43ab
+selection_sql,"rec_detector_region = 'FD'
+      AND rec_theta < radians(33.0)
+      AND gen_vz > -5.5
+      AND gen_vz < -0.5
+      AND usable_for_hadron_response_training
+      AND gen_pid IN (-211, 211, 2212)
+      AND delta_p IS NOT NULL AND delta_theta IS NOT NULL AND delta_phi IS NOT NULL
+      AND isfinite(delta_p) AND isfinite(delta_theta) AND isfinite(delta_phi)
+      AND match_reciprocal
+      AND rec_pid <> 0
+      AND rec_beta > -99
+      AND isfinite(rec_beta)
+      AND rec_beta > 0.0
+      AND rec_beta <= 1.2
+      AND abs(delta_p) <= 10.0"
+sampled_counts,"{""test"": {""-211"": 45817, ""211"": 56774, ""2212"": 55891}, ""train"": {""-211"": 364925, ""211"": 455246, ""2212"": 446432}, ""validation"": {""-211"": 45893, ""211"": 57048, ""2212"": 56131}}"
+data_split_seed / data_order_seed,20260822 / 20260822
+generated_species,"[-211, 211, 2212]"
+reconstructed_PID_vocabulary,"[-2212, -321, -211, -11, 11, 22, 45, 211, 321, 2112, 2212, ""OTHER""]"
+momentum_edges_GeV,"[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]"
+training_budget,"{""batch_size"": 8192, ""epochs_realized"": 30, ""gradient_clip_norm"": 5.0, ""learning_rate"": 0.001, ""weight_decay"": 1e-05}"
+model_constants,"{""dropout"": 0.03, ""hidden_layers"": 4, ""hidden_width"": 256, ""mixture_components"": 8, ""pid_embedding_dim"": 16}"
+checkpoint_rule / uses_test,pid_cross_entropy / False
