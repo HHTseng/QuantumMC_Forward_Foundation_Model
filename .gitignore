@@ -6,3 +6,4 @@ runs/*/model.pt
 !runs/fd_response_seed/model.pt
 !runs/tara_gpu_full/model.pt
 !runs/gpu_beta_baseline/model.pt
+!runs/trigger_optuna_best/model.pt

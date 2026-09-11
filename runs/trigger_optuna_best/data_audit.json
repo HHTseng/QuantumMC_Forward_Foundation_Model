@@ -1,0 +1,95 @@
+{
+  "dataset_glob": "../phase-space_parquet-Aug17-26/particle_responses/*.parquet",
+  "dataset_file_count": 40,
+  "dataset_total_bytes": 2061164285,
+  "dataset_metadata_sha256": "6a7245cb0ec4125610b9dcd8c1635d70a7773eeb2b29d146dd80d5f149eb43ab",
+  "schema_column_count": 84,
+  "denominator_sql": "gen_pid = 11",
+  "feature_names": [
+    "log1p_gen_p",
+    "gen_theta",
+    "sin_gen_phi",
+    "cos_gen_phi",
+    "gen_vz"
+  ],
+  "trigger_label": "has_valid_trigger_electron",
+  "reconstruction_label": "reconstructed AND matched_pindex >= 0",
+  "positive_association_invariant": "trigger_mcindex = mcindex",
+  "global_counts": {
+    "events": 5000000,
+    "generated_electrons": 5000000,
+    "trigger_successes": 2471543,
+    "trigger_failures": 2528457,
+    "trigger_without_reconstruction": 0
+  },
+  "split_counts": {
+    "train": {
+      "rows": 3999385,
+      "trigger_successes": 1976265,
+      "trigger_failures": 2023120,
+      "trigger_rate": 0.49414222436699645,
+      "electron_reconstructed": 1976265,
+      "response_quality_pass": 1976263,
+      "t_r_contingency": {
+        "T0_R0": 2023120,
+        "T0_R1": 0,
+        "T1_R0": 0,
+        "T1_R1": 1976265
+      }
+    },
+    "validation": {
+      "rows": 500177,
+      "trigger_successes": 247871,
+      "trigger_failures": 252306,
+      "trigger_rate": 0.49556656943442023,
+      "electron_reconstructed": 247871,
+      "response_quality_pass": 247871,
+      "t_r_contingency": {
+        "T0_R0": 252306,
+        "T0_R1": 0,
+        "T1_R0": 0,
+        "T1_R1": 247871
+      }
+    },
+    "test": {
+      "rows": 500438,
+      "trigger_successes": 247407,
+      "trigger_failures": 253031,
+      "trigger_rate": 0.49438092231205466,
+      "electron_reconstructed": 247407,
+      "response_quality_pass": 247407,
+      "t_r_contingency": {
+        "T0_R0": 253031,
+        "T0_R1": 0,
+        "T1_R0": 0,
+        "T1_R1": 247407
+      }
+    }
+  },
+  "training_feature_range": {
+    "log1p_gen_p": {
+      "min": 1.0986125469207764,
+      "max": 2.4420976638793945
+    },
+    "gen_theta": {
+      "min": 0.10471975058317184,
+      "max": 0.6106776595115662
+    },
+    "sin_gen_phi": {
+      "min": -1.0,
+      "max": 1.0
+    },
+    "cos_gen_phi": {
+      "min": -1.0,
+      "max": 1.0
+    },
+    "gen_vz": {
+      "min": -15.292213439941406,
+      "max": 9.368817329406738
+    }
+  },
+  "model_seed": 20260822,
+  "data_split_seed": 20260822,
+  "data_order_seed": 20260822,
+  "event_split_overlap_count": 0
+}

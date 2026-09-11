@@ -1,0 +1,24 @@
+{
+  "best_params": {
+    "batch_size": 8192,
+    "dropout": 0.058262072218583275,
+    "hidden_layers": 6,
+    "hidden_width": 256,
+    "learning_rate": 0.0030088280061819034,
+    "lr_schedule": "cosine",
+    "weight_decay": 0.00010983038541611829
+  },
+  "best_trial": 15,
+  "best_user_attrs": {
+    "best_epoch": 40,
+    "epochs_run": 40,
+    "parameters": 333825,
+    "worker": "gpu0"
+  },
+  "best_validation_bce": 0.22322029679621658,
+  "n_complete": 16,
+  "n_trials": 16,
+  "objective": "validation binary cross-entropy",
+  "selection_used_test_split": false,
+  "study_name": "trigger-efficiency-capacity-usable"
+}

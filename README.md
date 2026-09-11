@@ -402,6 +402,30 @@ Machine-readable results and the checkpoint are in
 [<code>runs/trigger_electron_efficiency/</code>](runs/trigger_electron_efficiency/).
 This is a 1-seed baseline; no seed-robust comparative claim is made.
 
+### Optuna-selected endpoint
+
+Sixteen fixed-seed trials held $G_\psi$, its denominator, labels, and split
+fixed, and minimized validation BCE. Test data were evaluated once after
+selection.
+
+| Test quantity | Baseline | Optuna |
+|---|---:|---:|
+| BCE | 0.228773 | **0.222790** |
+| Brier | 0.066687 | **0.064880** |
+| ECE | 0.003053 | **0.001548** |
+| ROC AUC | 0.946061 | **0.947502** |
+| $|\epsilon_{\rm FM}-\epsilon_{\rm MC}|$ | 0.001744 | **0.000831** |
+
+Optuna helps most in calibration (ECE: -50.7%) and binned closure: weighted
+MAE falls by 60.0% in $p_e$, 57.7% in $\theta_e$, 77.6% in $\phi_e$, 38.6%
+in $v_{z,e}$, and 47.0% in $(p_e,\theta_e)$. This is a 1-seed comparison.
+
+![Trigger closure before and after Optuna](runs/trigger_optuna_analysis/trigger_optuna_test_closure.png)
+
+Configuration, trials, report, and checkpoint:
+[<code>runs/trigger_optuna_analysis/</code>](runs/trigger_optuna_analysis/) and
+[<code>runs/trigger_optuna_best/</code>](runs/trigger_optuna_best/).
+
 ## 8. Companion β/PID ablation
 
 The independent
@@ -430,6 +454,14 @@ python sample_trigger_electron.py \
   --checkpoint runs/trigger_electron_efficiency/model.pt \
   --input example_generated_electrons.csv \
   --output artifacts/example_trigger_electrons.csv \
+  --device cuda:0
+```
+
+Train the Optuna-selected trigger endpoint:
+
+```bash
+python train_trigger_efficiency.py \
+  --config configs/trigger_electron_optuna_best.yaml \
   --device cuda:0
 ```
 
@@ -462,7 +494,7 @@ vocabulary.
 3. The hadron-response sample remains conditioned on $T=1$, $C={\rm FD}$,
    and $F=1$.
 4. $\mathcal S=\{\pi^-,\pi^+,p\}$; generated $K^\pm$ are absent.
-5. The trigger baseline has 1 training seed.
+5. The trigger baseline/Optuna comparison has 1 training seed.
 6. Particles are independent rows; event correlations are absent.
 7. $\Delta$ and $s_{\rm rec}$ are conditionally factorized.
 8. Each Gaussian component has diagonal covariance.
@@ -503,17 +535,20 @@ Saved checkpoints:
 Each stores architecture, feature/target order, scalers, masses, vocabularies,
 selection SQL, data fingerprint, seeds, and checkpoint provenance.
 
-For $G_\psi$: width 256, 4 hidden layers, SiLU, LayerNorm, dropout 0.03,
-batch size 16,384, at most 30 epochs. The reported checkpoint selected epoch 14
-by validation BCE.
+For $G_\psi$, the baseline/Optuna recipes are respectively: width 256/256,
+hidden layers 4/6, dropout 0.03/0.0583, batch size 16,384/8192, learning rate
+0.001/0.003009, constant/cosine schedule, and epoch budget 30/50. Both
+checkpoints are selected by validation BCE.
 
 ## Appendix B. Experiment provenance
 
 Section 7 uses seed 20260822. The 40 Parquet files contain 5,000,000 events and
 have metadata SHA-256
 <code>6a7245cb0ec4125610b9dcd8c1635d70a7773eeb2b29d146dd80d5f149eb43ab</code>.
-The trigger checkpoint SHA-256 is
+The baseline trigger checkpoint SHA-256 is
 <code>032a868e35776d2bfad5b004143f1ca9ed013165e15dda239fe34a0eff80cfbf</code>.
+The Optuna-selected checkpoint SHA-256 is
+<code>dcd9ea58eb3a97af2df8114fdd83ee6b8b1c4439cb58e30b23ebe9b8f9fe7760</code>.
 
 ## Appendix C. Reproduction
 

@@ -1,0 +1,80 @@
+project:
+  name: trigger-electron-optuna-best
+  seed: 20260822
+data:
+  parquet_glob: ../phase-space_parquet-Aug17-26/particle_responses/*.parquet
+  split_modulus: 10000
+  train_boundary: 8000
+  validation_boundary: 9000
+  split_seed: 20260822
+  order_seed: 20260822
+  max_rows:
+    train: null
+    validation: null
+    test: null
+model:
+  hidden_width: 256
+  hidden_layers: 6
+  dropout: 0.058262072218583275
+training:
+  epochs: 50
+  batch_size: 8192
+  learning_rate: 0.0030088280061819034
+  weight_decay: 0.00010983038541611829
+  gradient_clip_norm: 5.0
+  early_stopping_patience: 10
+  lr_schedule: cosine
+  lr_min_factor: 0.01
+  num_workers: 0
+  torch_threads: 8
+  device: cuda:0
+  preload_to_device: true
+evaluation:
+  momentum_edges_gev:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 11
+  theta_edges_deg:
+  - 0
+  - 5
+  - 10
+  - 15
+  - 20
+  - 25
+  - 30
+  - 35
+  - 40
+  phi_edges_deg:
+  - -180
+  - -120
+  - -60
+  - 0
+  - 60
+  - 120
+  - 180
+  vz_edges_cm:
+  - -16
+  - -12
+  - -10
+  - -8
+  - -6
+  - -4
+  - -2
+  - 0
+  - 2
+  - 4
+  - 6
+  - 10
+  min_bin_count: 100
+  min_bin_count_2d: 100
+  calibration_bins: 20
+output:
+  run_dir: runs/trigger_optuna_best
