@@ -42,14 +42,15 @@ retuning does not improve the transferred optimum within this budget.
 
 | Metric | Default | Optuna | Change |
 |---|---:|---:|---:|
-| Particle-weighted PID TV | 0.023674 | 0.009119 | $-61.5\%$ |
-| PID cross-entropy | 0.991976 | 0.976924 | $-1.5\%$ |
-| PID accuracy | 0.677787 | 0.679945 | $+0.22$ points |
+| Particle-weighted PID TV | 0.023674 | 0.009119 | -61.5% |
+| PID cross-entropy | 0.991976 | 0.976924 | -1.5% |
+| PID accuracy | 0.677787 | 0.679945 | +0.22 points |
 | Residual NLL | -4.952066 | -5.828562 | lower |
-| Macro $W_1(\beta)$ | 0.005159 | 0.002334 | $-54.8\%$ |
+| Macro $W_1(\beta)$ | 0.005159 | 0.002334 | -54.8% |
 
-Correct-ID MAE decreases from $1.07\%$ to $0.62\%$ for $\pi^-$, from
-$0.78\%$ to $0.64\%$ for $\pi^+$, and from $1.67\%$ to $0.49\%$ for protons.
+Correct-ID MAE in percentage points decreases from $1.07$ to $0.62$ for
+$\pi^-$, from $0.78$ to $0.64$ for $\pi^+$, and from $1.67$ to $0.49$ for
+protons.
 
 ![Default and Optuna closure](kyungseon_optuna_test_closure.png)
 

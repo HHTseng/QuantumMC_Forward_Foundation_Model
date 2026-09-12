@@ -359,11 +359,11 @@ learning rate, weight decay, and learning-rate schedule.
 
 | Metric | Default $D_1$ | Optuna | Change |
 |---|---:|---:|---:|
-| Validation $T_{\rm val}$ | 0.019258 | 0.009285 | $-51.8\%$ |
-| Test PID TV | 0.023674 | 0.009119 | $-61.5\%$ |
-| Test PID cross-entropy | 0.991976 | 0.976924 | $-1.5\%$ |
-| Test PID accuracy | 0.677787 | 0.679945 | $+0.22$ points |
-| Test macro $W_1(\beta)$ | 0.005159 | 0.002334 | $-54.8\%$ |
+| Validation $T_{\rm val}$ | 0.019258 | 0.009285 | -51.8% |
+| Test PID TV | 0.023674 | 0.009119 | -61.5% |
+| Test PID cross-entropy | 0.991976 | 0.976924 | -1.5% |
+| Test PID accuracy | 0.677787 | 0.679945 | +0.22 points |
+| Test macro $W_1(\beta)$ | 0.005159 | 0.002334 | -54.8% |
 
 The winner is the transferred Optuna recipe. The best new TPE proposal gives
 $T_{\rm val}=0.009328$ and does not improve it. Hence the earlier Optuna insight
