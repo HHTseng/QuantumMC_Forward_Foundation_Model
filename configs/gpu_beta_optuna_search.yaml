@@ -1,5 +1,5 @@
 project:
-  name: beta-response-optuna-search
+  name: kyungseon-beta-response-optuna-search
   seed: 20260822
 
 data:
@@ -58,4 +58,4 @@ evaluation:
   beta_momentum_edges_gev: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 output:
-  run_dir: runs/beta_optuna_search
+  run_dir: runs/kyungseon_optuna_search
