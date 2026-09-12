@@ -241,7 +241,8 @@ $$
 \lambda_{\rm PID}=1.
 $$
 
-Its checkpoint minimizes validation PID cross-entropy. Test data are used only
+Within each run, the checkpoint minimizes validation PID cross-entropy.
+Hyperparameters are selected by validation PID closure; test data are used once,
 after selection.
 
 ## 6. Closure
@@ -342,22 +343,57 @@ Thus $\lambda_{\rm PID}=1$ improves PID closure, not β closure.
 Full tables:
 [<code>runs/gpu_beta_gen_factorial/summary/</code>](runs/gpu_beta_gen_factorial/summary/).
 
+### Optuna-selected endpoint
+
+With $N_{s,b}$ particles in cell $(s,b)$, Optuna minimizes
+
+$$
+T_{\rm val}:=
+\frac{\sum_{s,b}N_{s,b}{\rm TV}_{s,b}}
+{\sum_{s,b}N_{s,b}}.
+$$
+
+The physics map, labels, split, $K=8$, and $\lambda_{\rm PID}=1$ are fixed.
+A $16$-trial, fixed-seed study varies only width, depth, dropout, batch size,
+learning rate, weight decay, and learning-rate schedule.
+
+| Metric | Default $D_1$ | Optuna | Change |
+|---|---:|---:|---:|
+| Validation $T_{\rm val}$ | 0.019258 | 0.009285 | $-51.8\%$ |
+| Test PID TV | 0.023674 | 0.009119 | $-61.5\%$ |
+| Test PID cross-entropy | 0.991976 | 0.976924 | $-1.5\%$ |
+| Test PID accuracy | 0.677787 | 0.679945 | $+0.22$ points |
+| Test macro $W_1(\beta)$ | 0.005159 | 0.002334 | $-54.8\%$ |
+
+The winner is the transferred Optuna recipe. The best new TPE proposal gives
+$T_{\rm val}=0.009328$ and does not improve it. Hence the earlier Optuna insight
+transfers; additional retuning gives no observed gain in this $16$-trial study.
+The benefit is chiefly distributional closure, not top-1 classification.
+
+![Kyungseon default and Optuna closure](runs/kyungseon_optuna_analysis/kyungseon_optuna_test_closure.png)
+
+Artifacts:
+[study summary](runs/kyungseon_optuna_analysis/summary.json),
+[trial table](runs/kyungseon_optuna_analysis/trials.csv),
+[test comparison](runs/kyungseon_optuna_analysis/test_comparison.csv), and
+[checkpoint](runs/kyungseon_optuna_best/model.pt).
+
 ## 8. Minimal use
 
-Train $D_1$:
+Train the selected endpoint:
 
 ```bash
 python train.py \
-  --config configs/gpu_beta_factorial_D_beta_input_target_pid1.yaml \
+  --config configs/gpu_kyungseon_optuna_best.yaml \
   --device cuda:0 \
-  --run-dir runs/beta_informed_pid1
+  --run-dir runs/kyungseon_optuna_best
 ```
 
 Sample from columns <code>gen_pid,gen_p,gen_theta,gen_phi</code>:
 
 ```bash
 python sample.py \
-  --checkpoint runs/beta_informed_pid1/model.pt \
+  --checkpoint runs/kyungseon_optuna_best/model.pt \
   --input example_generated_hadrons.csv \
   --output artifacts/example_beta_informed_response.csv \
   --device cuda:0
@@ -379,17 +415,19 @@ vocabulary.
 
 These are implementation choices, not the mathematical definition:
 
-| Quantity | Value |
-|---|---:|
-| $K$ | 8 |
-| Hidden width | 256 |
-| Hidden layers | 4 |
-| Activation | SiLU |
-| Normalization | LayerNorm |
-| Dropout | 0.03 |
-| Species-embedding dimension | 16 |
-| Batch size | 8192 |
-| Epoch budget | 30 |
+| Quantity | Default $D_1$ | Optuna |
+|---|---:|---:|
+| $K$ | 8 | 8 |
+| Hidden width | 256 | 768 |
+| Hidden layers | 4 | 6 |
+| Dropout | 0.03 | 0.1418133 |
+| Batch size | 8192 | 4096 |
+| Learning rate | 0.001 | 0.00295845 |
+| Weight decay | $10^{-5}$ | $1.4951\times10^{-4}$ |
+| Schedule | none | cosine |
+| Epoch budget | 30 | 70 |
+
+Both use SiLU, LayerNorm, and a $16$-dimensional species embedding.
 
 For batch size $B$:
 
@@ -429,6 +467,9 @@ All runs use 30 epochs and validation PID cross-entropy for checkpoint
 selection. In each paired 4/5-input comparison, the added β column starts with
 zero first-layer weight; both models therefore represent the same initial
 function.
+
+The Optuna endpoint is a separate same-seed model-selection study. It improves
+the deployable checkpoint but does not replace the $10$-seed causal ablation.
 
 The collaborator-supplied β-informed endpoints agree within
 $0.11$–$0.31$ percentage points. The no-β controls do not: their reported
@@ -472,6 +513,21 @@ python experiments/run_beta_gen_factorial.py \
   --parquet-glob '/path/to/particle_responses/*.parquet'
 
 python experiments/analyze_beta_gen_factorial.py
+```
+
+Optuna search and export:
+
+```bash
+python experiments/tune_beta_response.py \
+  --config configs/gpu_beta_optuna_search.yaml \
+  --storage sqlite:///runs/kyungseon_optuna_search/study.db \
+  --study-name kyungseon-beta-capacity \
+  --device cuda:0 --n-trials 16
+
+python experiments/export_beta_optuna.py \
+  --config configs/gpu_beta_optuna_search.yaml \
+  --storage sqlite:///runs/kyungseon_optuna_search/study.db \
+  --study-name kyungseon-beta-capacity
 ```
 
 Per-run checkpoint:

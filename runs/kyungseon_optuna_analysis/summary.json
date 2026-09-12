@@ -1,0 +1,29 @@
+{
+  "best_params": {
+    "batch_size": 4096,
+    "dropout": 0.1418133,
+    "hidden_layers": 6,
+    "hidden_width": 768,
+    "learning_rate": 0.00295845,
+    "lr_schedule": "cosine",
+    "weight_decay": 0.00014951
+  },
+  "best_trial": 1,
+  "best_user_attrs": {
+    "best_epoch": 50,
+    "epochs_run": 50,
+    "parameters": 3043716,
+    "seconds": 209.28591921692714,
+    "validation_pid_accuracy": 0.6804591631462482,
+    "validation_pid_cross_entropy": 0.976949878679965,
+    "validation_pid_tv_by_species": "{\"pi-\": 0.01137106081367009, \"pi+\": 0.010643793961762031, \"proton\": 0.006197401389286442}",
+    "validation_residual_nll": -5.800374515002413,
+    "worker": "gpu1"
+  },
+  "best_validation_pid_tv": 0.009284635820473742,
+  "n_complete": 16,
+  "n_trials": 16,
+  "objective": "validation particle-weighted momentum-binned PID total variation",
+  "selection_used_test_split": false,
+  "study_name": "kyungseon-beta-capacity"
+}
