@@ -20,7 +20,7 @@ def main() -> None:
     parser.add_argument("--config", required=True)
     parser.add_argument("--storage", required=True)
     parser.add_argument("--study-name", default="beta-response-capacity")
-    parser.add_argument("--output-dir", default="runs/beta_optuna_analysis")
+    parser.add_argument("--output-dir", default="runs/kyungseon_optuna_analysis")
     args = parser.parse_args()
     study = optuna.load_study(study_name=args.study_name, storage=args.storage)
     complete = [
@@ -72,10 +72,10 @@ def main() -> None:
     )
     config = suggest_config(load_config(args.config), best)
     config.pop("_config_path", None)
-    config["project"]["name"] = "beta-response-optuna-best"
+    config["project"]["name"] = "kyungseon-beta-response-optuna-best"
     config["training"]["epochs"] = 70
     config["training"]["early_stopping_patience"] = 70
-    config["output"]["run_dir"] = "runs/beta_optuna_best"
+    config["output"]["run_dir"] = "runs/kyungseon_optuna_best"
     with (output / "best_config.yaml").open("w", encoding="utf-8") as handle:
         yaml.safe_dump(config, handle, sort_keys=False)
     print(json.dumps(summary, indent=2, sort_keys=True))
