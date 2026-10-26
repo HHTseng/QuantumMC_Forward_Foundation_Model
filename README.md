@@ -166,23 +166,28 @@ network seeds do not quantify these systematic uncertainties.
 ## Use and reproduction
 
 ```bash
+python -m pip install -r requirements.txt
 python -m unittest discover -s tests -v
 
-# After obtaining a checkpoint: generated-only input, radians and cm.
+# Committed checkpoint: generated-only input, radians and cm.
 python predict_hadron_efficiency.py \
   --checkpoint runs/hadron_efficiency/seed_20260822/pid_211/model.pt \
   --input docs/examples/generated_pi_plus.csv --output predictions.csv
 
-# Rebuild figures/tables from committed aggregate results, without retraining.
-python experiments/analyze_hadron_efficiency.py --aggregate-only
+# Check saved artifacts and rebuild figures/tables, without retraining.
+python experiments/analyze_hadron_efficiency.py
 ```
 
-The published [study directory](runs/hadron_efficiency) includes validation/test
-metrics, binned results, checkpoint hashes, resolved configurations, histories,
-logs, and audits. All 9 checkpoints and event-level test predictions are
-retained on the experiment hosts, but are not included in this public export.
-Aggregate-only plotting uses their recorded hashes, not a new raw-file check.
-Existing checkpoints are never overwritten.
+The [study directory](runs/hadron_efficiency) includes all 9 `model.pt`
+checkpoints and 9 `predictions.npz` test-prediction files, plus validation/test
+metrics, binned results, resolved configurations, histories, logs, and audits.
+Inference and saved-result analysis work from a clean clone without the
+original Parquet files or a GPU. Sizes and SHA-256 checksums for the 18 binary
+artifacts are listed in the [manifest](runs/hadron_efficiency/summary/artifact_sha256.csv).
+`--aggregate-only` remains available for copies without the binary artifacts;
+it uses recorded hashes rather than checking the actual files. Full electron
+replay and retraining require the original Parquet dataset. Existing
+checkpoints are never overwritten.
 
 ### Appendix: recipe and provenance
 
