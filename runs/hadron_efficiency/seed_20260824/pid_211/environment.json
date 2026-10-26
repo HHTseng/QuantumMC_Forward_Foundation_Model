@@ -1,0 +1,22 @@
+{
+  "python": "3.12.13 | packaged by Anaconda, Inc. | (main, Jul  9 2026, 14:38:16) [GCC 14.3.0]",
+  "platform": "Linux-5.15.0-164-generic-x86_64-with-glibc2.35",
+  "numpy": "2.5.2",
+  "torch": "2.13.0+cu130",
+  "duckdb": "1.5.5",
+  "device": "cuda:2",
+  "gpu": "NVIDIA H100 PCIe",
+  "source_hashes": {
+    "train_hadron_efficiency.py": "95ebee9fe7e40b14d4e06a6c787cc8b3397a5988f15af704acf19e34c8def042",
+    "forwardfm_electron/data.py": "49915d68206bd5b29dd8e4c2af6b3db2683556d60b7e3f8e432b6f4cb4c5b6e8",
+    "forwardfm_step1/data.py": "2ce373428d50c560167162030c4affa5a9b7ce879e92ef6dc16f0fc6b5e834f1",
+    "forwardfm_step1/training.py": "0a857b8d9c140bc7d98c7792da9560a9b29beab77086598d90a5f0d4f716a376",
+    "forwardfm_hadron/__init__.py": "11e2b2f57b21c637d22504f055413abc9980b90d5e72033ffb50c886e9d32936",
+    "forwardfm_hadron/data.py": "37c8cb423dfe1cbf8e2853719bd03aedd68cc3e74b978c02471308a2e8469455",
+    "forwardfm_hadron/evaluation.py": "8f47a9104627e0e8301492bd45cf22da9830a42f6bffe3a50a12c0e9a716c944",
+    "forwardfm_hadron/inference.py": "24c323e13e321a0367f90fe64b12c8412738031958e1c76bac993b3568bb374a",
+    "forwardfm_hadron/model.py": "e4b26aa7f4181a54b44f4a73d4d4ad632535d0a397d88ba78434b7d2c22bde74",
+    "forwardfm_hadron/training.py": "27cde9ab11548a5c852a685a2bb539b96e6bbf5a793f70cf5ef79c41b65ddc9f"
+  },
+  "git_commit": "a0f56edc9a9324902153cd8e9dfa7ee92f26b717"
+}

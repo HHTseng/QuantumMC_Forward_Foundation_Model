@@ -44,13 +44,21 @@ def _seed_independent_recipe(config: dict[str, Any]) -> str:
                        "evaluation": config["evaluation"]}, sort_keys=True)
 
 
-def _collect(root: Path, seeds: list[int]) -> tuple[pd.DataFrame, dict[tuple[int, int], Path]]:
+def _collect(root: Path, seeds: list[int], aggregate_only: bool = False
+             ) -> tuple[pd.DataFrame, dict[tuple[int, int], Path]]:
     rows = []
     directories = {}
     reference_audit = {}
     reference_hash = {}
     reference_recipe = {}
     source_hashes = None
+    # Load the original hash manifest BEFORE regenerating per_run_metrics.csv.
+    # Aggregate-only reproduction never opens the new weights or event arrays.
+    recorded = pd.read_csv(root / "summary" / "per_run_metrics.csv") if aggregate_only else None
+    if aggregate_only:
+        required = {"seed", "gen_pid", "target", "test_truth_sha256", "checkpoint_sha256"}
+        if required - set(recorded):
+            raise ValueError(f"Recorded hash manifest is missing columns: {sorted(required - set(recorded))}")
     for seed in seeds:
         for pid in SPECIES:
             directory = root / f"seed_{seed}" / f"pid_{pid}"
@@ -64,11 +72,24 @@ def _collect(root: Path, seeds: list[int]) -> tuple[pd.DataFrame, dict[tuple[int
             if source_hashes is not None and environment["source_hashes"] != source_hashes:
                 raise ValueError("Study runs used different training/evaluation source files")
             source_hashes = environment["source_hashes"]
-            with np.load(directory / "predictions.npz") as prediction:
-                digest = hashlib.sha256()
-                for key in ("event_keys", "outcome_target", "gen_p", "gen_theta", "gen_phi", "gen_vz"):
-                    digest.update(np.ascontiguousarray(prediction[key]).tobytes())
-                truth_hash = digest.hexdigest()
+            if aggregate_only:
+                hash_rows = recorded.loc[(recorded.seed == seed) & (recorded.gen_pid == pid)]
+                if len(hash_rows) != 2 or set(hash_rows.target) != {"fd", "any"}:
+                    raise ValueError(f"Expected exactly 1 FD and 1 any-region hash record: seed={seed}, PID={pid}")
+                for key in ("test_truth_sha256", "checkpoint_sha256"):
+                    value = hash_rows[key].iloc[0]
+                    if (hash_rows[key].nunique(dropna=False) != 1 or not isinstance(value, str)
+                            or len(value) != 64 or any(c not in "0123456789abcdef" for c in value)):
+                        raise ValueError(f"Invalid or disagreeing recorded hashes: {key}, seed={seed}, PID={pid}")
+                truth_hash = hash_rows.test_truth_sha256.iloc[0]
+                checkpoint_hash = hash_rows.checkpoint_sha256.iloc[0]
+            else:
+                with np.load(directory / "predictions.npz") as prediction:
+                    digest = hashlib.sha256()
+                    for key in ("event_keys", "outcome_target", "gen_p", "gen_theta", "gen_phi", "gen_vz"):
+                        digest.update(np.ascontiguousarray(prediction[key]).tobytes())
+                    truth_hash = digest.hexdigest()
+                checkpoint_hash = hashlib.sha256((directory / "model.pt").read_bytes()).hexdigest()
             comparison = {
                 "dataset_metadata_sha256": audit["dataset_metadata_sha256"],
                 "split_seed": audit["split_seed"],
@@ -90,7 +111,7 @@ def _collect(root: Path, seeds: list[int]) -> tuple[pd.DataFrame, dict[tuple[int
                 binary = metrics[target]
                 row = {"seed": seed, "gen_pid": pid, "target": target, **binary,
                        "test_truth_sha256": truth_hash,
-                       "checkpoint_sha256": hashlib.sha256((directory / "model.pt").read_bytes()).hexdigest()}
+                       "checkpoint_sha256": checkpoint_hash}
                 for variable, summary in metrics["kinematic_closure"][target].items():
                     row[f"{variable}_weighted_mae"] = summary["weighted_mae"]
                     row[f"{variable}_unweighted_mae"] = summary["unweighted_mae"]
@@ -305,10 +326,12 @@ def main() -> None:
     parser.add_argument("--electron-run", type=Path, default=Path("runs/gpu_electron_efficiency_full"))
     parser.add_argument("--seeds", nargs="+", type=int, default=[20260822, 20260823, 20260824])
     parser.add_argument("--representative-seed", type=int, default=20260822)
+    parser.add_argument("--aggregate-only", action="store_true",
+                        help="Replot public aggregates using recorded original hashes; do not read new weights/event arrays")
     args = parser.parse_args()
     if len(set(args.seeds)) != len(args.seeds) or args.representative_seed not in args.seeds:
         raise ValueError("Seeds must be distinct and contain the representative seed")
-    rows, directories = _collect(args.root, args.seeds)
+    rows, directories = _collect(args.root, args.seeds, aggregate_only=args.aggregate_only)
     summary_dir = args.root / "summary"
     summary_dir.mkdir(parents=True, exist_ok=True)
     electron_consistency = _validate_electron_reference(args.electron_run, directories, summary_dir)
@@ -332,6 +355,8 @@ def main() -> None:
             _plot_kinematic(summary_dir, directories, args.seeds, args.representative_seed, variable, target)
         _plot_two_dimensional(summary_dir, directories, args.seeds, args.representative_seed, target)
     summary = {
+        "verification_mode": "aggregate-only: recorded original hashes, no new event/model file verification"
+                             if args.aggregate_only else "full",
         "network_seeds": args.seeds, "representative_seed": args.representative_seed,
         "seed_variability": "sample SD over network seeds; same held-out events, not independent MC samples",
         "hadron_conditioning": "all generated hadrons of each species in T=1 events; no response-quality cuts",

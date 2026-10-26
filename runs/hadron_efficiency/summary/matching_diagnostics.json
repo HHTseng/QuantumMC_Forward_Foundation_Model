@@ -1,0 +1,13 @@
+{
+  "denominator": "all generated hadrons of each species with has_valid_trigger_electron=true",
+  "label_definition": "reconstructed AND matched_pindex >= 0; inclusive one-way skim association, then detector region",
+  "interpretation": "label diagnostics only; no filters applied, no models changed; not intrinsic detector efficiency",
+  "shared_reco_definition": "same (source_file_id,event_id,matched_pindex) associated to >1 generated row among e-,pi-,pi+,proton",
+  "wrong_pid_definition": "rec_pid != gen_pid, including PID 0; missing PID reported separately",
+  "missing_optional_columns": [],
+  "null_counts": "absent optional columns yield NULL, not zero",
+  "dataset_glob": "/home/htseng/QuantumMC_Simulations/phase-space_parquet-Aug17-26/particle_responses/*.parquet",
+  "dataset_file_count": 40,
+  "dataset_total_bytes": 2061164285,
+  "dataset_metadata_sha256": "6a7245cb0ec4125610b9dcd8c1635d70a7773eeb2b29d146dd80d5f149eb43ab"
+}

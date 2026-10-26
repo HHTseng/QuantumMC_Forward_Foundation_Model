@@ -7,3 +7,6 @@ runs/*/model.pt
 !runs/tara_gpu_full/model.pt
 !runs/gpu_electron_efficiency_full/model.pt
 !runs/gpu_four_species_full/model.pt
+runs/hadron_efficiency/**/model.pt
+runs/hadron_efficiency/**/predictions.npz
+runs/hadron_efficiency/summary/inference_example*.csv

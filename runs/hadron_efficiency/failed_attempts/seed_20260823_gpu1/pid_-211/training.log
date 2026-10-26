@@ -1,0 +1,27 @@
+species=-211 seed=20260823 device=cuda:1
+{'train': 1976265, 'validation': 247871, 'test': 247407}
+Traceback (most recent call last):
+  File "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_hadron_efficiency/train_hadron_efficiency.py", line 102, in <module>
+    main()
+  File "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_hadron_efficiency/train_hadron_efficiency.py", line 68, in main
+    model, history, best_epoch = fit(model, splits, config, device)
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_hadron_efficiency/forwardfm_hadron/training.py", line 14, in fit
+    model.to(device)
+  File "/home/htseng/.conda/envs/QuantumMC/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1383, in to
+    return self._apply(convert)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/htseng/.conda/envs/QuantumMC/lib/python3.12/site-packages/torch/nn/modules/module.py", line 933, in _apply
+    module._apply(fn)
+  File "/home/htseng/.conda/envs/QuantumMC/lib/python3.12/site-packages/torch/nn/modules/module.py", line 933, in _apply
+    module._apply(fn)
+  File "/home/htseng/.conda/envs/QuantumMC/lib/python3.12/site-packages/torch/nn/modules/module.py", line 964, in _apply
+    param_applied = fn(param)
+                    ^^^^^^^^^
+  File "/home/htseng/.conda/envs/QuantumMC/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1369, in convert
+    return t.to(
+           ^^^^^
+torch.AcceleratorError: CUDA error: CUDA-capable device(s) is/are busy or unavailable
+Search for `cudaErrorDevicesUnavailable' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+

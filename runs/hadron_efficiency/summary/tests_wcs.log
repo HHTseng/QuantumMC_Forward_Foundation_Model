@@ -1,0 +1,42 @@
+test_fixed_bins_use_mean_softmax_and_no_boundary_double_count (test_core.ConditionalPIDClosureTests.test_fixed_bins_use_mean_softmax_and_no_boundary_double_count) ... ok
+test_integrated_correct_response_uses_diagonal_class_probability (test_core.ConditionalPIDClosureTests.test_integrated_correct_response_uses_diagonal_class_probability) ... ok
+test_misaligned_inputs_fail (test_core.ConditionalPIDClosureTests.test_misaligned_inputs_fail) ... ok
+test_shapes_loss_and_sample (test_core.ModelTests.test_shapes_loss_and_sample) ... ok
+test_disjoint_splits_pass (test_core.SplitTests.test_disjoint_splits_pass) ... ok
+test_overlap_fails (test_core.SplitTests.test_overlap_fails) ... ok
+test_round_trip (test_core.StandardizerTests.test_round_trip) ... ok
+test_bins_use_observed_rate_and_mean_probability (test_electron_efficiency.EfficiencyClosureTests.test_bins_use_observed_rate_and_mean_probability) ... ok
+test_perfect_calibration_has_zero_ece (test_electron_efficiency.EfficiencyClosureTests.test_perfect_calibration_has_zero_ece) ... ok
+test_denominator_is_truth_pid_not_success_flag (test_electron_efficiency.ElectronDataTests.test_denominator_is_truth_pid_not_success_flag) ... ok
+test_feature_map_and_outcome_encoding (test_electron_efficiency.ElectronDataTests.test_feature_map_and_outcome_encoding) ... ok
+test_shapes_and_gradients (test_electron_efficiency.ElectronModelTests.test_shapes_and_gradients) ... ok
+test_duplicates_and_unsupported_species_fail (test_four_species.FourSpeciesConfigurationTests.test_duplicates_and_unsupported_species_fail) ... ok
+test_four_species_order_is_preserved (test_four_species.FourSpeciesConfigurationTests.test_four_species_order_is_preserved) ... ok
+test_legacy_default_is_unchanged (test_four_species.FourSpeciesConfigurationTests.test_legacy_default_is_unchanged) ... ok
+test_all_triggered_truth_rows_survive_pid_and_response_pathologies (test_hadron_efficiency.HadronDataTests.test_all_triggered_truth_rows_survive_pid_and_response_pathologies) ... ok
+test_denominator_contains_trigger_and_truth_species_only (test_hadron_efficiency.HadronDataTests.test_denominator_contains_trigger_and_truth_species_only) ... ok
+test_duplicate_particle_is_rejected (test_hadron_efficiency.HadronDataTests.test_duplicate_particle_is_rejected) ... ok
+test_feature_map_is_truth_only (test_hadron_efficiency.HadronDataTests.test_feature_map_is_truth_only) ... ok
+test_fixed_split_is_independent_of_network_seed (test_hadron_efficiency.HadronDataTests.test_fixed_split_is_independent_of_network_seed) ... ok
+test_missing_generated_species_row_is_rejected (test_hadron_efficiency.HadronDataTests.test_missing_generated_species_row_is_rejected) ... ok
+test_null_trigger_is_rejected_not_silently_excluded (test_hadron_efficiency.HadronDataTests.test_null_trigger_is_rejected_not_silently_excluded) ... ok
+test_particles_in_one_event_must_share_trigger_label (test_hadron_efficiency.HadronDataTests.test_particles_in_one_event_must_share_trigger_label) ... ok
+test_reconstruction_match_inconsistency_is_rejected (test_hadron_efficiency.HadronDataTests.test_reconstruction_match_inconsistency_is_rejected) ... ok
+test_region_and_reconstruction_are_not_pid_identification (test_hadron_efficiency.HadronDataTests.test_region_and_reconstruction_are_not_pid_identification) ... ok
+test_azimuth_is_periodic (test_hadron_efficiency.HadronModelTests.test_azimuth_is_periodic) ... ok
+test_checkpoint_predictions_are_coherent_and_batch_independent (test_hadron_efficiency.HadronModelTests.test_checkpoint_predictions_are_coherent_and_batch_independent) ... ok
+test_checkpoint_task_and_outcome_order_are_validated (test_hadron_efficiency.HadronModelTests.test_checkpoint_task_and_outcome_order_are_validated) ... ok
+test_inference_rejects_another_species (test_hadron_efficiency.HadronModelTests.test_inference_rejects_another_species) ... ok
+test_inference_rejects_invalid_truth_or_changed_constant_vertex (test_hadron_efficiency.HadronModelTests.test_inference_rejects_invalid_truth_or_changed_constant_vertex) ... ok
+test_inference_rejects_missing_active_feature (test_hadron_efficiency.HadronModelTests.test_inference_rejects_missing_active_feature) ... ok
+test_shapes_probabilities_and_gradients (test_hadron_efficiency.HadronModelTests.test_shapes_probabilities_and_gradients) ... ok
+test_empty_bin_retained_and_bad_probabilities_rejected (test_hadron_evaluation.HadronEvaluationTests.test_empty_bin_retained_and_bad_probabilities_rejected) ... ok
+test_fixed_edges_preserve_right_boundary_low_count_and_outside (test_hadron_evaluation.HadronEvaluationTests.test_fixed_edges_preserve_right_boundary_low_count_and_outside) ... ok
+test_known_calibration_and_constant_baseline (test_hadron_evaluation.HadronEvaluationTests.test_known_calibration_and_constant_baseline) ... ok
+test_reliability_zero_one_and_empty_bins (test_hadron_evaluation.HadronEvaluationTests.test_reliability_zero_one_and_empty_bins) ... ok
+test_wilson_intervals_remain_nonzero_at_boundaries (test_hadron_evaluation.HadronEvaluationTests.test_wilson_intervals_remain_nonzero_at_boundaries) ... ok
+
+----------------------------------------------------------------------
+Ran 37 tests in 1.185s
+
+OK

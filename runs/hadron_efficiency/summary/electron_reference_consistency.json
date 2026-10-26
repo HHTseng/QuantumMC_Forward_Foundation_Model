@@ -1,0 +1,329 @@
+{
+  "checked": true,
+  "dataset_metadata_sha256": "6a7245cb0ec4125610b9dcd8c1635d70a7773eeb2b29d146dd80d5f149eb43ab",
+  "split_seed": 20260822,
+  "matching_denominator_counts": [
+    {
+      "seed": 20260822,
+      "gen_pid": -211,
+      "split": "train",
+      "electron_trigger_successes": 1976265,
+      "hadron_denominator": 1976265
+    },
+    {
+      "seed": 20260822,
+      "gen_pid": -211,
+      "split": "validation",
+      "electron_trigger_successes": 247871,
+      "hadron_denominator": 247871
+    },
+    {
+      "seed": 20260822,
+      "gen_pid": -211,
+      "split": "test",
+      "electron_trigger_successes": 247407,
+      "hadron_denominator": 247407
+    },
+    {
+      "seed": 20260822,
+      "gen_pid": 211,
+      "split": "train",
+      "electron_trigger_successes": 1976265,
+      "hadron_denominator": 1976265
+    },
+    {
+      "seed": 20260822,
+      "gen_pid": 211,
+      "split": "validation",
+      "electron_trigger_successes": 247871,
+      "hadron_denominator": 247871
+    },
+    {
+      "seed": 20260822,
+      "gen_pid": 211,
+      "split": "test",
+      "electron_trigger_successes": 247407,
+      "hadron_denominator": 247407
+    },
+    {
+      "seed": 20260822,
+      "gen_pid": 2212,
+      "split": "train",
+      "electron_trigger_successes": 1976265,
+      "hadron_denominator": 1976265
+    },
+    {
+      "seed": 20260822,
+      "gen_pid": 2212,
+      "split": "validation",
+      "electron_trigger_successes": 247871,
+      "hadron_denominator": 247871
+    },
+    {
+      "seed": 20260822,
+      "gen_pid": 2212,
+      "split": "test",
+      "electron_trigger_successes": 247407,
+      "hadron_denominator": 247407
+    },
+    {
+      "seed": 20260823,
+      "gen_pid": -211,
+      "split": "train",
+      "electron_trigger_successes": 1976265,
+      "hadron_denominator": 1976265
+    },
+    {
+      "seed": 20260823,
+      "gen_pid": -211,
+      "split": "validation",
+      "electron_trigger_successes": 247871,
+      "hadron_denominator": 247871
+    },
+    {
+      "seed": 20260823,
+      "gen_pid": -211,
+      "split": "test",
+      "electron_trigger_successes": 247407,
+      "hadron_denominator": 247407
+    },
+    {
+      "seed": 20260823,
+      "gen_pid": 211,
+      "split": "train",
+      "electron_trigger_successes": 1976265,
+      "hadron_denominator": 1976265
+    },
+    {
+      "seed": 20260823,
+      "gen_pid": 211,
+      "split": "validation",
+      "electron_trigger_successes": 247871,
+      "hadron_denominator": 247871
+    },
+    {
+      "seed": 20260823,
+      "gen_pid": 211,
+      "split": "test",
+      "electron_trigger_successes": 247407,
+      "hadron_denominator": 247407
+    },
+    {
+      "seed": 20260823,
+      "gen_pid": 2212,
+      "split": "train",
+      "electron_trigger_successes": 1976265,
+      "hadron_denominator": 1976265
+    },
+    {
+      "seed": 20260823,
+      "gen_pid": 2212,
+      "split": "validation",
+      "electron_trigger_successes": 247871,
+      "hadron_denominator": 247871
+    },
+    {
+      "seed": 20260823,
+      "gen_pid": 2212,
+      "split": "test",
+      "electron_trigger_successes": 247407,
+      "hadron_denominator": 247407
+    },
+    {
+      "seed": 20260824,
+      "gen_pid": -211,
+      "split": "train",
+      "electron_trigger_successes": 1976265,
+      "hadron_denominator": 1976265
+    },
+    {
+      "seed": 20260824,
+      "gen_pid": -211,
+      "split": "validation",
+      "electron_trigger_successes": 247871,
+      "hadron_denominator": 247871
+    },
+    {
+      "seed": 20260824,
+      "gen_pid": -211,
+      "split": "test",
+      "electron_trigger_successes": 247407,
+      "hadron_denominator": 247407
+    },
+    {
+      "seed": 20260824,
+      "gen_pid": 211,
+      "split": "train",
+      "electron_trigger_successes": 1976265,
+      "hadron_denominator": 1976265
+    },
+    {
+      "seed": 20260824,
+      "gen_pid": 211,
+      "split": "validation",
+      "electron_trigger_successes": 247871,
+      "hadron_denominator": 247871
+    },
+    {
+      "seed": 20260824,
+      "gen_pid": 211,
+      "split": "test",
+      "electron_trigger_successes": 247407,
+      "hadron_denominator": 247407
+    },
+    {
+      "seed": 20260824,
+      "gen_pid": 2212,
+      "split": "train",
+      "electron_trigger_successes": 1976265,
+      "hadron_denominator": 1976265
+    },
+    {
+      "seed": 20260824,
+      "gen_pid": 2212,
+      "split": "validation",
+      "electron_trigger_successes": 247871,
+      "hadron_denominator": 247871
+    },
+    {
+      "seed": 20260824,
+      "gen_pid": 2212,
+      "split": "test",
+      "electron_trigger_successes": 247407,
+      "hadron_denominator": 247407
+    }
+  ],
+  "electron_reference_file_sha256": {
+    "data_audit.json": "713d313d04c3c984c2cf813f7e4573b73ad0ec0f43ba5bfdbb1acd19f7d267f3",
+    "resolved_config.yaml": "e1c60e8c29b0423194738d83d15a0cd4b32d8338918d5f7bbc8a0aee533404b6",
+    "metrics.json": "23efcb422c03598bc06a4559f9226c508666a01637dcf0dbb6b54a0f73cc93a1",
+    "calibration_curve.csv": "150a6db8169604ba4363fc37abfb1776e4a140a3c172570632bb5e3332b86d2e"
+  },
+  "exact_checkpoint_replay_report": {
+    "checked": true,
+    "retrained": false,
+    "electron_reference": "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_hadron_efficiency/runs/gpu_electron_efficiency_full",
+    "device": "cpu",
+    "dataset_metadata_sha256": "6a7245cb0ec4125610b9dcd8c1635d70a7773eeb2b29d146dd80d5f149eb43ab",
+    "dataset_file_count": 40,
+    "dataset_total_bytes": 2061164285,
+    "split_seed": 20260822,
+    "split_counts": {
+      "train": {
+        "rows": 3999385,
+        "trigger_successes": 1976265,
+        "trigger_failures": 2023120
+      },
+      "validation": {
+        "rows": 500177,
+        "trigger_successes": 247871,
+        "trigger_failures": 252306
+      },
+      "test": {
+        "rows": 500438,
+        "trigger_successes": 247407,
+        "trigger_failures": 253031
+      }
+    },
+    "triggered_test_subset_sha256": "db55824d26f2d51b7b2f587ba6eca1c94470d463e3beb2b5637db35e4a537dd4",
+    "electron_checkpoint_sha256": "bc26edd3d28211e7814b91bfd15714969f40ddfcebf5032e3b65f454cc10f9e1",
+    "feature_names": [
+      "log1p_gen_p",
+      "gen_theta",
+      "sin_gen_phi",
+      "cos_gen_phi",
+      "gen_vz"
+    ],
+    "training_scaler_matches": true,
+    "training_scaler_bit_identical": true,
+    "matching_run_count": 9,
+    "matching_runs": [
+      {
+        "network_seed": 20260822,
+        "species": -211,
+        "test_rows": 247407,
+        "test_event_keys_match": true,
+        "all_split_counts_match": true
+      },
+      {
+        "network_seed": 20260822,
+        "species": 211,
+        "test_rows": 247407,
+        "test_event_keys_match": true,
+        "all_split_counts_match": true
+      },
+      {
+        "network_seed": 20260822,
+        "species": 2212,
+        "test_rows": 247407,
+        "test_event_keys_match": true,
+        "all_split_counts_match": true
+      },
+      {
+        "network_seed": 20260823,
+        "species": -211,
+        "test_rows": 247407,
+        "test_event_keys_match": true,
+        "all_split_counts_match": true
+      },
+      {
+        "network_seed": 20260823,
+        "species": 211,
+        "test_rows": 247407,
+        "test_event_keys_match": true,
+        "all_split_counts_match": true
+      },
+      {
+        "network_seed": 20260823,
+        "species": 2212,
+        "test_rows": 247407,
+        "test_event_keys_match": true,
+        "all_split_counts_match": true
+      },
+      {
+        "network_seed": 20260824,
+        "species": -211,
+        "test_rows": 247407,
+        "test_event_keys_match": true,
+        "all_split_counts_match": true
+      },
+      {
+        "network_seed": 20260824,
+        "species": 211,
+        "test_rows": 247407,
+        "test_event_keys_match": true,
+        "all_split_counts_match": true
+      },
+      {
+        "network_seed": 20260824,
+        "species": 2212,
+        "test_rows": 247407,
+        "test_event_keys_match": true,
+        "all_split_counts_match": true
+      }
+    ],
+    "metric_absolute_tolerance": 1e-05,
+    "metric_differences": {
+      "mean_predicted_probability": {
+        "original": 0.492075115442276,
+        "replayed": 0.49207513081484294,
+        "signed_difference": 1.537256694161826e-08,
+        "absolute_difference": 1.537256694161826e-08
+      },
+      "brier_score": {
+        "original": 0.06668610870838165,
+        "replayed": 0.06668610730576553,
+        "signed_difference": -1.4026161204716558e-09,
+        "absolute_difference": 1.4026161204716558e-09
+      },
+      "log_loss": {
+        "original": 0.2286029281994667,
+        "replayed": 0.22860292754245126,
+        "signed_difference": -6.57015442051545e-10,
+        "absolute_difference": 6.57015442051545e-10
+      }
+    }
+  },
+  "note": "Matching metadata/counts alone do not replace the optional exact event-subset replay.",
+  "electron_checkpoint_sha256": "bc26edd3d28211e7814b91bfd15714969f40ddfcebf5032e3b65f454cc10f9e1"
+}

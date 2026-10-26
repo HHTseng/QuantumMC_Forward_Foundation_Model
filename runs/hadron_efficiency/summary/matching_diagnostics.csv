@@ -1,0 +1,4 @@
+gen_pid,triggered_generated_denominator,matched_any,matched_fd,matched_cd,matched_ft,matched_other,inconsistent_reconstructed_flag,shared_reco_associations,matched_nonreciprocal,matched_reciprocity_missing,matched_wrong_pid,matched_pid_missing,matched_invalid_beta,matched_beta_missing_or_nonfinite,matched_abs_delta_p_gt_10gev,matched_delta_p_missing_or_nonfinite,min_gen_p_gev,max_gen_p_gev,min_gen_theta_rad,max_gen_theta_rad
+-211,2471543,2238274,1287310,949269,1695,0,0,466591,443835,0,1346059,0,150323,0,878,0,0.3000018558590447,8.99690439504163,0.08726685766087335,2.267822703926363
+211,2471543,2355430,1124249,1229016,2165,0,0,387105,129919,0,1201337,0,153409,0,867,0,0.30000720160518696,8.995944046782043,0.0872669794713548,2.2686081434354497
+2212,2471543,2324455,1065076,1258305,1074,0,0,370853,100745,0,846635,0,132580,0,677,0,0.30000250583805144,6.999203926013573,0.08726748328755073,2.2674791993300425

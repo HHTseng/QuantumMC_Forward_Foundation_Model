@@ -1,0 +1,33 @@
+species=-211 seed=20260822 device=cuda:0
+{'train': 1976265, 'validation': 247871, 'test': 247407}
+epoch=01 train=0.603423 validation=0.549090 seconds=0.62
+epoch=02 train=0.553857 validation=0.543160 seconds=0.29
+epoch=03 train=0.547063 validation=0.532245 seconds=0.30
+epoch=04 train=0.534478 validation=0.520063 seconds=0.30
+epoch=05 train=0.524963 validation=0.512178 seconds=0.30
+epoch=06 train=0.518482 validation=0.507691 seconds=0.29
+epoch=07 train=0.514447 validation=0.504872 seconds=0.30
+epoch=08 train=0.511474 validation=0.502052 seconds=0.30
+epoch=09 train=0.508691 validation=0.500284 seconds=0.29
+epoch=10 train=0.506812 validation=0.498745 seconds=0.29
+epoch=11 train=0.505664 validation=0.498172 seconds=0.29
+epoch=12 train=0.503763 validation=0.494826 seconds=0.29
+epoch=13 train=0.502509 validation=0.494323 seconds=0.29
+epoch=14 train=0.501359 validation=0.492529 seconds=0.29
+epoch=15 train=0.500188 validation=0.492316 seconds=0.29
+epoch=16 train=0.499059 validation=0.492332 seconds=0.29
+epoch=17 train=0.498495 validation=0.491417 seconds=0.30
+epoch=18 train=0.497656 validation=0.489837 seconds=0.30
+epoch=19 train=0.496724 validation=0.489841 seconds=0.30
+epoch=20 train=0.496493 validation=0.489123 seconds=0.30
+epoch=21 train=0.495468 validation=0.488197 seconds=0.30
+epoch=22 train=0.495071 validation=0.487219 seconds=0.30
+epoch=23 train=0.495389 validation=0.487033 seconds=0.30
+epoch=24 train=0.493825 validation=0.486156 seconds=0.30
+epoch=25 train=0.493715 validation=0.488175 seconds=0.29
+epoch=26 train=0.493234 validation=0.486249 seconds=0.29
+epoch=27 train=0.492867 validation=0.485775 seconds=0.30
+epoch=28 train=0.492486 validation=0.486087 seconds=0.30
+epoch=29 train=0.492124 validation=0.484732 seconds=0.30
+epoch=30 train=0.491498 validation=0.484576 seconds=0.30
+complete: /home/htseng/QuantumMC_Simulations/QuantumMC_FFM_hadron_efficiency/runs/hadron_efficiency/seed_20260822/pid_-211; FD metrics={'n': 247407, 'successes': 129044, 'observed_rate': 0.5215858888390386, 'mean_predicted_probability': 0.51725947972601, 'mean_bias': -0.0043264091130285065, 'observed_wilson_low': 0.5205815141318046, 'observed_wilson_high': 0.5225900890499842, 'log_loss': 0.46084314617782485, 'brier_score': 0.15643640096737899, 'expected_calibration_error': 0.00609358525254348, 'maximum_calibration_gap': 0.042567488974656786, 'occupied_probability_bins': 20, 'calibration_bins': 20, 'constant_train_rate': 0.5207353264870855, 'constant_baseline_brier': 0.24953477285934325, 'constant_baseline_log_loss': 0.6922164391443566, 'brier_skill_vs_constant': 0.37308776979327674}

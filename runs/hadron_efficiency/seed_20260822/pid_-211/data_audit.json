@@ -1,0 +1,72 @@
+{
+  "species": -211,
+  "conditioning": "has_valid_trigger_electron = true",
+  "denominator_sql": "gen_pid = -211 AND has_valid_trigger_electron",
+  "split_seed": 20260822,
+  "global_counts": {
+    "events": 5000000,
+    "generated_rows": 5000000,
+    "triggered_rows": 2471543,
+    "untriggered_rows": 2528457,
+    "reconstructed_rows": 2238274
+  },
+  "split_counts": {
+    "train": {
+      "rows": 1976265,
+      "outcome_counts": {
+        "unreconstructed": 186596,
+        "FD": 1029111,
+        "FT": 1342,
+        "CD": 759216,
+        "other": 0
+      },
+      "particle_order_sha256": "1c89d8440bfe6b46921f0230d3abc7fc4d9b5b05c349d878d6fa664544547b2d"
+    },
+    "validation": {
+      "rows": 247871,
+      "outcome_counts": {
+        "unreconstructed": 23510,
+        "FD": 129155,
+        "FT": 176,
+        "CD": 95030,
+        "other": 0
+      },
+      "particle_order_sha256": "017f5ac77a62ae9be460fb05522670d11610b532bf2db87e8f135e377dcad6ea"
+    },
+    "test": {
+      "rows": 247407,
+      "outcome_counts": {
+        "unreconstructed": 23163,
+        "FD": 129044,
+        "FT": 177,
+        "CD": 95023,
+        "other": 0
+      },
+      "particle_order_sha256": "b72975296857619b48a83e0bc439d73a6089495776feb95da2262f0ba51fecce"
+    }
+  },
+  "event_split_overlap_count": 0,
+  "active_feature_names": [
+    "log1p_gen_p",
+    "gen_theta",
+    "sin_gen_phi",
+    "cos_gen_phi",
+    "gen_vz"
+  ],
+  "dropped_constant_feature_values": {
+    "gen_vx": 0.0,
+    "gen_vy": 0.0
+  },
+  "outcome_labels": [
+    "unreconstructed",
+    "FD",
+    "FT",
+    "CD",
+    "other"
+  ],
+  "label_definition": "reconstructed AND matched_pindex IS NOT NULL AND matched_pindex >= 0; then detector region",
+  "dataset_glob": "/home/htseng/QuantumMC_Simulations/phase-space_parquet-Aug17-26/particle_responses/*.parquet",
+  "dataset_file_count": 40,
+  "dataset_total_bytes": 2061164285,
+  "dataset_metadata_sha256": "6a7245cb0ec4125610b9dcd8c1635d70a7773eeb2b29d146dd80d5f149eb43ab"
+}

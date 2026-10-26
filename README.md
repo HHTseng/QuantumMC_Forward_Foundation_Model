@@ -1,480 +1,218 @@
 # QuantumMC Forward Foundation Model
 
-A staged neural surrogate for selected parts of the CLAS12 simulation and
-COATJAVA reconstruction chain.
-
-This branch, `feature/trigger-electron-efficiency-four-species`, adds two
-reproducible baselines:
-
-1. an all-event trigger-electron acceptance/reconstruction efficiency model;
-2. a conditional Forward Detector (FD) response model shared by generated
-   electrons, $\pi^-$, $\pi^+$, and protons.
-
-These are complementary models. The efficiency model decides whether the
-generated event electron yields the valid trigger electron. The response model
-then describes reconstructed kinematic residuals and PID only for particles
-already in the selected, triggered, FD-reconstructed population.
-
-## 1. Physics scope
-
-The full simulation path is
-
-```text
-physics event generator
-        |
-        v
-generated truth event X
-        |
-        v
-GEMC / GEANT4 detector transport
-        |
-        v
-simulated detector signals
-        |
-        v
-COATJAVA reconstruction
-        |
-        v
-reconstructed event Y
-```
-
-The eventual forward foundation model should approximate
+For generated hadron species $s\in S=\lbrace-211,211,2212\rbrace$, learn
 
 $$
-K(Y\mid X)=P(\text{reconstructed event }Y\mid\text{truth event }X).
+q_\vartheta:\mathbb R^5\times S\longrightarrow\Delta^4,
+\qquad
+\Delta^4=\lbrace q\in[0,1]^5:\sum_{c=0}^{4}q_c=1\rbrace.
 $$
 
-![Real experiment, full computer simulation, and learned forward-model shortcut](docs/figures/real_simulation_forward_model.png)
+Here $q$ is a distribution over 5 skim-defined reconstruction outcomes,
+conditional on a valid electron trigger. This branch,
+`feature/trigger-conditioned-hadron-efficiency`, extends
+[the electron/four-species baseline](https://github.com/HHTseng/QuantumMC_Forward_Foundation_Model/tree/feature/trigger-electron-efficiency-four-species)
+with 3 independent hadron efficiency models. The electron and residual/PID
+models are unchanged.
 
-A useful staged factorization is
+## Physics and data
 
-$$
-P(Y\mid X)
-=P(T\mid x_e)
-\prod_i P(C_i\mid x_i,T)
-P(R_i\mid x_i,T,C_i),
-$$
-
-where:
-
-- $x_e$ is the generated event-electron truth state;
-- $T\in\{0,1\}$ is the valid-trigger-electron outcome;
-- $C_i$ is the reconstruction outcome or detector region of particle $i$;
-- $R_i$ is the reconstructed response when it exists.
-
-This branch implements
+Let $T$ denote `has_valid_trigger_electron`, and let
+$x=(p,\theta,\phi,v_z)$ be generated momentum, polar angle, azimuth, and
+longitudinal vertex. Numerical units are GeV, radians, and cm. The 5 active
+truth inputs are
 
 $$
-\widehat\eta_T(x_e)\approx P(T=1\mid x_e)
+\Phi(x)=(\log(1+p),\theta,\sin\phi,\cos\phi,v_z),
+\qquad z=Z_{\rm train}(\Phi(x)).
 $$
 
-and
+$Z_{\rm train}$ is fitted separately per species on training rows only. The constant transverse
+vertices are recorded but omitted. There are no reconstructed inputs and no
+$\beta$ input in these efficiency models.
+
+For each generated particle, define the ordered outcome vocabulary
+$C\in(\mathrm{unreconstructed},\mathrm{FD},\mathrm{FT},\mathrm{CD},\mathrm{other})$.
+A reconstruction requires `reconstructed` and a nonnull, nonnegative
+`matched_pindex`; its detector-region label then determines $C$.
 
 $$
-q_\theta(\Delta_i,\widehat s_i
-\mid x_i,T=1,C_i=\mathrm{FD},F_i=1),
-$$
-
-where $F_i$ is the current fiducial/quality selection. It does **not** yet
-learn the general particle outcome factor $P(C_i\mid x_i,T)$.
-
-![CLAS12 particle paths and conditional response scope](docs/figures/clas12_detector_forward_model_scope.png)
-
-## 2. Data contract and the electron-denominator audit
-
-The Aug17-26 Parquet sample contains 5,000,000 events and 20,000,000 particle
-rows. Every event contains exactly one row for each generated species:
-
-| Generated PID | Particle | Rows |
-|---:|---|---:|
-| 11 | electron | 5,000,000 |
-| -211 | $\pi^-$ | 5,000,000 |
-| 211 | $\pi^+$ | 5,000,000 |
-| 2212 | proton | 5,000,000 |
-
-The event key is `(source_file_id, event_id)`. A deterministic hash of this
-composite key creates event-disjoint 80/10/10 train/validation/test splits.
-
-### Critical audit result
-
-The all-event efficiency denominator is
-
-```sql
-WHERE gen_pid = 11
-```
-
-and not `is_generated_trigger_electron`. In this production,
-`is_generated_trigger_electron` is true only for successful trigger electrons,
-so using it would remove every failure and make efficiency undefined.
-
-The audit established:
-
-| Quantity | Count |
-|---|---:|
-| Events / generated PID-11 rows | 5,000,000 / 5,000,000 |
-| Valid-trigger successes | 2,471,543 |
-| Trigger failures | 2,528,457 |
-| Positive rows with `trigger_mcindex != mcindex` | 0 |
-| Event-split overlaps | 0 |
-
-The executable audit is `audit_trigger_electrons.py`; its tables are saved with
-the full efficiency run.
-
-## 3. Trigger-electron efficiency model
-
-### Inputs and labels
-
-The physical input is generated truth only:
-
-$$
-x_e=(p_e^{\rm gen},\theta_e^{\rm gen},\phi_e^{\rm gen},
-v_{x,e}^{\rm gen},v_{y,e}^{\rm gen},v_{z,e}^{\rm gen}).
-$$
-
-The audit found $v_x=v_y=0$ for every training row, so those two constant
-columns are recorded but removed before training. The active numerical feature
-map is
-
-$$
-f_e(x_e)=
-\left[
-\log(1+p_e^{\rm gen}),\theta_e^{\rm gen},
-\sin\phi_e^{\rm gen},\cos\phi_e^{\rm gen},v_{z,e}^{\rm gen}
-\right].
-$$
-
-Each feature is standardized with training-split statistics only. No
-reconstructed variable is an input.
-
-The trigger target is
-
-$$
-y_T=\mathbf 1\{\text{event has a valid trigger electron}\}.
-$$
-
-The network outputs a trigger logit $z_T$ and
-
-$$
-\widehat\eta_T(x_e)=\sigma(z_T).
-$$
-
-It also has a categorical reconstruction-outcome head over
-`unreconstructed`, `FD`, `FT`, `CD`, and `other`. In this dataset all failures
-are encoded as `unreconstructed` and all successes as `FD`; the second head is
-therefore equivalent to the trigger label here, not a general reconstruction
-model.
-
-### Objective
-
-The calibrated baseline uses unweighted binary cross entropy:
-
-$$
-\mathcal L_T
-=-\frac{1}{N}\sum_i
-\left[y_i\log\widehat\eta_i
-+(1-y_i)\log(1-\widehat\eta_i)\right],
-$$
-
-plus categorical cross entropy for the outcome head. Class weighting is not
-used because it would change the probability target without recalibration.
-
-## 4. Four-species conditional FD response
-
-One response row is one selected generated particle and its matched
-reconstructed FD candidate. The generated-species embedding order is saved in
-the checkpoint:
-
-| Embedding index | Generated PID | Particle |
-|---:|---:|---|
-| 0 | 11 | electron |
-| 1 | -211 | $\pi^-$ |
-| 2 | 211 | $\pi^+$ |
-| 3 | 2212 | proton |
-
-The continuous input remains
-
-$$
-f(x_i)=
-\left[\log(1+p_i^{\rm gen}),\theta_i^{\rm gen},
-\sin\phi_i^{\rm gen},\cos\phi_i^{\rm gen}\right],
-$$
-
-with generated species supplied separately through a learned categorical
-embedding.
-
-The physical residual target is
-
-$$
-\Delta_i=(\Delta p_i,\Delta\theta_i,\Delta\phi_i),
+q_\vartheta(c\mid z,s)\simeq P(C=c\mid x,s,T=1),
 $$
 
 $$
-\Delta p_i=p_i^{\rm rec}-p_i^{\rm gen},\qquad
-\Delta\theta_i=\theta_i^{\rm rec}-\theta_i^{\rm gen},
+\eta_{\rm any}=1-q_{\rm unreconstructed},
+\qquad
+\eta_{\rm FD}=q_{\rm FD},
+\qquad
+0\leq\eta_{\rm FD}\leq\eta_{\rm any}\leq1.
 $$
 
-$$
-\Delta\phi_i=
-\mathrm{wrap}_{[-\pi,\pi)}
-(\phi_i^{\rm rec}-\phi_i^{\rm gen}).
-$$
+The intended next task is **per-species acceptance/reconstruction closure given
+an electron trigger**, not another hardware-trigger model. The denominators are:
 
-The residual head is a conditional Gaussian mixture:
+| Component | Denominator | Positive outcome |
+|---|---|---|
+| Electron reference | Every generated electron/event | $T=1$ |
+| Hadron, any region | Every generated hadron of species $s$ with $T=1$ | $C\ne\mathrm{unreconstructed}$ |
+| Hadron, FD | Same triggered hadron population | $C=\mathrm{FD}$ |
 
-$$
-q_\theta(\Delta\mid x,s)
-=\sum_{k=1}^{K}\pi_k(x,s)
-\prod_{j\in\{p,\theta,\phi\}}
-\mathcal N(\Delta_j;\mu_{kj}(x,s),\sigma_{kj}^2(x,s)).
-$$
+A wrong reconstructed PID remains a reconstruction success. No PID, beta,
+reciprocity, fiducial, or residual cut removes denominator rows. Correct-PID
+efficiency is a different, subsequent quantity.
 
-A softmax head models the stochastic reconstructed-PID response
-$q_\theta(\widehat s\mid x,s)$. The joint training loss is
+The Aug17-26 Parquet production contains 5,000,000 events and 1 generated
+electron, $\pi^-$, $\pi^+$, and proton per event. Each hadron denominator has
+2,471,543 triggered rows: 1,976,265 train, 247,871 validation, 247,407 test.
+The composite key `(source_file_id, event_id)` fixes event-disjoint partitions.
+Hadron generation covers approximately 0.3–9 GeV (pions), 0.3–7 GeV (protons),
+and $5^\circ$–$130^\circ$; substantial CD reconstruction is retained.
 
-$$
-\mathcal L
-=-\mathbb E[\log q_\theta(\Delta\mid x,s)]
-+\lambda_{\rm PID}\,
-\mathcal L_{\rm CE}(\widehat s).
-$$
+This separation follows [CLAS12 reconstruction before PID](https://eprints.gla.ac.uk/208714/1/208714.pdf)
+and the acceptance → efficiency → resolution → PID organization of
+[Lamarr](https://arxiv.org/abs/2309.13213).
+The broad generated-electron acceptance probability here is not the
+eligible-electron hardware efficiency discussed in
+[CLAS12 trigger studies](https://eprints.gla.ac.uk/298277/1/298277.pdf).
+The [design and evidence](docs/HADRON_EFFICIENCY_DESIGN.md) distinguish the
+inferred task from a verbatim recovered instruction.
 
-Electron PID loss is enabled automatically because six reconstructed PID codes
-occur for selected training electrons. Electron correct PID is nevertheless
-nearly fixed by the trigger selection, so electron top-1 PID performance is
-not evidence for a general electron-identification model.
+## Held-out results
 
-### Selected conditional population
+Each species has 3 training seeds on the same held-out events. Tables show
+mean ± sample SD across seeds, not test-sample uncertainty. Efficiencies are
+percent; calibration errors are percentage points (pp).
 
-All response rows satisfy the common FD, fiducial, residual, and quality cuts.
-Hadrons retain the legacy `usable_for_hadron_response_training` definition;
-electrons use an explicit positive trigger association.
+| Particle / outcome | Full MC (%) | FM mean probability (%) | ECE (pp) |
+|---|---:|---:|---:|
+| Electron / trigger, unchanged reference | 49.44 | 49.21 | 0.41 |
+| $\pi^-$ / any region | 90.64 | 90.72 ± 0.17 | 0.37 ± 0.08 |
+| $\pi^+$ / any region | 95.31 | 95.43 ± 0.10 | 0.20 ± 0.05 |
+| Proton / any region | 94.06 | 94.25 ± 0.12 | 0.37 ± 0.06 |
 
-| Generated species | Selected rows | Test rows |
-|---|---:|---:|
-| electron | 1,675,790 | 167,659 |
-| $\pi^-$ | 458,373 | 45,981 |
-| $\pi^+$ | 571,241 | 56,999 |
-| proton | 559,627 | 56,005 |
-| **Total** | **3,265,031** | **326,644** |
+![Electron trigger and 3 any-region hadron probability closures](runs/hadron_efficiency/summary/probability_closure_four_species_any.png)
 
-## 5. Full-run results
+The electron panel uses 500,438 test events; each hadron panel uses its
+247,407-event triggered subset. Exact event-key matching and frozen-electron
+checkpoint replay [pass](runs/hadron_efficiency/summary/electron_reference_validation.json).
+Reliability plots use a fixed representative seed; the tables summarize all 3.
 
-Both models used one GPU, deterministic seeds, event-disjoint splits, and
-early stopping. Detailed CSV/JSON outputs and checkpoints are in `runs/`.
-
-### 5.1 Trigger-efficiency probability closure
-
-The full efficiency model has 202,502 trainable parameters and selected epoch
-12. The held-out test set contains 500,438 generated electrons.
-
-| Metric | Held-out result |
-|---|---:|
-| Observed trigger rate | 49.4381% |
-| Mean predicted probability | 49.2075% |
-| Difference | -0.2306 percentage points |
-| Binary log loss | 0.228603 |
-| Brier score | 0.066686 |
-| Expected calibration error | 0.004085 |
-| ROC AUC | 0.946356 |
-| Average precision | 0.908242 |
-
-The closure comparison in each bin is the observed efficiency
-
-$$
-\widehat\epsilon_{\rm data}(B)=\frac{1}{N_B}\sum_{i\in B}y_i
-$$
-
-against the mean predicted probability
-
-$$
-\widehat\epsilon_{\rm FM}(B)=
-\frac{1}{N_B}\sum_{i\in B}\widehat\eta_T(x_{e,i}).
-$$
-
-| Conditioning variable | Largest absolute bin difference |
-|---|---:|
-| $p_{e,\rm gen}$ | 0.482 percentage points |
-| $\theta_{e,\rm gen}$ | 0.529 percentage points |
-| $\phi_{e,\rm gen}$ | 0.868 percentage points |
-| $v_{z,e}^{\rm gen}$ | 1.050 percentage points |
-
-The largest $v_z$ difference occurs in the sparse 4–6 cm bin ($N=1,220$),
-whose observed binomial standard error is 1.431 percentage points. The model
-also reproduces the strong physical phase-space trend: efficiency rises from
-9.54% at 5–10 degrees to 77.31% at 30–35 degrees, while it falls from 52.89%
-at 2–3 GeV to 19.20% at 9–11 GeV.
-
-| Momentum closure | Polar-angle closure |
-|---|---|
-| ![Trigger efficiency versus generated electron momentum](runs/gpu_electron_efficiency_full/efficiency_vs_gen_p.png) | ![Trigger efficiency versus generated electron polar angle](runs/gpu_electron_efficiency_full/efficiency_vs_gen_theta.png) |
-
-![Held-out trigger-probability calibration](runs/gpu_electron_efficiency_full/calibration_curve.png)
-
-### 5.2 Four-species residual and PID closure
-
-The four-species response model has 222,340 trainable parameters, selected
-epoch 17, and gives:
-
-| Overall metric | Held-out result |
-|---|---:|
-| Residual NLL in standardized coordinates | -5.162882 |
-| PID cross entropy | 0.489958 |
-| PID top-1 accuracy | 84.25% |
-| Physical sampled $(p,\theta)$ fraction | 99.338% |
-
-Top-1 PID accuracy is inflated by the dominant, nearly fixed electron class.
-Per-species probability closure is more informative.
-
-| Species | $W_1(\Delta p)$ | $W_1(\Delta\theta)$ | $W_1(\Delta\phi)$ | Width-ratio range |
+| Generated species, FD | Full MC (%) | FM (%) | ECE (pp) | Weighted $(p,\theta)$ closure MAE (pp) |
 |---|---:|---:|---:|---:|
-| electron | 0.01476 | 0.000252 | 0.001362 | 1.006–1.029 |
-| $\pi^-$ | 0.06463 | 0.003255 | 0.01791 | 0.942–1.013 |
-| $\pi^+$ | 0.07198 | 0.003733 | 0.01888 | 1.002–1.054 |
-| proton | 0.02743 | 0.002238 | 0.01799 | 1.002–1.085 |
+| $\pi^-$ | 52.16 | 52.13 ± 0.44 | 0.64 ± 0.06 | 0.84 ± 0.06 |
+| $\pi^+$ | 45.50 | 45.56 ± 0.09 | 0.47 ± 0.12 | 0.64 ± 0.06 |
+| Proton | 43.13 | 43.36 ± 0.06 | 0.40 ± 0.10 | 0.62 ± 0.11 |
 
-Here $W_1$ is the one-dimensional empirical Wasserstein distance in the
-physical target units (GeV for $\Delta p$, radians for angular residuals).
+![Electron trigger and 3 FD hadron probability closures](runs/hadron_efficiency/summary/probability_closure_four_species.png)
 
-| Generated species | Teacher correct-PID fraction | FM mean correct probability | Difference | Worst fixed-bin PID TV |
-|---|---:|---:|---:|---:|
-| electron | 99.9869% | 99.5822% | -0.4046 pp | 0.0059 |
-| $\pi^-$ | 55.0184% | 53.4365% | -1.5819 pp | 0.0587 |
-| $\pi^+$ | 59.1098% | 58.6805% | -0.4294 pp | 0.0605 |
-| proton | 81.2642% | 83.2070% | +1.9429 pp | 0.0660 |
+For a kinematic bin $B$, compare observed fractions with averaged probabilities,
+not thresholded classifications:
 
-![Four-species held-out residual distributions](runs/gpu_four_species_full/residual_closure.png)
+$$
+\widehat\eta_{\rm MC}(B)=\frac{\sum_{i\in B}R_i}{N_B},
+\qquad
+\widehat\eta_{\rm FM}(B)=\frac{\sum_{i\in B}\eta_i}{N_B}.
+$$
 
-![Conditional correct-PID probability versus generated momentum](runs/gpu_four_species_full/pid_correct_response_vs_gen_p.png)
+$R_i$ is the chosen FD or any-region reconstruction indicator. Reliability
+instead groups particles into 20 fixed predicted-probability bins. With bin
+means $\bar\eta_b,\bar R_b$ and counts $n_b$,
 
-The one-dimensional electron closure is good, but the sampled electron
-residual-correlation matrix still differs from the teacher (Frobenius distance
-0.404, versus 0.073–0.139 for the three hadrons). This is a clear target for a
-full-covariance mixture or conditional flow. The hadron PID discrepancies also
-remain visible at the 0.06–0.066 worst-bin total-variation level.
+$$
+\mathrm{ECE}=\sum_b\frac{n_b}{N}\left|\bar\eta_b-\bar R_b\right|.
+$$
 
-### 5.3 Previous three-species baseline
+![Any-region reconstruction efficiency versus generated momentum](runs/hadron_efficiency/summary/hadron_efficiency_vs_gen_p_any.png)
 
-The earlier three-species result figures remain available for comparison. They
-use the original conditional hadron-only configuration and are not mixed with
-the new efficiency metric.
+![FD reconstruction efficiency in momentum and polar angle](runs/hadron_efficiency/summary/hadron_efficiency_p_theta.png)
 
-![Previous held-out residual distributions](docs/figures/full_training_residual_closure.png)
+The models learn substantially more than the global rate: relative to a
+constant training-rate predictor, test Brier scores decrease by
+57.0/47.5/57.3% for any-region and 37.3/72.4/75.8% for FD
+($\pi^-,\pi^+,\mathrm{proton}$).
+Global calibration is not uniform closure: supported 2D cells still differ by
+several pp; the largest individual-run FD discrepancy is 8.2 pp.
+Sparse/empty probability bins do not establish calibration outside their support.
 
-![Previous residual-width closure](docs/figures/full_training_width_closure.png)
+All 1D/2D bins and counts are saved. Kinematic summaries require at least
+100 particles per bin; MC error bars are 68% Wilson intervals and shaded
+bands show training-seed SD. See
+[full metrics](runs/hadron_efficiency/summary/condition_summary.csv),
+[per-run metrics and hashes](runs/hadron_efficiency/summary/per_run_metrics.csv),
+[angle closure](runs/hadron_efficiency/summary/hadron_efficiency_vs_gen_theta.png),
+and [any-region 2D closure](runs/hadron_efficiency/summary/hadron_efficiency_p_theta_any.png).
 
-## 6. Installation and execution
+## Interpretation and limits
+
+These are **closure tests of the stored skim associations**, not measured
+intrinsic tracking efficiencies. The
+[label audit](runs/hadron_efficiency/summary/matching_diagnostics.csv)
+finds shared reconstructed candidates for 18.88/15.66/15.01% of the triggered
+generated $\pi^-/\pi^+/\mathrm{proton}$ rows. Nonreciprocal matches also remain.
+These diagnostics are not cuts; shared associations need physics review before
+interpreting every positive label as a unique reconstructed particle.
+
+The inherited FD residual/PID model additionally conditions on a selection
+$F=1$ (fiducial/quality and residual cuts). This branch does not learn
+$P(F=1\mid C=\mathrm{FD},T=1,x,s)$ or CD/FT residuals. The new gates and old
+response therefore are not yet a complete, selection-matched event simulator.
+No new beta response or Joo split-momentum response is introduced here.
+
+Single-particle models omit event context and correlations. Products of
+marginal efficiencies do not establish joint event closure. Different
+generators, occupancies, or detector conditions require new validation; 3
+network seeds do not quantify these systematic uncertainties.
+
+## Use and reproduction
 
 ```bash
-git clone https://github.com/HHTseng/QuantumMC_Forward_Foundation_Model.git
-cd QuantumMC_Forward_Foundation_Model
-
-conda create -n QuantumMC python=3.12 -y
-conda activate QuantumMC
-python -m pip install -r requirements.txt
-
 python -m unittest discover -s tests -v
+
+# After obtaining a checkpoint: generated-only input, radians and cm.
+python predict_hadron_efficiency.py \
+  --checkpoint runs/hadron_efficiency/seed_20260822/pid_211/model.pt \
+  --input docs/examples/generated_pi_plus.csv --output predictions.csv
+
+# Rebuild figures/tables from committed aggregate results, without retraining.
+python experiments/analyze_hadron_efficiency.py --aggregate-only
 ```
 
-Expected data layout when commands are run from the repository root:
+The published [study directory](runs/hadron_efficiency) includes validation/test
+metrics, binned results, checkpoint hashes, resolved configurations, histories,
+logs, and audits. All 9 checkpoints and event-level test predictions are
+retained on the experiment hosts, but are not included in this public export.
+Aggregate-only plotting uses their recorded hashes, not a new raw-file check.
+Existing checkpoints are never overwritten.
 
-```text
-QuantumMC_Simulations/
-|-- QuantumMC_Forward_Foundation_Model/
-`-- phase-space_parquet-Aug17-26/
-    `-- particle_responses/*.parquet
-```
+### Appendix: recipe and provenance
 
-Run the blocking electron audit:
+The categorical objective is unweighted cross-entropy,
+$\mathcal L=-N^{-1}\sum_i\log q_{\vartheta,C_i}(z_i,s)$.
+Checkpoints minimize validation loss; the test set is not used for selection.
+Each species uses 4 width-256 SiLU/LayerNorm layers, dropout 0.03, and one
+5-class head; AdamW, learning rate 0.001, weight decay 0.00001, batch 16,384,
+30 epochs, patience 6. All 9 runs completed 30 epochs.
+Fixed split seed: `20260822`; network seeds: `20260822/20260823/20260824`.
+Training source: `a0f56ed`; each checkpoint records source hashes and scalers.
+No hyperparameter search or test-set tuning was performed for this baseline.
+
+Training ran on H100 GPUs in persistent `tmux` sessions. One unavailable-GPU
+attempt was preserved under `failed_attempts` and rerun unchanged on another
+GPU. GPU/seed assignment does not change the data split or model recipe.
 
 ```bash
-python audit_trigger_electrons.py \
-  --parquet-glob '../phase-space_parquet-Aug17-26/particle_responses/*.parquet' \
-  --output-dir runs/electron_data_audit
+# Fresh experiments use a new directory; quoted glob must include all files.
+python experiments/run_hadron_efficiency.py --root runs/hadron_efficiency_repeat \
+  --parquet-glob '/path/to/particle_responses/*.parquet' --device cuda:0
+
+python experiments/verify_electron_reference.py --root runs/hadron_efficiency_repeat \
+  --parquet-glob '/path/to/particle_responses/*.parquet'
+python experiments/analyze_hadron_efficiency.py --root runs/hadron_efficiency_repeat
+
+python experiments/audit_hadron_labels.py \
+  --parquet-glob '/path/to/particle_responses/*.parquet'
 ```
 
-Efficiency smoke test and full one-GPU training:
-
-```bash
-python train_electron_efficiency.py \
-  --config configs/electron_efficiency_seed.yaml --smoke
-
-CUDA_VISIBLE_DEVICES=0 python train_electron_efficiency.py \
-  --config configs/gpu_electron_efficiency_full.yaml
-```
-
-Four-species response smoke test and full one-GPU training:
-
-```bash
-python train.py --config configs/fd_response_four_species.yaml --smoke
-
-CUDA_VISIBLE_DEVICES=0 python train.py \
-  --config configs/gpu_four_species_full.yaml
-```
-
-Predict and sample the trigger decision for generated electron rows:
-
-```bash
-python sample_trigger_electron.py \
-  --checkpoint runs/gpu_electron_efficiency_full/model.pt \
-  --input example_generated_electrons.csv \
-  --output sampled_trigger_decisions.csv
-```
-
-The input requires `gen_pid=11`, `gen_p`, `gen_theta`, `gen_phi`, and `gen_vz`.
-Angles are in radians and momentum is in GeV. `gen_vx` and `gen_vy` are
-optional because the audit removed these constant features from the checkpoint.
-This command does not fabricate reconstructed kinematics.
-
-Sample conditional FD residuals/PID for all four supported species:
-
-```bash
-python sample.py \
-  --checkpoint runs/gpu_four_species_full/model.pt \
-  --input example_generated_particles.csv \
-  --output sampled_fd_response.csv
-```
-
-This second command assumes the trigger and FD reconstruction outcome have
-already been selected. Until $P(C_i\mid x_i,T)$ is implemented, it must not be
-used to declare every generated particle reconstructed.
-
-## 7. Repository map
-
-```text
-configs/                         development and full-run configurations
-forwardfm_electron/              all-event electron efficiency package
-forwardfm_step1/                 conditional residual/PID response package
-audit_trigger_electrons.py       denominator and label audit
-train_electron_efficiency.py     efficiency training entry point
-sample_trigger_electron.py       trigger-probability inference
-train.py                         conditional response training
-sample.py                        conditional response sampling
-tests/                           data-contract, leakage, model, and closure tests
-runs/                            checkpoints, CSV/JSON metrics, plots, model cards
-```
-
-The complete experiment interpretation is in
-`ELECTRON_EFFICIENCY_FOUR_SPECIES_REPORT.md`.
-
-## 8. Known limitations and next steps
-
-1. **General reconstruction efficiency is still missing.** The current
-   outcome head is binary-equivalent to the trigger label. A dataset with
-   independently encoded unreconstructed/FD/CD/FT outcomes is needed for
-   $P(C_i\mid x_i,T)$.
-2. **Response training is conditional.** Residual/PID rows exclude failures
-   and must never be used as an efficiency denominator.
-3. **Particle responses are independent.** The model does not yet generate
-   correlations among particles in a complete event.
-4. **Residual/PID heads are conditionally factorized.** They implement
-   $q(\Delta\mid x,s)q(\widehat s\mid x,s)$ rather than an explicitly coupled
-   joint response.
-5. **Mixture components are diagonal.** This is especially visible in the
-   electron residual-correlation discrepancy.
-6. **No detector-condition inputs.** Run period, field configuration,
-   calibration state, and occupancy are absent.
-7. **Simulation closure is not data closure.** Agreement with held-out
-   GEMC/COATJAVA output does not establish agreement with real CLAS12 data.
-
-The next highest-value extension is the true particle-level outcome model
-$P(C_i\mid x_i,T)$, followed by coupled regional response and event context.
+See [configuration](configs/hadron_efficiency.yaml), the
+[reference-integrity report](runs/hadron_efficiency/summary/electron_reference_consistency.json),
+and [test log](runs/hadron_efficiency/summary/tests_tara.log).

@@ -1,0 +1,7 @@
+Starting seed=20260823, species=-211; log=/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_hadron_efficiency/runs/hadron_efficiency/seed_20260823/pid_-211/training.log
+Traceback (most recent call last):
+  File "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_hadron_efficiency/experiments/run_hadron_efficiency.py", line 29, in <module>
+    subprocess.run(command, cwd=root, stdout=stream, stderr=subprocess.STDOUT, check=True)
+  File "/home/htseng/.conda/envs/QuantumMC/lib/python3.12/subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['/home/htseng/.conda/envs/QuantumMC/bin/python', '-u', 'train_hadron_efficiency.py', '--seed', '20260823', '--species', '-211', '--device', 'cuda:1', '--parquet-glob', '/home/htseng/QuantumMC_Simulations/phase-space_parquet-Aug17-26/particle_responses/*.parquet', '--run-dir', '/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_hadron_efficiency/runs/hadron_efficiency/seed_20260823/pid_-211']' returned non-zero exit status 1.
