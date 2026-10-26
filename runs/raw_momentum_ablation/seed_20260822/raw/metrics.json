@@ -1,0 +1,112 @@
+{
+  "validation": {
+    "n": 159558,
+    "loss_coordinates": "standardized asinh-dp and affine other residuals",
+    "loss": {
+      "total_loss": -4.060172311214809,
+      "residual_nll": -5.058649145759974,
+      "pid_cross_entropy": 0.9984768148622363,
+      "pid_accuracy": 0.677709672971584,
+      "examples_per_second": 61658.04575837302
+    },
+    "pid_tv_particle_weighted": 0.028038441668836477,
+    "beta_w1_macro": 0.02769697830080986,
+    "high_pion_width_mae": 0.1515423886309931,
+    "high_pion_cells": [
+      [
+        "pi-",
+        6.0,
+        7.0
+      ],
+      [
+        "pi-",
+        7.0,
+        8.0
+      ],
+      [
+        "pi-",
+        8.0,
+        9.0
+      ],
+      [
+        "pi+",
+        6.0,
+        7.0
+      ],
+      [
+        "pi+",
+        7.0,
+        8.0
+      ],
+      [
+        "pi+",
+        8.0,
+        9.0
+      ]
+    ],
+    "failed_gaussian_fits": 0,
+    "negative_reconstructed_p_fraction": 0.005414958823750611,
+    "sampled_abs_delta_p_gt_10_fraction": 0.0005953947780744306,
+    "teacher_rows_outside_later_beta_validity_domain": 486,
+    "target_correlation_frobenius": {
+      "pi-": 0.2426258223769836,
+      "pi+": 0.4084823150449795,
+      "proton": 0.5104418114660625
+    }
+  },
+  "test": {
+    "n": 158985,
+    "loss_coordinates": "standardized asinh-dp and affine other residuals",
+    "loss": {
+      "total_loss": -4.066285358324221,
+      "residual_nll": -5.06584774955742,
+      "pid_cross_entropy": 0.9995623728057538,
+      "pid_accuracy": 0.6771833820800705,
+      "examples_per_second": 58828.16607548083
+    },
+    "pid_tv_particle_weighted": 0.02913213064417344,
+    "beta_w1_macro": 0.03116723895072937,
+    "high_pion_width_mae": 0.17147799118841936,
+    "high_pion_cells": [
+      [
+        "pi-",
+        6.0,
+        7.0
+      ],
+      [
+        "pi-",
+        7.0,
+        8.0
+      ],
+      [
+        "pi-",
+        8.0,
+        9.0
+      ],
+      [
+        "pi+",
+        6.0,
+        7.0
+      ],
+      [
+        "pi+",
+        7.0,
+        8.0
+      ],
+      [
+        "pi+",
+        8.0,
+        9.0
+      ]
+    ],
+    "failed_gaussian_fits": 0,
+    "negative_reconstructed_p_fraction": 0.005170299084819322,
+    "sampled_abs_delta_p_gt_10_fraction": 0.0005849608453627701,
+    "teacher_rows_outside_later_beta_validity_domain": 503,
+    "target_correlation_frobenius": {
+      "pi-": 0.2195222085694293,
+      "pi+": 0.3972028471852014,
+      "proton": 0.46928607152715335
+    }
+  }
+}

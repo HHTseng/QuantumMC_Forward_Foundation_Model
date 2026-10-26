@@ -1,0 +1,569 @@
+{
+  "seeds": [
+    20260822,
+    20260823,
+    20260824
+  ],
+  "n_pairs": 3,
+  "model_source_sha256": {
+    "train_split_dp_asinh.py": "b839176020bdfda6d988c531a8c313a0fb8086cdd334f79375480bceb4687002",
+    "forwardfm_step1/data_asinh_dp.py": "6b0c2d391a8c12a0bb258e3e091856a6d82045e13dc92a417e2ed022dff3e0aa",
+    "forwardfm_step1/model_split_dp.py": "3855ec4177292a3e36ec3c1ad98f1ae63db6c619f8b6c46243160fb5faae812b",
+    "forwardfm_step1/training_split_dp.py": "59d547a9807023a58adb737a369b41213d55d8f1e068187a6719389ad94bba98",
+    "forwardfm_step1/evaluation_split_dp.py": "184e1575321f7363e3548732a6b063c91584f3d4d2216895831263cfab0e2ca0"
+  },
+  "data_provenance": {
+    "dataset_metadata_sha256": "6a7245cb0ec4125610b9dcd8c1635d70a7773eeb2b29d146dd80d5f149eb43ab",
+    "particle_order_sha256": {
+      "train": "2173728244f77842040f31072f49d25092f32e4a7a35bacb4d62c3547de39953",
+      "validation": "0227a52e53b21ce7e2efabc377af7b8ca1ef1b12f28aeb6d25a857b1c86b571f",
+      "test": "2878523ca8e1de28b7dc1fa8cab7d294f9cb7529c54f1df5db87202086a2d0a6"
+    },
+    "sampled_counts": {
+      "train": {
+        "-211": 366317,
+        "211": 456997,
+        "2212": 447384
+      },
+      "validation": {
+        "-211": 46075,
+        "211": 57245,
+        "2212": 56238
+      },
+      "test": {
+        "-211": 45981,
+        "211": 56999,
+        "2212": 56005
+      }
+    },
+    "split_seed": 20260822,
+    "order_seed": 20260822,
+    "selection_sql": "rec_detector_region = 'FD'\n      AND rec_theta < radians(33.0)\n      AND gen_vz > -5.5\n      AND gen_vz < -0.5\n      AND usable_for_hadron_response_training\n      AND gen_pid IN (-211, 211, 2212)\n      AND delta_p IS NOT NULL AND delta_theta IS NOT NULL AND delta_phi IS NOT NULL\n      AND isfinite(delta_p) AND isfinite(delta_theta) AND isfinite(delta_phi)\n      AND match_reciprocal\n      AND rec_pid <> 0\n      AND rec_beta > -99\n      AND abs(delta_p) <= 10.0"
+  },
+  "primary_endpoint": "unweighted mean absolute Gaussian-width ratio error in pion cells at 6-9 GeV",
+  "selection": "minimum validation joint loss within fixed 30 epochs; no test-based tuning",
+  "condition_summary": [
+    {
+      "split": "validation",
+      "metric": "high_pion_width_mae",
+      "condition": "baseline",
+      "n_seeds": 3,
+      "mean": 0.10497890276360522,
+      "seed_sd": 0.04646358869513798
+    },
+    {
+      "split": "validation",
+      "metric": "high_pion_width_mae",
+      "condition": "raw",
+      "n_seeds": 3,
+      "mean": 0.11602250389730268,
+      "seed_sd": 0.043455180616876136
+    },
+    {
+      "split": "validation",
+      "metric": "core_abs_median_bias_MeV",
+      "condition": "baseline",
+      "n_seeds": 3,
+      "mean": 0.47358118163214785,
+      "seed_sd": 0.2508176785012449
+    },
+    {
+      "split": "validation",
+      "metric": "core_abs_median_bias_MeV",
+      "condition": "raw",
+      "n_seeds": 3,
+      "mean": 0.5279618899027506,
+      "seed_sd": 0.21283914524584
+    },
+    {
+      "split": "validation",
+      "metric": "core_sigma68_ratio_mae",
+      "condition": "baseline",
+      "n_seeds": 3,
+      "mean": 0.017578641307139597,
+      "seed_sd": 0.009501333274341809
+    },
+    {
+      "split": "validation",
+      "metric": "core_sigma68_ratio_mae",
+      "condition": "raw",
+      "n_seeds": 3,
+      "mean": 0.020695964316710367,
+      "seed_sd": 0.0039073805297606245
+    },
+    {
+      "split": "validation",
+      "metric": "pid_tv_particle_weighted",
+      "condition": "baseline",
+      "n_seeds": 3,
+      "mean": 0.026001862853272734,
+      "seed_sd": 0.0014517524052579584
+    },
+    {
+      "split": "validation",
+      "metric": "pid_tv_particle_weighted",
+      "condition": "raw",
+      "n_seeds": 3,
+      "mean": 0.0270255273053672,
+      "seed_sd": 0.0014569668332642066
+    },
+    {
+      "split": "validation",
+      "metric": "pid_cross_entropy",
+      "condition": "baseline",
+      "n_seeds": 3,
+      "mean": 0.995260058635392,
+      "seed_sd": 0.0013856546800817481
+    },
+    {
+      "split": "validation",
+      "metric": "pid_cross_entropy",
+      "condition": "raw",
+      "n_seeds": 3,
+      "mean": 0.9973799371859621,
+      "seed_sd": 0.0013564042383084228
+    },
+    {
+      "split": "validation",
+      "metric": "pid_accuracy",
+      "condition": "baseline",
+      "n_seeds": 3,
+      "mean": 0.6781483849133231,
+      "seed_sd": 0.0001883325085713728
+    },
+    {
+      "split": "validation",
+      "metric": "pid_accuracy",
+      "condition": "raw",
+      "n_seeds": 3,
+      "mean": 0.677832930136168,
+      "seed_sd": 0.00023553205467708862
+    },
+    {
+      "split": "validation",
+      "metric": "beta_w1_macro",
+      "condition": "baseline",
+      "n_seeds": 3,
+      "mean": 0.023340701849924195,
+      "seed_sd": 0.005900682200776574
+    },
+    {
+      "split": "validation",
+      "metric": "beta_w1_macro",
+      "condition": "raw",
+      "n_seeds": 3,
+      "mean": 0.024700034720202286,
+      "seed_sd": 0.00461170386087931
+    },
+    {
+      "split": "validation",
+      "metric": "delta_p_w1_macro_GeV",
+      "condition": "baseline",
+      "n_seeds": 3,
+      "mean": 454245632.08109576,
+      "seed_sd": 786776513.715042
+    },
+    {
+      "split": "validation",
+      "metric": "delta_p_w1_macro_GeV",
+      "condition": "raw",
+      "n_seeds": 3,
+      "mean": 0.08970114133424224,
+      "seed_sd": 0.03075671977744529
+    },
+    {
+      "split": "validation",
+      "metric": "negative_reconstructed_p_fraction",
+      "condition": "baseline",
+      "n_seeds": 3,
+      "mean": 0.004976246882011557,
+      "seed_sd": 0.001781472135778022
+    },
+    {
+      "split": "validation",
+      "metric": "negative_reconstructed_p_fraction",
+      "condition": "raw",
+      "n_seeds": 3,
+      "mean": 0.004297287924558259,
+      "seed_sd": 0.0016718384138614914
+    },
+    {
+      "split": "validation",
+      "metric": "abs_delta_p_gt_10_fraction",
+      "condition": "baseline",
+      "n_seeds": 3,
+      "mean": 0.0003676823892670168,
+      "seed_sd": 6.583165685451364e-05
+    },
+    {
+      "split": "validation",
+      "metric": "abs_delta_p_gt_10_fraction",
+      "condition": "raw",
+      "n_seeds": 3,
+      "mean": 0.0004324446282856391,
+      "seed_sd": 0.00014236599470538044
+    },
+    {
+      "split": "test",
+      "metric": "high_pion_width_mae",
+      "condition": "baseline",
+      "n_seeds": 3,
+      "mean": 0.12226869852568495,
+      "seed_sd": 0.02729173986380493
+    },
+    {
+      "split": "test",
+      "metric": "high_pion_width_mae",
+      "condition": "raw",
+      "n_seeds": 3,
+      "mean": 0.1379857549651483,
+      "seed_sd": 0.03598406564406668
+    },
+    {
+      "split": "test",
+      "metric": "core_abs_median_bias_MeV",
+      "condition": "baseline",
+      "n_seeds": 3,
+      "mean": 0.48453262117173934,
+      "seed_sd": 0.22151027865679357
+    },
+    {
+      "split": "test",
+      "metric": "core_abs_median_bias_MeV",
+      "condition": "raw",
+      "n_seeds": 3,
+      "mean": 0.5022371610005697,
+      "seed_sd": 0.24544172369441333
+    },
+    {
+      "split": "test",
+      "metric": "core_sigma68_ratio_mae",
+      "condition": "baseline",
+      "n_seeds": 3,
+      "mean": 0.018256930763743625,
+      "seed_sd": 0.0057029997915080885
+    },
+    {
+      "split": "test",
+      "metric": "core_sigma68_ratio_mae",
+      "condition": "raw",
+      "n_seeds": 3,
+      "mean": 0.02015343975148218,
+      "seed_sd": 0.0034711049005837903
+    },
+    {
+      "split": "test",
+      "metric": "pid_tv_particle_weighted",
+      "condition": "baseline",
+      "n_seeds": 3,
+      "mean": 0.026014048254723185,
+      "seed_sd": 0.0012506233492722107
+    },
+    {
+      "split": "test",
+      "metric": "pid_tv_particle_weighted",
+      "condition": "raw",
+      "n_seeds": 3,
+      "mean": 0.027484793064121573,
+      "seed_sd": 0.001840833612843204
+    },
+    {
+      "split": "test",
+      "metric": "pid_cross_entropy",
+      "condition": "baseline",
+      "n_seeds": 3,
+      "mean": 0.9965043584655681,
+      "seed_sd": 0.001661098403637303
+    },
+    {
+      "split": "test",
+      "metric": "pid_cross_entropy",
+      "condition": "raw",
+      "n_seeds": 3,
+      "mean": 0.9985704332120532,
+      "seed_sd": 0.0015244694153315338
+    },
+    {
+      "split": "test",
+      "metric": "pid_accuracy",
+      "condition": "baseline",
+      "n_seeds": 3,
+      "mean": 0.6773301464498748,
+      "seed_sd": 0.0004095848155302469
+    },
+    {
+      "split": "test",
+      "metric": "pid_accuracy",
+      "condition": "raw",
+      "n_seeds": 3,
+      "mean": 0.6769737186946357,
+      "seed_sd": 0.00020462330089781878
+    },
+    {
+      "split": "test",
+      "metric": "beta_w1_macro",
+      "condition": "baseline",
+      "n_seeds": 3,
+      "mean": 0.027644856108559504,
+      "seed_sd": 0.0049274248319345106
+    },
+    {
+      "split": "test",
+      "metric": "beta_w1_macro",
+      "condition": "raw",
+      "n_seeds": 3,
+      "mean": 0.02855205949809816,
+      "seed_sd": 0.003352308497305435
+    },
+    {
+      "split": "test",
+      "metric": "delta_p_w1_macro_GeV",
+      "condition": "baseline",
+      "n_seeds": 3,
+      "mean": 0.5368566960096359,
+      "seed_sd": 0.819367561449231
+    },
+    {
+      "split": "test",
+      "metric": "delta_p_w1_macro_GeV",
+      "condition": "raw",
+      "n_seeds": 3,
+      "mean": 0.09315883285469473,
+      "seed_sd": 0.03105288878547704
+    },
+    {
+      "split": "test",
+      "metric": "negative_reconstructed_p_fraction",
+      "condition": "baseline",
+      "n_seeds": 3,
+      "mean": 0.004883060246773804,
+      "seed_sd": 0.0018658050573219806
+    },
+    {
+      "split": "test",
+      "metric": "negative_reconstructed_p_fraction",
+      "condition": "raw",
+      "n_seeds": 3,
+      "mean": 0.004189074440984999,
+      "seed_sd": 0.0016131604970944873
+    },
+    {
+      "split": "test",
+      "metric": "abs_delta_p_gt_10_fraction",
+      "condition": "baseline",
+      "n_seeds": 3,
+      "mean": 0.00041513350316067554,
+      "seed_sd": 9.392826067281868e-05
+    },
+    {
+      "split": "test",
+      "metric": "abs_delta_p_gt_10_fraction",
+      "condition": "raw",
+      "n_seeds": 3,
+      "mean": 0.00044867964483022503,
+      "seed_sd": 0.00013524507278774841
+    }
+  ],
+  "paired_differences": [
+    {
+      "split": "validation",
+      "metric": "high_pion_width_mae",
+      "mean_raw_minus_baseline": 0.011043601133697454,
+      "seed_sd_of_difference": 0.03477685389727986,
+      "min_difference": -0.022621273758866828,
+      "max_difference": 0.04683485488912045,
+      "raw_lower_pairs": 1,
+      "pairs": 3
+    },
+    {
+      "split": "validation",
+      "metric": "core_abs_median_bias_MeV",
+      "mean_raw_minus_baseline": 0.05438070827060278,
+      "seed_sd_of_difference": 0.3234532213412129,
+      "min_difference": -0.147318442662557,
+      "max_difference": 0.4274619420369467,
+      "raw_lower_pairs": 2,
+      "pairs": 3
+    },
+    {
+      "split": "validation",
+      "metric": "core_sigma68_ratio_mae",
+      "mean_raw_minus_baseline": 0.0031173230095707695,
+      "seed_sd_of_difference": 0.0067564847325635976,
+      "min_difference": -0.004073248376485556,
+      "max_difference": 0.009334029748117183,
+      "raw_lower_pairs": 1,
+      "pairs": 3
+    },
+    {
+      "split": "validation",
+      "metric": "pid_tv_particle_weighted",
+      "mean_raw_minus_baseline": 0.0010236644520944655,
+      "seed_sd_of_difference": 5.117342448402695e-05,
+      "min_difference": 0.0009724043020566883,
+      "max_difference": 0.0010747507078363305,
+      "raw_lower_pairs": 0,
+      "pairs": 3
+    },
+    {
+      "split": "validation",
+      "metric": "pid_cross_entropy",
+      "mean_raw_minus_baseline": 0.0021198785505700535,
+      "seed_sd_of_difference": 0.0016563100941696086,
+      "min_difference": 0.0009396623895105982,
+      "max_difference": 0.004013321004132542,
+      "raw_lower_pairs": 0,
+      "pairs": 3
+    },
+    {
+      "split": "validation",
+      "metric": "pid_accuracy",
+      "mean_raw_minus_baseline": -0.00031545477715522185,
+      "seed_sd_of_difference": 0.00033845426949166105,
+      "min_difference": -0.0006518005991551501,
+      "max_difference": 2.506925381362546e-05,
+      "raw_lower_pairs": 2,
+      "pairs": 3
+    },
+    {
+      "split": "validation",
+      "metric": "beta_w1_macro",
+      "mean_raw_minus_baseline": 0.0013593328702780929,
+      "seed_sd_of_difference": 0.004776147555454994,
+      "min_difference": -0.002993248403072357,
+      "max_difference": 0.006468687206506729,
+      "raw_lower_pairs": 1,
+      "pairs": 3
+    },
+    {
+      "split": "validation",
+      "metric": "delta_p_w1_macro_GeV",
+      "mean_raw_minus_baseline": -454245631.9913946,
+      "seed_sd_of_difference": 786776513.733884,
+      "min_difference": -1362736895.984061,
+      "max_difference": 0.005066659301519394,
+      "raw_lower_pairs": 1,
+      "pairs": 3
+    },
+    {
+      "split": "validation",
+      "metric": "negative_reconstructed_p_fraction",
+      "mean_raw_minus_baseline": -0.000678958957453298,
+      "seed_sd_of_difference": 0.00011040675083019981,
+      "min_difference": -0.0007458103009563913,
+      "max_difference": -0.0005515235839005255,
+      "raw_lower_pairs": 3,
+      "pairs": 3
+    },
+    {
+      "split": "validation",
+      "metric": "abs_delta_p_gt_10_fraction",
+      "mean_raw_minus_baseline": 6.476223901862224e-05,
+      "seed_sd_of_difference": 0.00016299031992370196,
+      "min_difference": -0.00010027701525464099,
+      "max_difference": 0.00022562328432294208,
+      "raw_lower_pairs": 1,
+      "pairs": 3
+    },
+    {
+      "split": "test",
+      "metric": "high_pion_width_mae",
+      "mean_raw_minus_baseline": 0.01571705643946335,
+      "seed_sd_of_difference": 0.02306847216191682,
+      "min_difference": -0.002460455789915328,
+      "max_difference": 0.04166813578519718,
+      "raw_lower_pairs": 1,
+      "pairs": 3
+    },
+    {
+      "split": "test",
+      "metric": "core_abs_median_bias_MeV",
+      "mean_raw_minus_baseline": 0.01770453982883032,
+      "seed_sd_of_difference": 0.3073973783335584,
+      "min_difference": -0.18056901295979821,
+      "max_difference": 0.3718096415201823,
+      "raw_lower_pairs": 2,
+      "pairs": 3
+    },
+    {
+      "split": "test",
+      "metric": "core_sigma68_ratio_mae",
+      "mean_raw_minus_baseline": 0.0018965089877385581,
+      "seed_sd_of_difference": 0.002484555124570079,
+      "min_difference": -0.0005420395118819199,
+      "max_difference": 0.004424647278722087,
+      "raw_lower_pairs": 1,
+      "pairs": 3
+    },
+    {
+      "split": "test",
+      "metric": "pid_tv_particle_weighted",
+      "mean_raw_minus_baseline": 0.0014707448093983857,
+      "seed_sd_of_difference": 0.0006316436586603167,
+      "min_difference": 0.000894673899454676,
+      "max_difference": 0.0021461824346832893,
+      "raw_lower_pairs": 0,
+      "pairs": 3
+    },
+    {
+      "split": "test",
+      "metric": "pid_cross_entropy",
+      "mean_raw_minus_baseline": 0.002066074746485125,
+      "seed_sd_of_difference": 0.0016234669339139378,
+      "min_difference": 0.0009144055632279713,
+      "max_difference": 0.003922881021939606,
+      "raw_lower_pairs": 0,
+      "pairs": 3
+    },
+    {
+      "split": "test",
+      "metric": "pid_accuracy",
+      "mean_raw_minus_baseline": -0.0003564277552389565,
+      "seed_sd_of_difference": 0.00031764521857890175,
+      "min_difference": -0.0005849608453627475,
+      "max_difference": 6.289901563039102e-06,
+      "raw_lower_pairs": 2,
+      "pairs": 3
+    },
+    {
+      "split": "test",
+      "metric": "beta_w1_macro",
+      "mean_raw_minus_baseline": 0.0009072033895386571,
+      "seed_sd_of_difference": 0.004018805212912778,
+      "min_difference": -0.003327965115507446,
+      "max_difference": 0.0046674398084481546,
+      "raw_lower_pairs": 1,
+      "pairs": 3
+    },
+    {
+      "split": "test",
+      "metric": "delta_p_w1_macro_GeV",
+      "mean_raw_minus_baseline": -0.44369786315494125,
+      "seed_sd_of_difference": 0.8336604473188945,
+      "min_difference": -1.4052963492770991,
+      "max_difference": 0.07565011580785116,
+      "raw_lower_pairs": 2,
+      "pairs": 3
+    },
+    {
+      "split": "test",
+      "metric": "negative_reconstructed_p_fraction",
+      "mean_raw_minus_baseline": -0.0006939858057888061,
+      "seed_sd_of_difference": 0.00028990464952024673,
+      "min_difference": -0.0009938044469604054,
+      "max_difference": -0.00041513350316067527,
+      "raw_lower_pairs": 3,
+      "pairs": 3
+    },
+    {
+      "split": "test",
+      "metric": "abs_delta_p_gt_10_fraction",
+      "mean_raw_minus_baseline": 3.354614166954954e-05,
+      "seed_sd_of_difference": 0.00015008149756830965,
+      "min_difference": -0.00013837783438689185,
+      "max_difference": 0.00013837783438689185,
+      "raw_lower_pairs": 1,
+      "pairs": 3
+    }
+  ]
+}

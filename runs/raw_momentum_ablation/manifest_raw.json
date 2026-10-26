@@ -1,0 +1,71 @@
+[
+  {
+    "seed": 20260822,
+    "condition": "raw",
+    "command": [
+      "/home/htseng/anaconda3/envs/QuantumMC/bin/python",
+      "-u",
+      "/home/htseng/Downloads/QuantumMC_Forward_Foundation_Model/train_split_dp_asinh.py",
+      "--config",
+      "/home/htseng/Downloads/QuantumMC_Forward_Foundation_Model/configs/gpu_split_dp_asinh.yaml",
+      "--device",
+      "cuda:0",
+      "--seed",
+      "20260822",
+      "--parquet-glob",
+      "/home/htseng/Downloads/phase-space_parquet-Aug17-26/particle_responses/*.parquet",
+      "--run-dir",
+      "/home/htseng/Downloads/QuantumMC_Forward_Foundation_Model/runs/raw_momentum_ablation/seed_20260822/raw",
+      "--raw-momentum"
+    ],
+    "model_sha256": "b70173442cf03b6cd38b7ad5fa53c137a0952fec6ece20b85846bc24754d42a7",
+    "validation_high_pion_width_mae": 0.1515423886309931,
+    "test_high_pion_width_mae": 0.17147799118841936
+  },
+  {
+    "seed": 20260823,
+    "condition": "raw",
+    "command": [
+      "/home/htseng/anaconda3/envs/QuantumMC/bin/python",
+      "-u",
+      "/home/htseng/Downloads/QuantumMC_Forward_Foundation_Model/train_split_dp_asinh.py",
+      "--config",
+      "/home/htseng/Downloads/QuantumMC_Forward_Foundation_Model/configs/gpu_split_dp_asinh.yaml",
+      "--device",
+      "cuda:0",
+      "--seed",
+      "20260823",
+      "--parquet-glob",
+      "/home/htseng/Downloads/phase-space_parquet-Aug17-26/particle_responses/*.parquet",
+      "--run-dir",
+      "/home/htseng/Downloads/QuantumMC_Forward_Foundation_Model/runs/raw_momentum_ablation/seed_20260823/raw",
+      "--raw-momentum"
+    ],
+    "model_sha256": "9aeb627f00764f3b3831a061e104c422f4e5e437e3698fb5e5f49c36f954cbe7",
+    "validation_high_pion_width_mae": 0.1289563078613363,
+    "test_high_pion_width_mae": 0.14253648086500795
+  },
+  {
+    "seed": 20260824,
+    "condition": "raw",
+    "command": [
+      "/home/htseng/anaconda3/envs/QuantumMC/bin/python",
+      "-u",
+      "/home/htseng/Downloads/QuantumMC_Forward_Foundation_Model/train_split_dp_asinh.py",
+      "--config",
+      "/home/htseng/Downloads/QuantumMC_Forward_Foundation_Model/configs/gpu_split_dp_asinh.yaml",
+      "--device",
+      "cuda:0",
+      "--seed",
+      "20260824",
+      "--parquet-glob",
+      "/home/htseng/Downloads/phase-space_parquet-Aug17-26/particle_responses/*.parquet",
+      "--run-dir",
+      "/home/htseng/Downloads/QuantumMC_Forward_Foundation_Model/runs/raw_momentum_ablation/seed_20260824/raw",
+      "--raw-momentum"
+    ],
+    "model_sha256": "703d5368e033c5870da3761c9b3014c91052683729d3f771c3cafa43afa063ae",
+    "validation_high_pion_width_mae": 0.06756881519957865,
+    "test_high_pion_width_mae": 0.09994279284201761
+  }
+]

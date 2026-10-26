@@ -1,0 +1,33 @@
+device=cuda:0 inputs=5 split_counts={'train': 1270698, 'validation': 159558, 'test': 158985}
+epoch=01 train_loss=2.60997 val_loss=-0.83910 val_nll=-1.90275 val_pid_acc=0.6733
+epoch=02 train_loss=-0.65874 val_loss=-2.36025 val_nll=-3.42556 val_pid_acc=0.6746
+epoch=03 train_loss=-1.77844 val_loss=-2.89947 val_nll=-3.95656 val_pid_acc=0.6750
+epoch=04 train_loss=-2.31847 val_loss=-3.18696 val_nll=-4.23883 val_pid_acc=0.6752
+epoch=05 train_loss=-2.67187 val_loss=-3.40431 val_nll=-4.45125 val_pid_acc=0.6751
+epoch=06 train_loss=-2.88659 val_loss=-3.51296 val_nll=-4.55434 val_pid_acc=0.6757
+epoch=07 train_loss=-3.02363 val_loss=-3.61824 val_nll=-4.65465 val_pid_acc=0.6756
+epoch=08 train_loss=-3.16947 val_loss=-3.59396 val_nll=-4.62535 val_pid_acc=0.6756
+epoch=09 train_loss=-3.29739 val_loss=-3.70931 val_nll=-4.73527 val_pid_acc=0.6756
+epoch=10 train_loss=-3.36452 val_loss=-3.73787 val_nll=-4.75949 val_pid_acc=0.6759
+epoch=11 train_loss=-3.44763 val_loss=-3.83814 val_nll=-4.85605 val_pid_acc=0.6760
+epoch=12 train_loss=-3.49428 val_loss=-3.82373 val_nll=-4.83905 val_pid_acc=0.6762
+epoch=13 train_loss=-3.53920 val_loss=-3.84492 val_nll=-4.85929 val_pid_acc=0.6762
+epoch=14 train_loss=-3.62618 val_loss=-3.91307 val_nll=-4.92403 val_pid_acc=0.6762
+epoch=15 train_loss=-3.62618 val_loss=-3.91091 val_nll=-4.92026 val_pid_acc=0.6765
+epoch=16 train_loss=-3.68907 val_loss=-3.92034 val_nll=-4.92756 val_pid_acc=0.6765
+epoch=17 train_loss=-3.69600 val_loss=-3.90386 val_nll=-4.90973 val_pid_acc=0.6766
+epoch=18 train_loss=-3.72330 val_loss=-3.82825 val_nll=-4.83270 val_pid_acc=0.6765
+epoch=19 train_loss=-3.77739 val_loss=-3.97245 val_nll=-4.97553 val_pid_acc=0.6767
+epoch=20 train_loss=-3.79454 val_loss=-3.99767 val_nll=-4.99944 val_pid_acc=0.6769
+epoch=21 train_loss=-3.79652 val_loss=-3.94662 val_nll=-4.94765 val_pid_acc=0.6766
+epoch=22 train_loss=-3.82795 val_loss=-3.89597 val_nll=-4.89560 val_pid_acc=0.6774
+epoch=23 train_loss=-3.83775 val_loss=-3.93448 val_nll=-4.93336 val_pid_acc=0.6772
+epoch=24 train_loss=-3.89005 val_loss=-4.06336 val_nll=-5.06139 val_pid_acc=0.6774
+epoch=25 train_loss=-3.89662 val_loss=-4.01788 val_nll=-5.01516 val_pid_acc=0.6775
+epoch=26 train_loss=-3.92178 val_loss=-4.02132 val_nll=-5.01872 val_pid_acc=0.6777
+epoch=27 train_loss=-3.92713 val_loss=-4.01353 val_nll=-5.00960 val_pid_acc=0.6780
+epoch=28 train_loss=-3.96509 val_loss=-4.08939 val_nll=-5.08465 val_pid_acc=0.6782
+epoch=29 train_loss=-3.97203 val_loss=-4.05095 val_nll=-5.04594 val_pid_acc=0.6780
+epoch=30 train_loss=-3.97401 val_loss=-4.10998 val_nll=-5.10444 val_pid_acc=0.6781
+checkpoint=/home/htseng/Downloads/QuantumMC_Forward_Foundation_Model/runs/raw_momentum_ablation/seed_20260824/baseline/model.pt best_epoch=30
+{"validation": {"pid_tv_particle_weighted": 0.024331936577200446, "high_pion_width_mae": 0.058651592928739914, "beta_w1_macro": 0.018786974872152012}, "test": {"pid_tv_particle_weighted": 0.024603102806979, "high_pion_width_mae": 0.0919993035189094, "beta_w1_macro": 0.02339077616731326}}

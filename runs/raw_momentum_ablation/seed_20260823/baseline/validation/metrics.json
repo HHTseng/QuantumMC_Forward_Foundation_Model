@@ -1,0 +1,55 @@
+{
+  "n": 159558,
+  "loss_coordinates": "standardized asinh-dp and affine other residuals",
+  "loss": {
+    "total_loss": -4.041653862280908,
+    "residual_nll": -5.038513982751286,
+    "pid_cross_entropy": 0.9968600699074038,
+    "pid_accuracy": 0.6780042367038945,
+    "examples_per_second": 59385.51686950149
+  },
+  "pid_tv_particle_weighted": 0.026709961021617618,
+  "beta_w1_macro": 0.03000683958331744,
+  "high_pion_width_mae": 0.15157758162020313,
+  "high_pion_cells": [
+    [
+      "pi-",
+      6.0,
+      7.0
+    ],
+    [
+      "pi-",
+      7.0,
+      8.0
+    ],
+    [
+      "pi-",
+      8.0,
+      9.0
+    ],
+    [
+      "pi+",
+      6.0,
+      7.0
+    ],
+    [
+      "pi+",
+      7.0,
+      8.0
+    ],
+    [
+      "pi+",
+      8.0,
+      9.0
+    ]
+  ],
+  "failed_gaussian_fits": 0,
+  "negative_reconstructed_p_fraction": 0.002926835382744833,
+  "sampled_abs_delta_p_gt_10_fraction": 0.0004324446282856391,
+  "teacher_rows_outside_later_beta_validity_domain": 486,
+  "target_correlation_frobenius": {
+    "pi-": 0.19220505311972208,
+    "pi+": 0.3484431891355529,
+    "proton": 0.458498177427817
+  }
+}

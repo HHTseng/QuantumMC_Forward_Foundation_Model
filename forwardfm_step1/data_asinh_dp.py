@@ -9,7 +9,7 @@ and, for a successfully reconstructed FD particle, the response target is
     Delta = (Delta p, Delta theta, Delta phi, Delta beta)
           = (p_rec - p_gen,
              theta_rec - theta_gen,
-             wrap(phi_rec - phi_gen)).
+             wrap(phi_rec - phi_gen), beta_rec - beta_gen).
 
 This module constructs samples for only the conditional factor
 

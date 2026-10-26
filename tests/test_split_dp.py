@@ -114,6 +114,11 @@ class SplitResponseTests(unittest.TestCase):
             expected=data.inverse_targets_from_model(data.Standardizer.from_dict(ck['target_scaler']).inverse(draws))
             np.testing.assert_allclose(sampled.sampled_delta_p,expected[:,0],rtol=1e-6)
             self.assertTrue(np.isfinite(sampled.sampled_rec_beta).all())
+            ck['target_scaler']['mean'][0]=20.
+            torch.save(ck,path)
+            extreme=sample_frame(path,frame,torch.device('cpu'),20261003)
+            self.assertTrue(extreme.sample_abs_delta_p_gt_10GeV.all())
+            self.assertGreater(float(extreme.sampled_delta_p.min()),10.)
             del ck['target_transform']; torch.save(ck,path)
             with self.assertRaises(ValueError): load_checkpoint(path,torch.device('cpu'))
 

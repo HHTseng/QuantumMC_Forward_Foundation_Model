@@ -66,6 +66,9 @@ def sample_frame(checkpoint_path, frame, device, seed):
     vocabulary = [*checkpoint["rec_pid_vocabulary"], "OTHER"]
     result["sampled_rec_pid"] = [vocabulary[i] for i in np.concatenate(pids)]
     result["sample_is_physical"] = (result.sampled_rec_p > 0) & result.sampled_rec_theta.between(0, np.pi)
+    # An unbounded asinh-Gaussian may generate finite but enormous residuals.
+    # Expose the diagnostic threshold explicitly; do not clip/reject draws.
+    result["sample_abs_delta_p_gt_10GeV"] = np.abs(residuals[:, 0]) > 10.0
     return result
 
 

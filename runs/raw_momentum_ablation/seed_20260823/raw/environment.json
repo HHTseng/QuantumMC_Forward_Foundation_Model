@@ -1,0 +1,15 @@
+{
+  "python": "3.12.14 | packaged by Anaconda, Inc. | (main, Aug 27 2026, 14:46:43) [GCC 14.3.0]",
+  "torch": "2.11.0+cu128",
+  "numpy": "2.5.2",
+  "platform": "Linux-5.4.0-216-generic-x86_64-with-glibc2.31",
+  "device": "cuda:0",
+  "cuda": "12.8",
+  "source_sha256": {
+    "train_split_dp_asinh.py": "b839176020bdfda6d988c531a8c313a0fb8086cdd334f79375480bceb4687002",
+    "forwardfm_step1/data_asinh_dp.py": "6b0c2d391a8c12a0bb258e3e091856a6d82045e13dc92a417e2ed022dff3e0aa",
+    "forwardfm_step1/model_split_dp.py": "3855ec4177292a3e36ec3c1ad98f1ae63db6c619f8b6c46243160fb5faae812b",
+    "forwardfm_step1/training_split_dp.py": "59d547a9807023a58adb737a369b41213d55d8f1e068187a6719389ad94bba98",
+    "forwardfm_step1/evaluation_split_dp.py": "184e1575321f7363e3548732a6b063c91584f3d4d2216895831263cfab0e2ca0"
+  }
+}
