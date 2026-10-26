@@ -35,7 +35,8 @@ def wilson_interval(successes: float, n: int, z: float = 1.0) -> tuple[float, fl
     denominator = 1 + z * z / n
     center = (p + z * z / (2 * n)) / denominator
     half = z * np.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / denominator
-    return float(max(0, center - half)), float(min(1, center + half))
+    return (0.0 if successes == 0 else float(max(0, center - half)),
+            1.0 if successes == n else float(min(1, center + half)))
 
 
 def reliability_rows(
@@ -168,10 +169,10 @@ def _plot_closure(rows: list[dict[str, Any]], path: Path, xlabel: str, target_na
     observed = np.array([row["observed_efficiency"] for row in rows])
     fig, axes = plt.subplots(2, 1, figsize=(7, 5.4), sharex=True,
                              gridspec_kw={"height_ratios": [3, 1]})
-    axes[0].errorbar(x, observed, yerr=[
+    axes[0].errorbar(x, observed, yerr=np.maximum(0, np.array([
         observed - np.array([row["wilson_low"] for row in rows]),
         np.array([row["wilson_high"] for row in rows]) - observed,
-    ], fmt="o", capsize=2, label="Full MC (68% Wilson interval)")
+    ])), fmt="o", capsize=2, label="Full MC (68% Wilson interval)")
     axes[0].plot(x, [row["fm_mean_probability"] for row in rows], "s-", label="FM mean probability")
     axes[0].set(ylabel=f"{target_name} efficiency given electron trigger", ylim=(-.025, 1.025))
     axes[0].legend(fontsize=8)

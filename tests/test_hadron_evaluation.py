@@ -40,6 +40,9 @@ class HadronEvaluationTests(unittest.TestCase):
         self.assertAlmostEqual(perfect["brier_skill_vs_constant"], 1.)
 
     def test_wilson_intervals_remain_nonzero_at_boundaries(self):
+        for n in (1, 37, 123, 1000, 247407):
+            self.assertEqual(wilson_interval(0, n)[0], 0.0)
+            self.assertEqual(wilson_interval(n, n)[1], 1.0)
         lo, hi = wilson_interval(0, 100)
         self.assertAlmostEqual(lo, 0.)
         self.assertGreater(hi, 0.)
