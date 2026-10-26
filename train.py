@@ -36,11 +36,14 @@ def parse_args() -> argparse.Namespace:
         description="Train the step-one stochastic CLAS12 Forward Detector response model."
     )
     parser.add_argument(
-        "--config", default="configs/fd_response_seed.yaml", help="YAML configuration path"
+        "--config", default="configs/gpu_split_dp_asinh.yaml", help="YAML configuration path"
     )
     parser.add_argument("--smoke", action="store_true", help="Use a tiny sample and two epochs")
     parser.add_argument("--run-dir", help="Override the configured output directory")
     parser.add_argument("--device", help="Override auto/cpu/cuda/mps device selection")
+    parser.add_argument("--raw-momentum", action="store_true", help="Append raw momentum for the split-asinh model")
+    parser.add_argument("--seed", type=int)
+    parser.add_argument("--parquet-glob")
     return parser.parse_args()
 
 
@@ -63,6 +66,16 @@ def environment_manifest(device: torch.device) -> dict[str, Any]:
 def main() -> None:
     args = parse_args()
     config = load_config(args.config)
+    if config.get("response_model") == "split_delta_p_asinh":
+        from train_split_dp_asinh import main as train_split_response
+        train_split_response()
+        return
+    if args.raw_momentum:
+        raise ValueError("--raw-momentum requires the split-asinh configuration")
+    if args.seed is not None:
+        config["project"]["seed"] = args.seed
+    if args.parquet_glob:
+        config["data"]["parquet_glob"] = args.parquet_glob
     if args.smoke:
         config = apply_smoke_overrides(config)
     if args.run_dir:

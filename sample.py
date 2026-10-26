@@ -63,6 +63,16 @@ def wrap_phi(phi: np.ndarray) -> np.ndarray:
 
 def main() -> None:
     args = parse_args()
+    # New format-2 split-asinh checkpoints carry their own feature order and
+    # nonlinear inverse. Legacy format-1 checkpoints keep the original path.
+    metadata = torch.load(args.checkpoint, map_location="cpu", weights_only=True)
+    if metadata.get("model_type") == "split_delta_p_asinh":
+        from sample_split_dp_asinh import sample_frame
+        result = sample_frame(args.checkpoint, pd.read_csv(args.input), choose_device(args.device), args.seed)
+        Path(args.output).parent.mkdir(parents=True, exist_ok=True)
+        result.to_csv(args.output, index=False)
+        print(f"wrote {len(result)} split-asinh responses to {args.output}")
+        return
     seed_everything(args.seed)
     device = choose_device(args.device)
     checkpoint = torch.load(args.checkpoint, map_location="cpu", weights_only=False)
