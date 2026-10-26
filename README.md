@@ -76,10 +76,10 @@ and asinh before constructing reconstructed kinematics.
 
 The fitted law is $P(\Delta,r\mid x,T=1,C={\rm FD},F=1)$, where $T$ is the
 trigger proxy, $C$ the reconstruction region, and $F$ the quality selection.
-The original selection uses reconstructed $\theta<33^\circ$, generated vertex
-$-5.5<z_{\rm gen}<-0.5$ cm, reciprocal matching, nonzero reconstructed PID,
+The original selection uses reconstructed $\theta\lt33^\circ$, generated vertex
+$-5.5\lt z_{\rm gen}\lt-0.5$ cm, reciprocal matching, nonzero reconstructed PID,
 `rec_beta > -99`, finite residuals, and $\lvert\Delta p\rvert\leq10$ GeV.
-It does not apply the later branch's $0<\beta_{\rm rec}\leq1.2$ restriction.
+It does not apply the later branch's $0\lt\beta_{\rm rec}\leq1.2$ restriction.
 
 The event key `(source_file_id, event_id)` determines the fixed 80/10/10 split.
 `assert_event_disjoint` checks all partition intersections; `build_audit` records
@@ -101,7 +101,7 @@ $\lvert\Delta p\rvert\leq100$ MeV, matching the poster. Gaussian core fits use
 Dr. Joo's 1-MeV histograms and two-stage fitting window.
 
 The paired experiment compares $d=5$ and $d=6$ on identical particles and starts
-both models from the same function: the added raw-$p$ weight is initially zero.
+both models from the same function: the added raw $p$ weight is initially zero.
 The primary diagnostic is mean $\lvert\sigma_{\rm FM}/\sigma_{\rm CJ}-1\rvert$
 over the 6 populated pion bins at 6--9 GeV. All 6 runs completed the fixed
 epoch budget and have identical particle-order hashes. Each test uses 158,985
