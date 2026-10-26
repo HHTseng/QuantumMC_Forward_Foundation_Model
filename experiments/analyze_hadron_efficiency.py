@@ -2,8 +2,9 @@
 """Combine 3 fixed-split training seeds and the original electron calibration.
 
 The electron panel estimates P(T=1|x_e) using all generated events. Hadron
-panels estimate P(C_h=FD|x_h,s,T=1) using all generated hadrons in triggered
-events. These are different denominators, not four hardware trigger models.
+panels estimate FD and any-region reconstruction probabilities using all
+generated hadrons in triggered events. These are different denominators,
+not four hardware trigger models.
 """
 
 from __future__ import annotations
@@ -98,6 +99,73 @@ def _collect(root: Path, seeds: list[int]) -> tuple[pd.DataFrame, dict[tuple[int
     return pd.DataFrame(rows), directories
 
 
+def _validate_electron_reference(
+    electron: Path, directories: dict[tuple[int, int], Path], summary_dir: Path,
+) -> dict[str, Any]:
+    """Require the original all-event reference to contain each hadron denominator.
+
+    Metadata/count checks establish production and split consistency. The
+    optional replay report additionally verifies exact event subsets and
+    predictions against the original electron checkpoint.
+    """
+    audit = _load_json(electron / "data_audit.json")
+    with (electron / "resolved_config.yaml").open() as stream:
+        config = yaml.safe_load(stream)
+    if audit["denominator_sql"].replace(" ", "") != "gen_pid=11":
+        raise ValueError("Electron reference does not use the all-generated-electron denominator")
+    if audit["event_split_overlap_count"] != 0:
+        raise ValueError("Electron reference reports event leakage")
+    curve = pd.read_csv(electron / "calibration_curve.csv")
+    if int(curve.n.sum()) != int(audit["split_counts"]["test"]["rows"]):
+        raise ValueError("Electron calibration curve does not cover its full test denominator")
+    observed_rate = audit["split_counts"]["test"]["trigger_successes"] / int(curve.n.sum())
+    if not np.isclose(np.average(curve.observed_trigger_rate, weights=curve.n), observed_rate, atol=1e-6, rtol=0):
+        raise ValueError("Electron calibration curve disagrees with audited trigger outcomes")
+    split_seed = int(config["project"]["seed"])
+    counts = []
+    for (seed, pid), directory in directories.items():
+        hadron_audit = _load_json(directory / "data_audit.json")
+        with (directory / "resolved_config.yaml").open() as stream:
+            hadron_config = yaml.safe_load(stream)
+        for key in ("dataset_metadata_sha256", "dataset_file_count", "dataset_total_bytes"):
+            if hadron_audit[key] != audit[key]:
+                raise ValueError(f"Electron/hadron reference uses different production: {key}")
+        if int(hadron_audit["split_seed"]) != split_seed:
+            raise ValueError("Electron and hadron reference use different event-split seeds")
+        for key in ("split_modulus", "train_boundary", "validation_boundary"):
+            if hadron_config["data"][key] != config["data"][key]:
+                raise ValueError(f"Electron and hadron event-split rules differ: {key}")
+        if hadron_audit["event_split_overlap_count"] != 0:
+            raise ValueError("Hadron reference reports event leakage")
+        for partition in ("train", "validation", "test"):
+            expected = int(audit["split_counts"][partition]["trigger_successes"])
+            actual = int(hadron_audit["split_counts"][partition]["rows"])
+            if actual != expected:
+                raise ValueError(f"Electron trigger-success count != hadron denominator: {directory}, {partition}")
+            counts.append({"seed": seed, "gen_pid": pid, "split": partition,
+                           "electron_trigger_successes": expected, "hadron_denominator": actual})
+    replay_path = summary_dir / "electron_reference_validation.json"
+    replay = _load_json(replay_path) if replay_path.exists() else None
+    if replay is not None and replay.get("checked") is not True:
+        raise ValueError("Optional exact electron-reference replay report has not passed")
+    result = {
+        "checked": True, "dataset_metadata_sha256": audit["dataset_metadata_sha256"],
+        "split_seed": split_seed, "matching_denominator_counts": counts,
+        "electron_reference_file_sha256": {
+            name: hashlib.sha256((electron / name).read_bytes()).hexdigest()
+            for name in ("data_audit.json", "resolved_config.yaml", "metrics.json", "calibration_curve.csv")
+        },
+        "exact_checkpoint_replay_report": replay,
+        "note": "Matching metadata/counts alone do not replace the optional exact event-subset replay.",
+    }
+    checkpoint = electron / "model.pt"
+    if checkpoint.exists():
+        result["electron_checkpoint_sha256"] = hashlib.sha256(checkpoint.read_bytes()).hexdigest()
+    with (summary_dir / "electron_reference_consistency.json").open("w") as stream:
+        json.dump(result, stream, indent=2, allow_nan=False)
+    return result
+
+
 def _plot_calibration(root: Path, directories: dict[tuple[int, int], Path],
                       representative: int, electron: Path, target: str) -> dict[str, Any]:
     electron_metrics = _load_json(electron / "metrics.json")["trigger"]
@@ -154,11 +222,11 @@ def _plot_calibration(root: Path, directories: dict[tuple[int, int], Path],
 
 
 def _plot_kinematic(root: Path, directories: dict[tuple[int, int], Path],
-                     seeds: list[int], representative: int, variable: str) -> None:
+                     seeds: list[int], representative: int, variable: str, target: str) -> None:
     figure, axes = plt.subplots(2, 3, figsize=(14, 6.6), sharex="col", sharey="row",
                                 gridspec_kw={"height_ratios": [3, 1]})
     for column, pid in enumerate(SPECIES):
-        frames = [pd.read_csv(directories[(seed, pid)] / f"efficiency_fd_vs_{variable}.csv") for seed in seeds]
+        frames = [pd.read_csv(directories[(seed, pid)] / f"efficiency_{target}_vs_{variable}.csv") for seed in seeds]
         frame = frames[seeds.index(representative)]
         valid = frame.eligible.astype(bool)
         x = ((frame.low + frame.high) / 2).to_numpy()[valid]
@@ -179,22 +247,24 @@ def _plot_kinematic(root: Path, directories: dict[tuple[int, int], Path],
         axes[1, column].set_xlabel("Generated momentum [GeV]" if variable == "gen_p" else "Generated polar angle [deg]")
         for axis in axes[:, column]:
             axis.grid(alpha=.25)
-    axes[0, 0].set_ylabel("FD reconstruction efficiency given electron trigger")
+    scope = "FD" if target == "fd" else "Any-region"
+    axes[0, 0].set_ylabel(f"{scope} reconstruction efficiency given electron trigger")
     axes[1, 0].set_ylabel("FM-MC [pp]")
     axes[0, 0].legend(fontsize=8)
-    figure.suptitle("Hadron reconstruction closure: all generated hadrons in triggered events")
+    figure.suptitle(f"{scope} hadron reconstruction closure: all generated hadrons in triggered events")
     figure.tight_layout()
-    figure.savefig(root / f"hadron_efficiency_vs_{variable}.png", dpi=180)
+    suffix = "" if target == "fd" else "_any"
+    figure.savefig(root / f"hadron_efficiency_vs_{variable}{suffix}.png", dpi=180)
     plt.close(figure)
 
 
 def _plot_two_dimensional(root: Path, directories: dict[tuple[int, int], Path],
-                          seeds: list[int], representative: int) -> None:
+                          seeds: list[int], representative: int, target: str) -> None:
     figure, axes = plt.subplots(3, 3, figsize=(12.2, 10), sharex=True, sharey=True)
     differences = []
     matrices = []
     for pid in SPECIES:
-        frames = [pd.read_csv(directories[(seed, pid)] / "efficiency_fd_p_theta.csv") for seed in seeds]
+        frames = [pd.read_csv(directories[(seed, pid)] / f"efficiency_{target}_p_theta.csv") for seed in seeds]
         frame = frames[seeds.index(representative)]
         p_edges = np.unique(np.r_[frame.p_low, frame.p_high])
         theta_edges = np.unique(np.r_[frame.low, frame.high])
@@ -220,10 +290,12 @@ def _plot_two_dimensional(root: Path, directories: dict[tuple[int, int], Path],
         axes[2, column].set_xlabel("Generated momentum [GeV]")
     for row, label in enumerate(("Full MC", f"FM: {len(seeds)}-seed mean", "Closure difference")):
         axes[row, 0].set_ylabel(f"{label}\nGenerated polar angle [deg]")
-    figure.suptitle("FD reconstruction given electron trigger: momentum-angle closure\n"
+    scope = "FD" if target == "fd" else "Any-region"
+    figure.suptitle(f"{scope} reconstruction given electron trigger: momentum-angle closure\n"
                     "Blank cells have fewer than the configured minimum MC count")
     figure.tight_layout(rect=(0, 0, 1, .95))
-    figure.savefig(root / "hadron_efficiency_p_theta.png", dpi=180)
+    name = "hadron_efficiency_p_theta.png" if target == "fd" else "hadron_efficiency_p_theta_any.png"
+    figure.savefig(root / name, dpi=180)
     plt.close(figure)
 
 
@@ -239,6 +311,7 @@ def main() -> None:
     rows, directories = _collect(args.root, args.seeds)
     summary_dir = args.root / "summary"
     summary_dir.mkdir(parents=True, exist_ok=True)
+    electron_consistency = _validate_electron_reference(args.electron_run, directories, summary_dir)
     rows.to_csv(summary_dir / "per_run_metrics.csv", index=False)
     measured = ["observed_rate", "mean_predicted_probability", "mean_bias", "log_loss", "brier_score",
                 "expected_calibration_error", "brier_skill_vs_constant", "gen_p_weighted_mae",
@@ -254,14 +327,16 @@ def main() -> None:
     pd.DataFrame(summary_rows).to_csv(summary_dir / "condition_summary.csv", index=False)
     electron = _plot_calibration(summary_dir, directories, args.representative_seed, args.electron_run, "fd")
     _plot_calibration(summary_dir, directories, args.representative_seed, args.electron_run, "any")
-    for variable in ("gen_p", "gen_theta"):
-        _plot_kinematic(summary_dir, directories, args.seeds, args.representative_seed, variable)
-    _plot_two_dimensional(summary_dir, directories, args.seeds, args.representative_seed)
+    for target in ("fd", "any"):
+        for variable in ("gen_p", "gen_theta"):
+            _plot_kinematic(summary_dir, directories, args.seeds, args.representative_seed, variable, target)
+        _plot_two_dimensional(summary_dir, directories, args.seeds, args.representative_seed, target)
     summary = {
         "network_seeds": args.seeds, "representative_seed": args.representative_seed,
         "seed_variability": "sample SD over network seeds; same held-out events, not independent MC samples",
         "hadron_conditioning": "all generated hadrons of each species in T=1 events; no response-quality cuts",
-        "electron": electron, "hadron_results": summary_rows,
+        "electron": electron, "electron_reference_consistency": electron_consistency,
+        "hadron_results": summary_rows,
         "limitations": ["Calibration is not event-level correlation closure.",
                          "Acceptance times reconstruction, not intrinsic tracking efficiency.",
                          "Single phase-space production; no run-condition or physics-generator transfer claim."],

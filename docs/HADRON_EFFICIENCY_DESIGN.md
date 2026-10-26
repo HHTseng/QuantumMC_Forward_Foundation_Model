@@ -90,7 +90,8 @@ $$
 \sum_{i\in(s,\rm train,T=1)}\log q_{\vartheta,C_i}(z_i,s).
 $$
 
-For every generated-kinematic bin $B$ and category $c$, compare
+For a generated-kinematic bin $B$, compare the FD fraction ($c=\mathrm{FD}$)
+and its corresponding probability; combine reconstructed categories for `any`:
 
 $$
 f_{\rm MC}(c;B,s)=\frac{\sum_{i\in(B,s,T=1)}\mathbf1[C_i=c]}{N_{B,s}},
@@ -100,7 +101,9 @@ $$
 
 Compare probabilities, not thresholded or sampled decisions. Produce separate
 species closure in $p,\theta,\phi,v_z$, and $(p,\theta)$; show bin counts and
-binomial intervals. Summaries use a fixed minimum of 100 rows per supported
+binomial intervals. The 5 individual categorical channels also receive global
+scores and calibration metrics, not separate kinematic plots. Summaries use a
+fixed minimum of 100 rows per supported
 kinematic cell and report excluded cells explicitly. Report mean signed error,
 weighted and unweighted absolute closure error, categorical cross-entropy,
 binary Brier scores for FD/any, and reliability diagrams with 20 fixed equal
@@ -136,6 +139,12 @@ generators needs new closure and support checks. Good reliability does not
 guarantee kinematic closure; agreement of single-particle rates does not prove
 joint reconstruction closure. No new conditional response, PID, beta-response,
 or event-correlation model is claimed by this study.
+
+The inherited response model also conditions on an extra selection $F=1$
+(fiducial/quality and residual cuts). This study does not learn
+$P(F=1\mid C_h=\mathrm{FD},T=1,x_h,s)$ or CD/FT residuals. Consequently,
+the new gates and the existing selected FD response are complementary
+components, not yet a selection-matched, unbiased event-level simulator.
 
 ## Primary physics references
 
