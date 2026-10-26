@@ -10,3 +10,4 @@ runs/*/model.pt
 runs/hadron_efficiency/**/model.pt
 runs/hadron_efficiency/**/predictions.npz
 runs/hadron_efficiency/summary/inference_example*.csv
+runs/hadron_efficiency_smoke*/
