@@ -66,7 +66,7 @@ electron, $\pi^-$, $\pi^+$, and proton per event. Each hadron denominator has
 2,471,543 triggered rows: 1,976,265 train, 247,871 validation, 247,407 test.
 The composite key `(source_file_id, event_id)` fixes event-disjoint partitions.
 Hadron generation covers approximately 0.3–9 GeV (pions), 0.3–7 GeV (protons),
-and $5^\circ$–$130^\circ$; substantial CD reconstruction is retained.
+and $5^\circ\leq\theta\leq130^\circ$; substantial CD reconstruction is retained.
 
 This separation follows [CLAS12 reconstruction before PID](https://eprints.gla.ac.uk/208714/1/208714.pdf)
 and the acceptance → efficiency → resolution → PID organization of
