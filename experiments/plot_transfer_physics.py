@@ -174,8 +174,8 @@ def main():
     beam_p = np.sqrt(BEAM_ENERGY_GEV**2-ELECTRON_MASS_GEV**2)
     context = [
         ("m_pipi", np.linspace(0, 6, 121), r"$M_{\pi^+\pi^-}^{\rm gen}$ [GeV/$c^2$]", "gen_m_pipi"),
-        ("sum_px", np.linspace(-8, 8, 129), r"$\sum_i p_{x,i}^{\rm gen}$ [GeV/$c]", "gen_px"),
-        ("sum_pz_minus_beam", np.linspace(-12, 20, 129), r"$\sum_i p_{z,i}^{\rm gen}-p_{\rm beam}$ [GeV/$c]", "gen_pz"),
+        ("sum_px", np.linspace(-8, 8, 129), r"$\sum_i p_{x,i}^{\rm gen}$ [GeV/$c$]", "gen_px"),
+        ("sum_pz_minus_beam", np.linspace(-12, 20, 129), r"$\sum_i p_{z,i}^{\rm gen}-p_{\rm beam}$ [GeV/$c$]", "gen_pz"),
     ]
     records = []
     for variable, edges, _, column in context:

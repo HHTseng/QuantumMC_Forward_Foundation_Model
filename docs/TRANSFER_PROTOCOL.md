@@ -60,7 +60,7 @@ Response uses 4 width-256 SiLU/LayerNorm layers, dropout 0.03, species embedding
 16, and 8 components per mixture head. A 1D momentum head uses
 
 $$
-u_p=\mathrm{asinh}(\Delta p/a),\qquad a=0.020\,\mathrm{GeV},
+u_p=\mathrm{asinh}(\Delta p/a),\qquad a=0.020\mathrm{GeV},
 \qquad \Delta p=a\sinh u_p.
 $$
 
@@ -124,7 +124,7 @@ detector/reconstruction configuration $\kappa$, the unweighted MC law obeys
 
 $$
 P_d(C_h=c\mid g_h,T_e=1)=
-\int K_\kappa(C_h=c\mid G,T_e=1)\,
+\int K_\kappa(C_h=c\mid G,T_e=1)
 P_d(dG_{-h}\mid g_h,T_e=1).
 $$
 

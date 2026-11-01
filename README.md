@@ -56,11 +56,12 @@ For generated particle $i$, $R_i=1$ means mutual MC-to-REC-to-the-same-MC
 association; $C_i=0$ means $R_i=0$. FD/FT/CD denote detector regions. No PID
 agreement or matching-quality threshold defines reconstruction.
 
-For event $E$, define the electron-associated FD trigger proxy
+For event $E$, let $a_i$ mark association with the selected trigger and
+$s_i\in\lbrace e^-\rbrace\cup\mathcal S$ denote generated species. Define
 
 $$
-T_e(E)=\mathbf1\{\exists i\in E:
-i\text{ is the generated electron associated with the selected FD trigger}\}.
+T_e(E)=\mathbf1\lbrace\exists i\in E:
+s_i=e^-,\quad a_i=1,\quad C_i=\mathrm{FD}\rbrace.
 $$
 
 The selected trigger is the first negative-status REC row. In columns, select
@@ -72,7 +73,7 @@ reconstructed PID 11. Event keys are `(file_id,event)`.
 
 Use $c=1$, momenta/masses in GeV, angles in radians, and vertices in cm.
 Subscript $r$ denotes reconstruction. For generated momentum $p$, angles $(\theta,\phi)$, vertex $z$ and species mass
-$m_s$, set $\bar p=p/(1\,\mathrm{GeV})$ and
+$m_s$, set $\bar p=p/(1\mathrm{GeV})$ and
 
 $$
 \beta_g=\frac{p}{\sqrt{p^2+m_s^2}},\qquad
