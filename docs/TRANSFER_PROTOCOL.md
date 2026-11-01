@@ -6,20 +6,20 @@
    associated with the first negative-status REC row in FD. Reconstructed PID
    need not equal 11. Preserve all generated rows, including failures.
 2. **Coordinates.** Convert degrees to radians and recompute REC−GEN residuals.
-   Use Alex's pre-XGBoost backups for the raw response. The September export
+   Use Alex's pre-XGBoost backups for the raw response. The mutual-match phase-space export
    lacks raw backups; its native momentum must not be described as uncorrected.
    `detector=0` includes matched FT/other outcomes as well as failures.
 3. **Inputs.** Select native whole events with `hash(file_id,event)%10=0`.
-   Retain all four particles. The August control is the existing held-out
+   Retain all four particles. The response phase-space control is the existing held-out
    event partition. Save exact input SHA-256 hashes. Copies on both platforms
    must match before execution. Neither native export contains generator weights.
 4. **Response.** Freeze the 3 existing 5-input split/asinh checkpoints. Use their
    training scalers, feature vocabulary and selected FD/quality population.
    Compare raw and corrected rho on identical particles selected using raw
-   momentum. No fitting or checkpoint selection uses rho. The August comparison
+   momentum. No fitting or checkpoint selection uses rho. The response-reference comparison
    also changes skim/trigger conventions; it is not a causal generator ablation.
 5. **Efficiency.** Reuse the categorical machinery from the hadron-efficiency
-   branch. Fit 3 species gates using September phase-space data only, with
+   branch. Fit 3 species gates using mutual-match phase-space data only, with
    300,000 train, 50,000 validation and up to 100,000 test events/species.
    Fix event splits independently of network seeds. Fit scalers on training
    examples only. Do not cut the denominator on reconstruction, PID, beta,
@@ -52,6 +52,19 @@ training/sampling paths remain available. New data, fitted gate weights and
 event predictions remain outside Git publication; aggregate results and
 reproduction commands are versioned.
 
+## Presentation names and stable artifact IDs
+
+| Name | Meaning | Existing artifact keys |
+|---|---|---|
+| Response phase space (R) | Broad particle sample used for selected-FD response fitting | `august`, `august_test` |
+| Mutual-match phase space (M) | All-generated-particle export with reciprocal reconstruction labels | `phase`, `phase_test` |
+| Exclusive rho | Independent, correlated HEPGen process used only for transfer evaluation | `rho`, `rho_test` |
+
+Calendar-based names are not presentation labels. Original keys, filenames,
+saved configurations and logs remain unchanged for reproducibility.
+`--response-glob` is the descriptive input flag; `--august-glob` remains a
+compatible alias. These label changes do not change samples, cuts or metrics.
+
 ## Appendix: coordinates, models and scores
 
 Response seeds: `20260822,20260823,20260824`. Gate seeds:
@@ -80,6 +93,21 @@ trigger, all 4 mutually matched FD particles, finite positive raw/corrected
 momenta and per-track absolute raw residual at most 10 GeV. There are 5,934
 common rho events. Truth-species masses are used without a reconstructed-PID
 agreement cut.
+
+In the README this quality selection is denoted by $H$, distinct from neural
+module $F_\vartheta$. The code retains its original selection configuration.
+Because $F_\vartheta$ conditions on $H=1$ and the gate does not, their product
+alone is not a normalized complete detector kernel. Composition needs matched
+selections, or selection probabilities and complementary responses, together
+with electron/trigger and non-FD response and event correlations.
+
+XGBoost application requires a reciprocal FD match, reconstructed vertex
+between -5.5 and 0.5 cm, original absolute momentum residual below 0.15 GeV,
+and finite valid inputs with positive original/corrected momentum. Electrons
+additionally require original reconstructed momentum above 2 GeV. Generated
+species selects the model. Four-vector directions, PID and reconstructed beta
+are unchanged; all rows survive. The mutual-match phase-space export has no
+raw backup, so it is used only for gate training in this study.
 
 For generated species $s$, reconstructed class $r$, momentum bin $b$ and its
 population $N_{sb}$, conditional PID closure is

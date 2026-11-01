@@ -8,8 +8,8 @@
   "efficiency_runs": 36,
   "fm_band": "sample SD across network seeds",
   "mc_errors": "binomial/Wilson or Gaussian-fit sampling errors; unweighted",
-  "response_reference": "August original checkpoint-selected heldout particles",
-  "efficiency_reference": "September compact mutual-match generated-hadron denominator given T_e",
+  "response_reference": "Response phase-space skim: original checkpoint-selected held-out particles",
+  "efficiency_reference": "Mutual-match phase-space export: generated-hadron denominator given T_e",
   "interpretation": "Dataset/process transfer; differing reference contracts prohibit attributing changes solely to physics generation",
   "response_summary": [
     {

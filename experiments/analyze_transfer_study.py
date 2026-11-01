@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Publication-style summaries of frozen response and reconstruction transfer.
 
-August response and September efficiency references have different label/data
+Response-skim and mutual-match phase-space references have different label/data
 contracts. Their curves describe process/dataset transfer, not a controlled
 retraining improvement. MC errors are binomial/fit errors; FM bands are sample
 SD across independent network seeds, not detector-systematic uncertainties.
@@ -22,7 +22,7 @@ import pandas as pd
 SPECIES = {-211: r"$\pi^-$", 211: r"$\pi^+$", 2212: r"$p$"}
 LABELS = {-211: "pi-", 211: "pi+", 2212: "proton"}
 COLORS = {"august": "#737373", "phase_test": "#737373", "rho": "#2166ac", "rho_test": "#2166ac"}
-DATASET_LABELS = {"august": "August phase space", "phase_test": "September phase space",
+DATASET_LABELS = {"august": "Response phase space", "phase_test": "Mutual-match phase space",
                   "rho": r"Exclusive $\rho^0$", "rho_test": r"Exclusive $\rho^0$"}
 
 
@@ -267,7 +267,7 @@ def resolution_figure(records, host, output):
     frame = pd.concat(frames, ignore_index=True)
     fig, axes = plt.subplots(2, 3, figsize=(12.6, 6.1), sharex=True,
                              gridspec_kw={"height_ratios": [2.5, 1]})
-    variants = [("august", "raw", "#737373", "August raw"),
+    variants = [("august", "raw", "#737373", "Response phase-space raw"),
                 ("rho", "raw", "#2166ac", r"$\rho^0$ raw"),
                 ("rho", "corrected", "#1b7837", r"$\rho^0$ corrected")]
     for column, (pid, label) in enumerate(SPECIES.items()):
@@ -555,8 +555,8 @@ def main():
     summary = {"plot_host":host,"hosts":hosts,"response_runs":len(response_records),
         "efficiency_runs":len(gate_records),"fm_band":"sample SD across network seeds",
         "mc_errors":"binomial/Wilson or Gaussian-fit sampling errors; unweighted",
-        "response_reference":"August original checkpoint-selected heldout particles",
-        "efficiency_reference":"September compact mutual-match generated-hadron denominator given T_e",
+        "response_reference":"Response phase-space skim: original checkpoint-selected held-out particles",
+        "efficiency_reference":"Mutual-match phase-space export: generated-hadron denominator given T_e",
         "interpretation":"Dataset/process transfer; differing reference contracts prohibit attributing changes solely to physics generation",
         "response_summary":json.loads(response_summary.to_json(orient="records")),
         "response_common_bins_summary":json.loads(common_summary.to_json(orient="records")),

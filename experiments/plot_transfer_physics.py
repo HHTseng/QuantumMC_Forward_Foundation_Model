@@ -223,12 +223,12 @@ def main():
     for ax, (variable, edges, xlabel, column) in zip(axes, context):
         window_samples = []
         for name, color, label in (("rho", "#b2182b", r"Exclusive $\rho^0$"),
-                                   ("phase", "#2166ac", "Phase space (Sep)")):
+                                   ("phase", "#2166ac", "Mutual-match phase space")):
             values = tables[name][column].to_numpy() - (beam_p if variable=="sum_pz_minus_beam" else 0)
             draw_distribution(ax, values, edges, label, color)
             window_samples.append((name, values))
         ax.set(xlabel=xlabel, ylabel="Normalized entries / bin width", yscale="log")
-        ax.legend(frameon=False)
+        ax.legend(frameon=False, loc="upper right")
         note_outside_window(ax, window_samples, edges)
     fig.suptitle("Generated event kinematics — unweighted MC", fontsize=14)
     for extension in ("png", "pdf"):

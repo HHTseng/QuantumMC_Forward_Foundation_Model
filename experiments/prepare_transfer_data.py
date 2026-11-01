@@ -2,7 +2,7 @@
 """Prepare identical whole-event inputs for the two-platform transfer study.
 
 Native samples preserve every particle and outcome of each selected event.
-The August sample contains only the original held-out event partition. No
+The response reference contains only the original held-out event partition. No
 kinematic, reconstruction, PID, or trigger selection enters this preparation.
 """
 
@@ -18,7 +18,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--rho", required=True)
     parser.add_argument("--phase", required=True)
-    parser.add_argument("--august-glob", required=True)
+    parser.add_argument("--response-glob", "--august-glob", dest="august_glob", metavar="RESPONSE_GLOB", required=True,
+                        help="Response-training phase-space files; the old flag remains an alias")
     parser.add_argument("--output", required=True)
     parser.add_argument("--sample-modulus", type=int, default=10)
     args = parser.parse_args()
