@@ -1,0 +1,72 @@
+{
+  "xgboost_version": "3.2.0",
+  "trigger_counts": {
+    "alex_rho": {
+      "events": 19920000,
+      "any_negative_status": 14792973,
+      "generated_electron_fd_trigger": 6521184,
+      "generated_electron_fd_trigger_identified_electron": 6060838,
+      "generated_electron_fd_trigger_misidentified": 460346,
+      "trigger_invariant_violations": 0
+    },
+    "sep_phase": {
+      "events": 19820000,
+      "any_negative_status": 16906073,
+      "generated_electron_fd_trigger": 10518296,
+      "generated_electron_fd_trigger_identified_electron": 9809975,
+      "generated_electron_fd_trigger_misidentified": 708321,
+      "trigger_invariant_violations": 0
+    }
+  },
+  "models": {
+    "electron": {
+      "sha256_matches_manifest": true,
+      "sampled_corrected_rows": 2526,
+      "max_abs_p_difference_gev": 0.0,
+      "mean_abs_p_difference_gev": 0.0,
+      "differences_above_1e_minus_6_gev": 0,
+      "exact_float32_matches": 2526
+    },
+    "proton": {
+      "sha256_matches_manifest": true,
+      "sampled_corrected_rows": 2039,
+      "max_abs_p_difference_gev": 0.0,
+      "mean_abs_p_difference_gev": 0.0,
+      "differences_above_1e_minus_6_gev": 0,
+      "exact_float32_matches": 2039
+    },
+    "pi_plus": {
+      "sha256_matches_manifest": true,
+      "sampled_corrected_rows": 3937,
+      "max_abs_p_difference_gev": 0.0,
+      "mean_abs_p_difference_gev": 0.0,
+      "differences_above_1e_minus_6_gev": 0,
+      "exact_float32_matches": 3937
+    },
+    "pi_minus": {
+      "sha256_matches_manifest": true,
+      "sampled_corrected_rows": 2286,
+      "max_abs_p_difference_gev": 0.0,
+      "mean_abs_p_difference_gev": 0.0,
+      "differences_above_1e_minus_6_gev": 0,
+      "exact_float32_matches": 2286
+    }
+  },
+  "source_blocks": {
+    "files": 1992,
+    "min_rows": 40000,
+    "max_rows": 40000,
+    "file_id_min": 0,
+    "file_id_max": 1991,
+    "unexpected_blocks": 0
+  },
+  "august_trigger_contract": {
+    "events": 5000000,
+    "old_trigger": 2471543,
+    "old_trigger_non_electron_pid": 589,
+    "old_trigger_nonreciprocal": 2,
+    "old_trigger_missing_electron_flag": 0,
+    "electron_flag_fd": 2471543,
+    "old_trigger_region_status_violations": 605
+  }
+}

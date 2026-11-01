@@ -1,0 +1,35 @@
+{
+  "species": {
+    "pi-": {
+      "n": 100000,
+      "eligible_momentum_bins": 9,
+      "correct_id_mae_pp": 1.1095683557056992,
+      "pid_tv_particle_weighted": 0.027238696793730734,
+      "outside_coarse_aug_generated_box_fraction": 0.06117,
+      "fm_nonfinite_response_fraction": 0.0,
+      "fm_abs_delta_p_gt_10_fraction": 0.00021,
+      "fm_negative_reconstructed_p_fraction": 0.00789
+    },
+    "pi+": {
+      "n": 100000,
+      "eligible_momentum_bins": 9,
+      "correct_id_mae_pp": 3.2014188193980537,
+      "pid_tv_particle_weighted": 0.05235300855564865,
+      "outside_coarse_aug_generated_box_fraction": 0.05774,
+      "fm_nonfinite_response_fraction": 0.0,
+      "fm_abs_delta_p_gt_10_fraction": 9e-05,
+      "fm_negative_reconstructed_p_fraction": 0.00326
+    },
+    "proton": {
+      "n": 100000,
+      "eligible_momentum_bins": 3,
+      "correct_id_mae_pp": 1.475260151667823,
+      "pid_tv_particle_weighted": 0.012752131005441881,
+      "outside_coarse_aug_generated_box_fraction": 0.00078,
+      "fm_nonfinite_response_fraction": 0.0,
+      "fm_abs_delta_p_gt_10_fraction": 2e-05,
+      "fm_negative_reconstructed_p_fraction": 0.00117
+    }
+  },
+  "inference_seconds": 0.6507216892205179
+}

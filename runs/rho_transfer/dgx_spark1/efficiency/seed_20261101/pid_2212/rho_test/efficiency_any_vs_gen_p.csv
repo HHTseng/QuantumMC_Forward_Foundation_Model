@@ -1,0 +1,11 @@
+variable,bin_index,low,high,upper_edge_inclusive,n,successes,eligible,observed_efficiency,fm_mean_probability,wilson_low,wilson_high,signed_difference_fm_minus_data,absolute_difference
+gen_p,0,0.0,1.0,False,79727,56890,True,0.7135600235804683,0.700497187302951,0.7119562125831888,0.7151584773626268,-0.013062836277517365,0.013062836277517365
+gen_p,1,1.0,2.0,False,19999,16731,True,0.8365918295914796,0.845807245921669,0.8339605057376688,0.8391894942623311,0.009215416330189408,0.009215416330189408
+gen_p,2,2.0,3.0,False,274,235,True,0.8576642335766423,0.8838665607201792,0.8352542697975907,0.8774730029296822,0.026202327143536874,0.026202327143536874
+gen_p,3,3.0,4.0,False,0,0,False,,,,,,
+gen_p,4,4.0,5.0,False,0,0,False,,,,,,
+gen_p,5,5.0,6.0,False,0,0,False,,,,,,
+gen_p,6,6.0,7.0,False,0,0,False,,,,,,
+gen_p,7,7.0,8.0,False,0,0,False,,,,,,
+gen_p,8,8.0,9.0,False,0,0,False,,,,,,
+gen_p,9,9.0,10.0,True,0,0,False,,,,,,

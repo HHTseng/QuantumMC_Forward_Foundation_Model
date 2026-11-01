@@ -51,3 +51,84 @@ from `feature/trigger-conditioned-hadron-efficiency` (`4674686`). Existing
 training/sampling paths remain available. New data, fitted gate weights and
 event predictions remain outside Git publication; aggregate results and
 reproduction commands are versioned.
+
+## Appendix: coordinates, models and scores
+
+Response seeds: `20260822,20260823,20260824`. Gate seeds:
+`20261101,20261102,20261103`; fixed gate event-split seed: `20261101`.
+Response uses 4 width-256 SiLU/LayerNorm layers, dropout 0.03, species embedding
+16, and 8 components per mixture head. A 1D momentum head uses
+
+$$
+u_p=\mathrm{asinh}(\Delta p/a),\qquad a=0.020\,\mathrm{GeV},
+\qquad \Delta p=a\sinh u_p.
+$$
+
+A separate joint 3D head describes angular/beta residuals. PID is categorical.
+The 3 heads are conditionally independent; the angular/beta coordinates are
+jointly modeled within their mixture. Gates use 4 width-256 layers, dropout
+0.03, AdamW with learning rate 0.001 and weight decay 0.00001, batch size 8192,
+gradient norm cap 5, and patience 8. No gate class weighting/resampling is used.
+
+The saved response quality selection requires reconstructed polar angle below
+33 degrees, generated vertex between -5.5 and -0.5 cm, reciprocal FD matching,
+nonzero reconstructed PID, beta greater than the -99 sentinel, finite residuals,
+and absolute raw momentum residual at most 10 GeV. Gate denominators do not
+use these requirements. Physics plots start with 100,000 complete events per
+source; their reconstructed comparison additionally requires the electron
+trigger, all 4 mutually matched FD particles, finite positive raw/corrected
+momenta and per-track absolute raw residual at most 10 GeV. There are 5,934
+common rho events. Truth-species masses are used without a reconstructed-PID
+agreement cut.
+
+For generated species $s$, reconstructed class $r$, momentum bin $b$ and its
+population $N_{sb}$, conditional PID closure is
+
+$$
+c_{sbr}=\frac{1}{N_{sb}}\sum_{i\in(s,b)}\mathbf1(r_i=r),\qquad
+f_{sbr}=\frac{1}{N_{sb}}\sum_{i\in(s,b)}P_\vartheta(r\mid x_i,s),
+$$
+
+$$
+\mathrm{MAE}_s=\frac{100}{|\mathcal B_s|}
+\sum_{b\in\mathcal B_s}|f_{sbs}-c_{sbs}|,\qquad
+\mathrm{TV}_{sb}=\frac12\sum_{r\in\mathcal R}|f_{sbr}-c_{sbr}|.
+$$
+
+Eligible bins contain at least 200 particles. Common-bin scores intersect
+eligibility across sources; width comparisons separately intersect successful
+Gaussian fits. Equal-bin MAE is in percentage points; reported TV averages
+use bin populations as weights. Reconstructed species is compared with its
+corresponding generated PDG code, retaining all migrations and `OTHER`.
+
+For 20 equal probability bins $I_l$, observed efficiency $e_l$, mean predicted
+probability $\hat e_l$, and bin population $n_l$, calibration error in pp is
+
+$$
+\mathrm{ECE}=\frac{100}{N}\sum_l n_l|e_l-\hat e_l|.
+$$
+
+Wilson intervals use 68% binomial coverage. Seed bands are sample standard
+deviations on identical teacher events. These uncertainties exclude detector
+systematics and omitted generator weights. Gaussian-core fitting follows the
+existing 2-stage 1-MeV-histogram procedure in `evaluation_split_dp.py`.
+
+The additional `identified_fd` sensitivity repeats one frozen response model
+per platform with reconstructed trigger PID 11 required. It changes the
+selected population and is not an event-matched intervention.
+
+Identical detector settings do not imply an exactly universal single-particle
+gate. Let $G=(g_h,G_{-h})$ be the generated event, with hadron coordinates
+$g_h$ and remaining generated particles $G_{-h}$. For dataset $d$ and common
+detector/reconstruction configuration $\kappa$, the unweighted MC law obeys
+
+$$
+P_d(C_h=c\mid g_h,T_e=1)=
+\int K_\kappa(C_h=c\mid G,T_e=1)\,
+P_d(dG_{-h}\mid g_h,T_e=1).
+$$
+
+The marginalized distribution changes between independent phase-space
+throwing and exclusive production. Single-particle inputs omit this event
+context. Coverage and omitted correlations are therefore distinct possible
+sources of transfer error; the present experiment does not isolate them.

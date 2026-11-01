@@ -1,0 +1,201 @@
+{
+  "n": 100000,
+  "outcome_cross_entropy": 0.307529091835022,
+  "multiclass_brier": 0.16819363260723025,
+  "counts": {
+    "unreconstructed": 26144,
+    "FD": 43067,
+    "FT": 425,
+    "CD": 30364,
+    "other": 0
+  },
+  "kinematic_closure": {
+    "fd": {
+      "gen_p": {
+        "eligible_bins": 3,
+        "all_bins": 10,
+        "eligible_rows": 100000,
+        "low_count_rows": 0,
+        "out_of_range_rows": 0,
+        "weighted_mae": 0.006428339562103638,
+        "unweighted_mae": 0.012753425461097848,
+        "maximum_absolute_difference": 0.02295694598098741
+      },
+      "gen_theta": {
+        "eligible_bins": 9,
+        "all_bins": 13,
+        "eligible_rows": 99963,
+        "low_count_rows": 37,
+        "out_of_range_rows": 0,
+        "weighted_mae": 0.01141450582369494,
+        "unweighted_mae": 0.02700435648232046,
+        "maximum_absolute_difference": 0.13677679649063554
+      },
+      "gen_p_theta": {
+        "eligible_bins": 18,
+        "all_bins": 130,
+        "eligible_rows": 99689,
+        "low_count_rows": 311,
+        "out_of_range_rows": 0,
+        "weighted_mae": 0.011804645476639423,
+        "unweighted_mae": 0.031056108167776035,
+        "maximum_absolute_difference": 0.24957501347460803
+      }
+    },
+    "any": {
+      "gen_p": {
+        "eligible_bins": 3,
+        "all_bins": 10,
+        "eligible_rows": 100000,
+        "low_count_rows": 0,
+        "out_of_range_rows": 0,
+        "weighted_mae": 0.008156336693167695,
+        "unweighted_mae": 0.011917827407073625,
+        "maximum_absolute_difference": 0.023177963103691135
+      },
+      "gen_theta": {
+        "eligible_bins": 9,
+        "all_bins": 13,
+        "eligible_rows": 99963,
+        "low_count_rows": 37,
+        "out_of_range_rows": 0,
+        "weighted_mae": 0.015435328102018312,
+        "unweighted_mae": 0.024327148803788844,
+        "maximum_absolute_difference": 0.07956229360102049
+      },
+      "gen_p_theta": {
+        "eligible_bins": 18,
+        "all_bins": 130,
+        "eligible_rows": 99689,
+        "low_count_rows": 311,
+        "out_of_range_rows": 0,
+        "weighted_mae": 0.015681944418968027,
+        "unweighted_mae": 0.024209797446416013,
+        "maximum_absolute_difference": 0.12832578487377827
+      }
+    }
+  },
+  "support": {
+    "inside_training_feature_box": 92752,
+    "outside_training_feature_box": 7248,
+    "note": "Coordinate box only; not a joint-density support guarantee.",
+    "fd": {
+      "inside_box": {
+        "n": 92752,
+        "successes": 43029,
+        "observed_rate": 0.4639145247541832,
+        "mean_predicted_probability": 0.46855565372135904,
+        "mean_bias": 0.004641128967175834,
+        "observed_wilson_low": 0.4622774487693922,
+        "observed_wilson_high": 0.465552378837262,
+        "log_loss": 0.21471808836009068,
+        "brier_score": 0.06320379276601469,
+        "expected_calibration_error": 0.016611364413599866,
+        "maximum_calibration_gap": 0.054141493449621214,
+        "occupied_probability_bins": 20,
+        "calibration_bins": 20,
+        "constant_train_rate": 0.39097,
+        "constant_baseline_brier": 0.2540187421678971,
+        "constant_baseline_log_loss": 0.7015116929890928,
+        "brier_skill_vs_constant": 0.7511845298240265
+      },
+      "outside_box": {
+        "n": 7248,
+        "successes": 38,
+        "observed_rate": 0.0052428256070640175,
+        "mean_predicted_probability": 0.03454193739609081,
+        "mean_bias": 0.02929911178902679,
+        "observed_wilson_low": 0.004460128178765424,
+        "observed_wilson_high": 0.006162026601204227,
+        "log_loss": 0.0514454562009552,
+        "brier_score": 0.01499854622257762,
+        "expected_calibration_error": 0.029352776906607425,
+        "maximum_calibration_gap": 0.7706854854311261,
+        "occupied_probability_bins": 17,
+        "calibration_bins": 20,
+        "constant_train_rate": 0.39097,
+        "constant_baseline_brier": 0.1540007914518763,
+        "constant_baseline_log_loss": 0.49821156410618334,
+        "brier_skill_vs_constant": 0.9026073432404111
+      }
+    },
+    "any": {
+      "inside_box": {
+        "n": 92752,
+        "successes": 73366,
+        "observed_rate": 0.7909910298430223,
+        "mean_predicted_probability": 0.7916174761729907,
+        "mean_bias": 0.0006264463299684442,
+        "observed_wilson_low": 0.789652818205867,
+        "observed_wilson_high": 0.7923229669439397,
+        "log_loss": 0.2218322548086693,
+        "brier_score": 0.06211037289260326,
+        "expected_calibration_error": 0.017239668884497614,
+        "maximum_calibration_gap": 0.07917839987929284,
+        "occupied_probability_bins": 20,
+        "calibration_bins": 20,
+        "constant_train_rate": 0.8988133333333334,
+        "constant_baseline_brier": 0.1769498696808541,
+        "constant_baseline_log_loss": 0.5631781471776492,
+        "brier_skill_vs_constant": 0.6489945259376273
+      },
+      "outside_box": {
+        "n": 7248,
+        "successes": 490,
+        "observed_rate": 0.06760485651214128,
+        "mean_predicted_probability": 0.17212051866991368,
+        "mean_bias": 0.1045156621577724,
+        "observed_wilson_low": 0.06471507111491197,
+        "observed_wilson_high": 0.07061393978314291,
+        "log_loss": 0.3023017031313202,
+        "brier_score": 0.10122659689691962,
+        "expected_calibration_error": 0.10962138254253016,
+        "maximum_calibration_gap": 0.9052404761314392,
+        "occupied_probability_bins": 20,
+        "calibration_bins": 20,
+        "constant_train_rate": 0.8988133333333334,
+        "constant_baseline_brier": 0.7539419718275201,
+        "constant_baseline_log_loss": 2.1431319495501544,
+        "brier_skill_vs_constant": 0.8657368860211468
+      }
+    }
+  },
+  "fd": {
+    "n": 100000,
+    "successes": 43067,
+    "observed_rate": 0.43067,
+    "mean_predicted_probability": 0.43709833956210364,
+    "mean_bias": 0.0064283395621036465,
+    "observed_wilson_low": 0.42910483586898096,
+    "observed_wilson_high": 0.43223655071715306,
+    "log_loss": 0.2028840879811965,
+    "brier_score": 0.059709876496546375,
+    "expected_calibration_error": 0.01688375296799888,
+    "maximum_calibration_gap": 0.06068592202634329,
+    "occupied_probability_bins": 20,
+    "calibration_bins": 20,
+    "constant_train_rate": 0.39097,
+    "constant_baseline_brier": 0.24676944109999996,
+    "constant_baseline_log_loss": 0.6867764996476596,
+    "brier_skill_vs_constant": 0.7580337491125988
+  },
+  "any": {
+    "n": 100000,
+    "successes": 73856,
+    "observed_rate": 0.73856,
+    "mean_predicted_probability": 0.7467163366931677,
+    "mean_bias": 0.008156336693167732,
+    "observed_wilson_low": 0.7371680541890138,
+    "observed_wilson_high": 0.7399471746586976,
+    "log_loss": 0.22766468042309504,
+    "brier_score": 0.0649455168084361,
+    "expected_calibration_error": 0.02101534436762335,
+    "maximum_calibration_gap": 0.10046249756869902,
+    "occupied_probability_bins": 20,
+    "calibration_bins": 20,
+    "constant_train_rate": 0.8988133333333334,
+    "constant_baseline_brier": 0.21877025724444443,
+    "constant_baseline_log_loss": 0.6776931987736085,
+    "brier_skill_vs_constant": 0.7031337000446601
+  }
+}

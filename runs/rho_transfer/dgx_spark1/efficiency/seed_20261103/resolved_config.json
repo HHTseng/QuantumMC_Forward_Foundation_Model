@@ -1,0 +1,20 @@
+{
+  "phase_parquet": "/home/htseng/QuantumMC_Simulations/transfer_inputs/phase.parquet",
+  "rho_parquet": "/home/htseng/QuantumMC_Simulations/transfer_inputs/rho.parquet",
+  "output": "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/runs/rho_transfer/dgx_spark1/efficiency/seed_20261103",
+  "device": "cuda:0",
+  "seed": 20261103,
+  "split_seed": 20261101,
+  "epochs": 30,
+  "max_train": 300000,
+  "max_val": 50000,
+  "max_test": 100000,
+  "min_bin_count": 200,
+  "species": [
+    -211,
+    211,
+    2212
+  ],
+  "hidden_width": 256,
+  "hidden_layers": 4
+}

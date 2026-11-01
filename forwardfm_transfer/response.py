@@ -175,7 +175,8 @@ def response_tables(frame, sampled, probabilities, vocabulary, min_bin_count=200
                 row["median_difference"] = (row["fm_q50"]-row["observed_q50"]
                     if row["fm_q50"] is not None and row["observed_q50"] is not None else None)
                 width = row["observed_sigma68"]
-                row["sigma68_ratio"] = row["fm_sigma68"]/width if width else None
+                row["sigma68_ratio"] = (row["fm_sigma68"]/width
+                    if width and row["fm_sigma68"] is not None else None)
                 summary.append(row)
         for bin_index, (low, high) in enumerate(zip(MOMENTUM_EDGES[:-1], MOMENTUM_EDGES[1:])):
             cell = mask & (momentum >= low) & ((momentum <= high) if bin_index == len(MOMENTUM_EDGES)-2 else (momentum < high))

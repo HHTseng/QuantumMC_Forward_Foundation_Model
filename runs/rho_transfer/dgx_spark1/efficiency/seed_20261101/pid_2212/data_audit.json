@@ -1,0 +1,87 @@
+{
+  "feature_names": [
+    "log1p_gen_p",
+    "gen_theta",
+    "sin_gen_phi",
+    "cos_gen_phi",
+    "gen_vz"
+  ],
+  "dropped_constant_feature_values": {
+    "gen_vx": 0.0,
+    "gen_vy": 0.0
+  },
+  "splits": {
+    "train": {
+      "rows": 300000,
+      "outcome_counts": {
+        "unreconstructed": 30356,
+        "FD": 117291,
+        "FT": 131,
+        "CD": 152222,
+        "other": 0
+      },
+      "event_order_sha256": "cebb0ae081947a3153662f577a58f4c5c2da18863258a2d3e3a66e42ceaefc91",
+      "outside_training_feature_box_rows": 0
+    },
+    "validation": {
+      "rows": 50000,
+      "outcome_counts": {
+        "unreconstructed": 5098,
+        "FD": 19655,
+        "FT": 20,
+        "CD": 25227,
+        "other": 0
+      },
+      "event_order_sha256": "40905616bcac6d10d430676676685294e25a8863533e29c46b78a76d90c8326e",
+      "outside_training_feature_box_rows": 0
+    },
+    "test": {
+      "rows": 100000,
+      "outcome_counts": {
+        "unreconstructed": 10168,
+        "FD": 38854,
+        "FT": 39,
+        "CD": 50939,
+        "other": 0
+      },
+      "event_order_sha256": "0b37a91d6b29ee5a6ad2b6a66cfe77edb976920210c2aeb31c528bb21a9b2434",
+      "outside_training_feature_box_rows": 2
+    },
+    "rho": {
+      "rows": 100000,
+      "outcome_counts": {
+        "unreconstructed": 26144,
+        "FD": 43067,
+        "FT": 425,
+        "CD": 30364,
+        "other": 0
+      },
+      "event_order_sha256": "d6bbea69b7fc723d3dd9250f55d23702fd72bf2c74dd63058e6107bf188460b5",
+      "outside_training_feature_box_rows": 7248
+    }
+  },
+  "phase_event_split_overlap": 0,
+  "feature_box_note": "Coordinate bounding box only; not a joint-density support estimate.",
+  "training_feature_min": [
+    0.26238128542900085,
+    0.08726780116558075,
+    -1.0,
+    -1.0,
+    -5.4999871253967285
+  ],
+  "training_feature_max": [
+    2.0778968334198,
+    2.268416166305542,
+    1.0,
+    1.0,
+    0.4999750256538391
+  ],
+  "species": 2212,
+  "split_seed": 20261101,
+  "conditioning": "has_valid_trigger_electron = true",
+  "trigger_definition": "EXISTS generated electron mutually associated with first negative-status REC row in FD; no reconstructed-PID requirement",
+  "label_definition": "mutual reconstruction, then FD/FT/CD/other; PID mistakes remain successes",
+  "unweighted": true,
+  "phase_parquet": "/home/htseng/QuantumMC_Simulations/transfer_inputs/phase.parquet",
+  "rho_parquet": "/home/htseng/QuantumMC_Simulations/transfer_inputs/rho.parquet"
+}

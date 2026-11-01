@@ -1,0 +1,134 @@
+{
+  "phase": {
+    "metadata": {
+      "momentum_view": "raw",
+      "trigger_definition": "associated_fd",
+      "raw_momentum_source": "native_export_no_raw_backup",
+      "has_raw_backup": false
+    },
+    "counts": {
+      "particle_rows": 7921736,
+      "events": 1980434,
+      "source_files": 1982
+    },
+    "species": [
+      {
+        "gen_pid": -211,
+        "generated": 1980434,
+        "reconstructed": 1553884,
+        "triggered": 1050222,
+        "triggered_fd": 380232,
+        "triggered_cd": 387350,
+        "triggered_ft": 682
+      },
+      {
+        "gen_pid": 11,
+        "generated": 1980434,
+        "reconstructed": 1435916,
+        "triggered": 1050222,
+        "triggered_fd": 1050222,
+        "triggered_cd": 0,
+        "triggered_ft": 0
+      },
+      {
+        "gen_pid": 211,
+        "generated": 1980434,
+        "reconstructed": 1805583,
+        "triggered": 1050222,
+        "triggered_fd": 425625,
+        "triggered_cd": 520042,
+        "triggered_ft": 923
+      },
+      {
+        "gen_pid": 2212,
+        "generated": 1980434,
+        "reconstructed": 1787934,
+        "triggered": 1050222,
+        "triggered_fd": 410247,
+        "triggered_cd": 532602,
+        "triggered_ft": 466
+      }
+    ],
+    "triggers": {
+      "generated_electrons": 1980434,
+      "any_negative_status": 1688507,
+      "associated_fd": 1050222,
+      "identified_fd": 979403
+    },
+    "violations": {
+      "reconstructed_index": 0,
+      "selected_trigger": 0,
+      "detector_status": 0,
+      "unmatched_finite_response": 0
+    },
+    "duplicate_generated_keys": {
+      "keys": 0
+    }
+  },
+  "rho": {
+    "metadata": {
+      "momentum_view": "raw",
+      "trigger_definition": "associated_fd",
+      "raw_momentum_source": "uncorrected_backup",
+      "has_raw_backup": true
+    },
+    "counts": {
+      "particle_rows": 7961756,
+      "events": 1990439,
+      "source_files": 1992
+    },
+    "species": [
+      {
+        "gen_pid": -211,
+        "generated": 1990439,
+        "reconstructed": 1213525,
+        "triggered": 652049,
+        "triggered_fd": 356162,
+        "triggered_cd": 14586,
+        "triggered_ft": 40552
+      },
+      {
+        "gen_pid": 11,
+        "generated": 1990439,
+        "reconstructed": 1215291,
+        "triggered": 652049,
+        "triggered_fd": 652049,
+        "triggered_cd": 0,
+        "triggered_ft": 0
+      },
+      {
+        "gen_pid": 211,
+        "generated": 1990439,
+        "reconstructed": 1589213,
+        "triggered": 652049,
+        "triggered_fd": 467961,
+        "triggered_cd": 23386,
+        "triggered_ft": 42025
+      },
+      {
+        "gen_pid": 2212,
+        "generated": 1990439,
+        "reconstructed": 1387547,
+        "triggered": 652049,
+        "triggered_fd": 280523,
+        "triggered_cd": 197265,
+        "triggered_ft": 2777
+      }
+    ],
+    "triggers": {
+      "generated_electrons": 1990439,
+      "any_negative_status": 1477947,
+      "associated_fd": 652049,
+      "identified_fd": 606148
+    },
+    "violations": {
+      "reconstructed_index": 0,
+      "selected_trigger": 0,
+      "detector_status": 0,
+      "unmatched_finite_response": 0
+    },
+    "duplicate_generated_keys": {
+      "keys": 0
+    }
+  }
+}

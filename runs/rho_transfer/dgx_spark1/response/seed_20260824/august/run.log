@@ -1,0 +1,35 @@
+{
+  "species": {
+    "pi-": {
+      "n": 45981,
+      "eligible_momentum_bins": 9,
+      "correct_id_mae_pp": 0.9971177847617844,
+      "pid_tv_particle_weighted": 0.024188711730644113,
+      "outside_coarse_aug_generated_box_fraction": 0.0,
+      "fm_nonfinite_response_fraction": 0.0,
+      "fm_abs_delta_p_gt_10_fraction": 0.00021748113351166787,
+      "fm_negative_reconstructed_p_fraction": 0.006350449098540702
+    },
+    "pi+": {
+      "n": 56999,
+      "eligible_momentum_bins": 9,
+      "correct_id_mae_pp": 1.1535403769384223,
+      "pid_tv_particle_weighted": 0.03024848809471399,
+      "outside_coarse_aug_generated_box_fraction": 0.0,
+      "fm_nonfinite_response_fraction": 0.0,
+      "fm_abs_delta_p_gt_10_fraction": 0.00012280917209073842,
+      "fm_negative_reconstructed_p_fraction": 0.0039123493394620954
+    },
+    "proton": {
+      "n": 56005,
+      "eligible_momentum_bins": 7,
+      "correct_id_mae_pp": 1.319875429295904,
+      "pid_tv_particle_weighted": 0.019197750582031867,
+      "outside_coarse_aug_generated_box_fraction": 0.0,
+      "fm_nonfinite_response_fraction": 0.0,
+      "fm_abs_delta_p_gt_10_fraction": 0.0006606552986340505,
+      "fm_negative_reconstructed_p_fraction": 0.007535041514150523
+    }
+  },
+  "inference_seconds": 0.4132233699783683
+}

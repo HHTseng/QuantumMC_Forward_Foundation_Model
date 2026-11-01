@@ -1,0 +1,23 @@
+{
+  "python": "3.12.14 (main, Sep  2 2026, 23:29:55) [GCC 15.3.0]",
+  "platform": "Linux-6.17.0-1031-nvidia-aarch64-with-glibc2.39",
+  "torch": "2.14.0+cu130",
+  "duckdb": "1.5.6",
+  "numpy": "2.5.3",
+  "device": "cuda:0",
+  "gpu": "NVIDIA GB10",
+  "git_commit": "2341e4e9d4fd3c60801a96ddb8c03726206cf5d0",
+  "source_hashes": {
+    "experiments/run_transfer_efficiency.py": "240217a8ef1f87cbe370ec562c904a646647f4d585694d0fd8063b84ceb0bb6a",
+    "forwardfm_transfer/data.py": "d56fab162a537a97d11ae45c5d7ea0a59b838f1d7f451854e7c3ebf5dd3313f7",
+    "forwardfm_electron/data.py": "4f25e647ee2f1e7f76fa273fce821c22ab813e6f24d9c6c1fd6fd8d5ceaad2cf",
+    "forwardfm_step1/data.py": "f2b5660c433d02224c9e8bc49784cdd6277a8784cfc5d1254de7204e4f2320db",
+    "forwardfm_step1/training.py": "a107bfcb0b32d9b2c460f17f6e3ba6ba87152e0e197822cb35692b898d843ec5",
+    "forwardfm_hadron/__init__.py": "11e2b2f57b21c637d22504f055413abc9980b90d5e72033ffb50c886e9d32936",
+    "forwardfm_hadron/data.py": "44cdb40f9b27ca22a786a8f060b96ba2a47f24465a0b55580fa8c243408f26e2",
+    "forwardfm_hadron/evaluation.py": "8f47a9104627e0e8301492bd45cf22da9830a42f6bffe3a50a12c0e9a716c944",
+    "forwardfm_hadron/inference.py": "24c323e13e321a0367f90fe64b12c8412738031958e1c76bac993b3568bb374a",
+    "forwardfm_hadron/model.py": "e4b26aa7f4181a54b44f4a73d4d4ad632535d0a397d88ba78434b7d2c22bde74",
+    "forwardfm_hadron/training.py": "27cde9ab11548a5c852a685a2bb539b96e6bbf5a793f70cf5ef79c41b65ddc9f"
+  }
+}

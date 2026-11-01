@@ -205,7 +205,7 @@ def main():
     }
     (args.output/"physics_summary.json").write_text(json.dumps(summary, indent=2, allow_nan=False)+"\n")
     with (args.output/"physics_statistics.csv").open("w", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(records[0]))
+        writer = csv.DictWriter(handle, fieldnames=list(records[0]), lineterminator="\n")
         writer.writeheader()
         writer.writerows(records)
     if args.no_plots:

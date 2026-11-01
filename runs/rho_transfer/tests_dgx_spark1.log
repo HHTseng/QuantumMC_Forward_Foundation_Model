@@ -1,0 +1,27 @@
+..............................                                           [100%]
+=============================== warnings summary ===============================
+tests/test_transfer_analysis.py::TransferAnalysisTests::test_common_bins_intersect_pid_and_valid_fit_support_separately
+  /home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/experiments/analyze_transfer_study.py:220: UserWarning: No artists with labels found to put in legend.  Note that artists whose label start with an underscore are ignored when legend() is called with no argument.
+    axes[1].legend(fontsize=7, loc="best")
+
+tests/test_transfer_analysis.py::TransferAnalysisTests::test_common_bins_intersect_pid_and_valid_fit_support_separately
+  /home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/experiments/analyze_transfer_study.py:304: UserWarning: No artists with labels found to put in legend.  Note that artists whose label start with an underscore are ignored when legend() is called with no argument.
+    axes[0,1].legend(fontsize=7, ncol=2)
+
+tests/test_transfer_data.py::NativeTransferTests::test_incomplete_schema_fails
+  /home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/tests/test_transfer_data.py:120: Pandas4Warning: The inplace keyword in DataFrame.drop is deprecated and will be removed in a future version (PDEP-8).
+  See https://pandas.pydata.org/docs/dev/whatsnew/v3.1.0.html#deprecation-inplace for more details.
+    self.frame.drop(columns=["is_trigger_particle"], inplace=True)
+
+tests/test_transfer_data.py::NativeTransferTests::test_missing_raw_backup_is_explicit
+  /home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/tests/test_transfer_data.py:113: Pandas4Warning: The inplace keyword in DataFrame.drop is deprecated and will be removed in a future version (PDEP-8).
+  See https://pandas.pydata.org/docs/dev/whatsnew/v3.1.0.html#deprecation-inplace for more details.
+    self.frame.drop(columns=[c for c in self.frame if c.endswith("_uncorrected")], inplace=True)
+
+tests/test_transfer_data.py::NativeTransferTests::test_partial_backup_fails
+  /home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/tests/test_transfer_data.py:126: Pandas4Warning: The inplace keyword in DataFrame.drop is deprecated and will be removed in a future version (PDEP-8).
+  See https://pandas.pydata.org/docs/dev/whatsnew/v3.1.0.html#deprecation-inplace for more details.
+    self.frame.drop(columns=["px_rec_uncorrected"], inplace=True)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+30 passed, 5 warnings in 2.36s

@@ -1,211 +1,240 @@
 # QuantumMC Forward Foundation Model
 
-`main` implements Dr. Joo's split-momentum response with an optional raw-momentum
-input. For generated species $\mathcal S:=\lbrace-211,211,2212\rbrace$ and reconstructed
-PID vocabulary $\mathcal R$, the neural network defines
+Let $\mathcal S=\lbrace\pi^-,\pi^+,p\rbrace$, $\mathcal C=\lbrace0,\mathrm{FD},\mathrm{FT},\mathrm{CD},\mathrm{other}\rbrace$,
+and $\mathcal R$ be the checkpoint PID vocabulary, including `OTHER`.
+This branch defines neural maps
 
 $$
-F_\vartheta:\mathbb R^d\times\mathcal S
-\longrightarrow\mathcal P(\mathbb R^4\times\mathcal R),\qquad d\in\lbrace5,6\rbrace.
+\eta_\psi:\mathbb R^5\times\mathcal S\longrightarrow\Delta^4,
+\qquad
+F_\vartheta:\mathbb R^5\times\mathcal S
+\longrightarrow\mathcal P(\mathbb R^4)\times\Delta^{|\mathcal R|-1}.
 $$
 
-Here $\mathcal P(A)$ denotes probability laws on $A$. The output is a sampled
-detector response and reconstructed PID, conditioned on a valid trigger and
-successful Forward Detector (FD) reconstruction.
+Here $\Delta^k$ is the probability simplex and $\mathcal P(A)$ denotes probability
+laws on $A$. The maps estimate reconstruction region and selected FD
+response/PID, respectively. Phase space supplies training; exclusive $\rho^0$
+production supplies an external transfer test.
 
-## Coordinates and response
+## 1. Physics and data
 
-Let $x=(p,\theta,\phi,s)$ be generated momentum, polar angle, azimuth, and
-species. Units are GeV and radians. With generated-species mass $m_s$,
-
-$$
-\beta_{\rm gen}=\frac{p}{\sqrt{p^2+m_s^2}},\qquad
-\Phi_5(x)=(\log(1+p),\theta,\sin\phi,\cos\phi,\beta_{\rm gen}),
-$$
+Alex's HEPGen++ sample describes
 
 $$
-\Phi_6(x)=(\Phi_5(x),p),\qquad z=Z_{\rm train}(\Phi_d(x)).
+e^-p\rightarrow e^{\prime-}p'\rho^0\rightarrow e^{\prime-}p'\pi^+\pi^-,
+\qquad
+k+P=k'+P'+p_++p_-.
 $$
 
-Species enters categorically; only the $d$ continuous coordinates are
-standardized using training statistics. Raw $p$ adds a useful coordinate,
-although it contains no information absent from $\log(1+p)$.
+Here $k,P$ are incoming electron/proton 4-momenta; $k',P'$ are outgoing;
+$p_+,p_-$ are pion 4-momenta. Beam energy: 10.6041 GeV. Proton dissociation is
+disabled; no additional QED-radiation option was enabled. The 4 particles share a vertex with uniform
+$-5.5\leq z_{\rm gen}\leq0.5$ cm. Generator-card soft ranges are not strict
+accepted-event boundaries.
 
-For a matched reconstructed particle, define
+| Sample | Generated events | Purpose |
+|---|---:|---|
+| August phase space | 5,000,000 | Existing response checkpoints; original held-out control |
+| September compact phase space | 19,820,000 | New reciprocal reconstruction gates |
+| Exclusive $\rho^0$ | 19,920,000 | External test; 79,680,000 particle rows |
 
-$$
-\Delta=(\Delta p,\Delta\theta,\Delta\phi,\Delta\beta),\qquad
-\Delta p=p_{\rm rec}-p,\quad \Delta\theta=\theta_{\rm rec}-\theta,
-$$
+The rho export retains all generated rows from 1,992 successful jobs, including
+trigger/reconstruction failures. The 8 failed jobs are absent. September and rho
+share GEMC 5.13 / COATJAVA 10.0.7 conditions. Phase-space-trained XGBoost models
+add momentum corrections after reconstruction. Exclusivity constrains generated
+events; it does not imply uniformly improved detector precision.
 
-$$
-\Delta\phi=\mathrm{wrap}_{[-\pi,\pi)}(\phi_{\rm rec}-\phi),\qquad
-\Delta\beta=\beta_{\rm rec}-\beta_{\rm gen}.
-$$
+HEPGen event weights were **not exported**. All results below use unweighted
+MC counts; cross sections, physical yields and physics-weighted efficiencies
+require the LUND weights and their event mapping.
 
-The momentum coordinate is
+![Generated event mass and momentum conservation](runs/rho_transfer/physics/generated_event_context.png)
 
-$$
-u_p=\mathrm{asinh}(\Delta p/a),\qquad
-\Delta p=a\sinh u_p,\qquad a=0.020\ {\rm GeV}.
-$$
+## 2. Labels and coordinates
 
-It resolves the narrow central peak while compressing large residuals.
-Writing $y=Z_\Delta(u_p,\Delta\theta,\Delta\phi,\Delta\beta)$, the model fits
+For generated particle $i$, $R_i=1$ means mutual MC-to-REC-to-the-same-MC
+association; $C_i=0$ means $R_i=0$. FD/FT/CD denote detector regions. No PID
+agreement or matching-quality threshold defines reconstruction.
 
-$$
-q_\vartheta(y,r\mid z,s)
-=q_p(y_p\mid z,s)q_o(y_o\mid z,s)\rho_r(z,s),
-$$
-
-where $y_p\in\mathbb R$, $y_o\in\mathbb R^3$, $q_p,q_o$ are separate Gaussian
-mixtures, and $\rho$ is a categorical PID distribution. Thus momentum and the
-other residuals are conditionally independent. Sampling undoes standardization
-and asinh before constructing reconstructed kinematics.
-
-## Data and fitted scope
-
-| Object | Columns or definition |
-|---|---|
-| Generated inputs | `gen_pid, gen_p, gen_theta, gen_phi` |
-| Derived inputs | $\beta_{\rm gen}$; optionally raw $p$ |
-| Continuous labels | `delta_p, delta_theta, delta_phi`; $\Delta\beta$ from `rec_beta` |
-| Categorical label | `rec_pid`; PID mismatches are retained |
-| Species | $\pi^-,\pi^+,p$ |
-| Unknown reconstructed class | `OTHER`, outside the training PID vocabulary |
-
-The fitted law is $P(\Delta,r\mid x,T=1,C={\rm FD},F=1)$, where $T$ is the
-trigger proxy, $C$ the reconstruction region, and $F$ the quality selection.
-The original selection uses reconstructed $\theta\lt33^\circ$, generated vertex
-$-5.5\lt z_{\rm gen}\lt-0.5$ cm, reciprocal matching, nonzero reconstructed PID,
-`rec_beta > -99`, finite residuals, and $\lvert\Delta p\rvert\leq10$ GeV.
-It does not apply the later branch's $0\lt\beta_{\rm rec}\leq1.2$ restriction.
-
-The event key `(source_file_id, event_id)` determines the fixed 80/10/10 split.
-`assert_event_disjoint` checks all partition intersections; `build_audit` records
-selection, cutflow, duplicate keys, data fingerprint, and particle-order hashes.
-Both missing functions from the attachment are restored in `data_asinh_dp.py`.
-
-## Evaluation and raw-momentum comparison
-
-Checkpoints minimize validation joint loss
+For event $E$, define the electron-associated FD trigger proxy
 
 $$
-\mathcal L=-\mathbb E\log q_p-\mathbb E\log q_o
--\lambda_{\rm PID}\mathbb E\log\rho_r,\qquad\lambda_{\rm PID}=1.
+T_e(E)=\mathbf1\{\exists i\in E:
+i\text{ is the generated electron associated with the selected FD trigger}\}.
 $$
 
-Loss values use standardized model coordinates. Physical closure is evaluated
-after inversion. Core medians and $\sigma_{68}=(q_{84}-q_{16})/2$ condition on
-$\lvert\Delta p\rvert\leq100$ MeV, matching the poster. Gaussian core fits use
-Dr. Joo's 1-MeV histograms and two-stage fitting window.
+The selected trigger is the first negative-status REC row. In columns, select
+`is_trigger_particle == 1`, `pid_gen == 11`, `detector == 1`, then broadcast
+the event label. Reconstructed PID need not be 11. Native `triggered` means
+any negative-status REC row and is a different label: full-rho rates are
+74.26% for `triggered`, 32.74% for $T_e$, and 30.43% when additionally requiring
+reconstructed PID 11. Event keys are `(file_id,event)`.
 
-The paired experiment compares $d=5$ and $d=6$ on identical particles and starts
-both models from the same function: the added raw $p$ weight is initially zero.
-The primary diagnostic is mean $\lvert\sigma_{\rm FM}/\sigma_{\rm CJ}-1\rvert$
-over the 6 populated pion bins at 6--9 GeV. All 6 runs completed the fixed
-epoch budget and have identical particle-order hashes. Each test uses 158,985
-particles. Mean and sample SD across 3 paired model seeds are:
+Use $c=1$, momenta/masses in GeV, angles in radians, and vertices in cm.
+Subscript $r$ denotes reconstruction. For generated momentum $p$, angles $(\theta,\phi)$, vertex $z$ and species mass
+$m_s$, set $\bar p=p/(1\,\mathrm{GeV})$ and
 
-| Metric | 5 inputs | 6 inputs (+ raw $p$) |
-|---|---:|---:|
-| Validation high-momentum width error (%) | 10.50 ± 4.65 | 11.60 ± 4.35 |
-| Test high-momentum width error (%) | 12.23 ± 2.73 | 13.80 ± 3.60 |
-| Test mean absolute core median bias [MeV] | 0.485 ± 0.222 | 0.502 ± 0.245 |
-| Test particle-weighted PID TV | 0.02601 ± 0.00125 | 0.02748 ± 0.00184 |
-| Test macro $W_1(\beta_{\rm rec})$ | 0.02764 ± 0.00493 | 0.02855 ± 0.00335 |
+$$
+\beta_g=\frac{p}{\sqrt{p^2+m_s^2}},\qquad
+\Phi=(\log(1+\bar p),\theta,\sin\phi,\cos\phi,\beta_g),
+\qquad
+\Psi=(\log(1+\bar p),\theta,\sin\phi,\cos\phi,z).
+$$
 
-Raw $p$ improves the primary test score in 1/3 pairs; its mean error increases
-by 1.57 percentage points (12.9% relative). It does not provide a consistent
-benefit under this recipe. The 5-input configuration remains the reference.
-These 3 pairs describe seed variation; they are not a high-precision
-significance study.
+Response uses $\Phi$; efficiency uses $\Psi$. Both have **5 continuous inputs**;
+species is categorical. Train-only scalers are retained during transfer.
 
-![Momentum-dependent Gaussian widths and ratios](runs/raw_momentum_ablation/summary/momentum_resolution_comparison.png)
+$$
+\eta_{\psi,c}(\Psi,s)\approx P_{\rm Sep}(C_i=c\mid\Psi,s,T_e=1),
+\qquad
+\epsilon_{\rm FD}=\eta_{\psi,\rm FD},\quad
+\epsilon_{\rm any}=1-\eta_{\psi,0}.
+$$
 
-![Integrated central momentum response](runs/raw_momentum_ablation/summary/central_response_comparison.png)
+Every generated hadron with $T_e=1$ enters the efficiency denominator.
+For dataset $d\in\lbrace A,\rho\rbrace$ (August, rho), define the selected response
 
-Core closure does not establish full-tail closure. The unbounded inverse-asinh
-distribution generated rare extreme residuals, including a retained validation
-draw of $2.34\times10^{14}$ GeV. No draw was clipped or removed. The
-[tail audit](runs/raw_momentum_ablation/summary/tail_audit.csv) records maxima,
-quantiles, and counts beyond 10 GeV for every run. Sampling reports
-`sample_abs_delta_p_gt_10GeV` and `sample_is_physical`; support-aware tail
-modeling is still needed before event-level physics use.
+$$
+Q_d=P_d(\Delta,r\mid\Phi,s,T_d=1,C=\mathrm{FD},F=1),
+\qquad T_A=T_{\rm August},\quad T_\rho=T_e.
+$$
 
-Full [summary](runs/raw_momentum_ablation/summary/summary.json),
-[per-run metrics](runs/raw_momentum_ablation/summary/per_run_metrics.csv),
-[paired differences](runs/raw_momentum_ablation/summary/paired_differences.csv),
-and [checkpoint hashes](runs/raw_momentum_ablation/summary/provenance.csv) are saved.
+$$
+\Delta=(p_r-p,\theta_r-\theta,
+\mathrm{wrap}_{[-\pi,\pi)}(\phi_r-\phi),\beta_r-\beta_g),
+\qquad r=\mathrm{PID}_{\rm rec}.
+$$
 
-PID closure compares observed reconstructed-class fractions with mean softmax
-probabilities in fixed momentum bins, using total variation over all classes.
-It is distinct from top-1 classification accuracy.
+Here $F$ is the saved quality selection. The frozen network fits response/PID
+marginals of $Q_A$; transfer compares them with $Q_\rho$.
+The adapter converts native degrees and GEN−REC residuals to this convention.
+`detector=0` includes matched FT/other particles; it is not a failure flag.
+The September reconstruction label matches rho, while the August skim has
+different association/trigger conventions.
 
-## Use
+## 3. Transfer results
+
+Both platforms use identical inputs and 3 seeds. Response models are frozen;
+gates use September training/validation only. Tables show mean ± seed SD;
+pp denotes percentage points.
+
+Conditional PID closure compares reconstructed fractions with **mean softmax
+probabilities** in 1-GeV bins. It does not use top-1 accuracy. On common bins,
+H100 correct-ID MAE is:
+
+| Generated species | Momentum [GeV] | August [pp] | Rho [pp] |
+|---|---:|---:|---:|
+| $\pi^-$ | 0–9 | 1.18 ± 0.24 | 1.19 ± 0.08 |
+| $\pi^+$ | 0–9 | 1.30 ± 0.26 | 2.92 ± 0.56 |
+| Proton | 0–3 | 0.33 ± 0.15 | 1.44 ± 0.13 |
+
+Negative-pion PID transfers well; positive-pion/proton gaps remain. Common bins
+align momentum ranges, while angular populations and trigger contracts still
+differ. The comparison does not isolate the generator's effect.
+
+![Conditional correct-ID closure](runs/rho_transfer/summary/pid_correct_id_transfer.png)
+
+![Momentum-dependent Gaussian core widths and ratios](runs/rho_transfer/summary/momentum_resolution_transfer.png)
+
+The gates show a stronger transfer limitation. H100 FD calibration error (ECE,
+20 probability bins) and the GB10 replication are:
+
+| Species | September ECE [pp] | Rho ECE [pp] | Rho ECE, GB10 [pp] | Rho ECE inside training box [pp] |
+|---|---:|---:|---:|---:|
+| $\pi^-$ | 1.17 ± 0.22 | 4.39 ± 0.60 | 4.44 ± 0.44 | 3.32 ± 0.34 |
+| $\pi^+$ | 0.64 ± 0.09 | 5.41 ± 0.40 | 5.42 ± 1.10 | 1.05 ± 0.29 |
+| Proton | 0.59 ± 0.06 | 1.83 ± 0.12 | 1.81 ± 0.12 | 1.94 ± 0.15 |
+
+Outside-box fractions: 15.5%, 17.1%, 7.2%. Pion FD efficiency is overpredicted
+below the phase-space $5^\circ$ boundary. Broader coverage should precede
+rho-specific tuning; box membership alone does not establish joint coverage.
+Residual in-box gaps may also reflect event correlations omitted from the inputs.
+
+![FD and any-region reconstruction efficiency](runs/rho_transfer/summary/hadron_efficiency_transfer.png)
+
+![Momentum/angular efficiency closure](runs/rho_transfer/summary/rho_efficiency_p_theta_closure.png)
+
+Frozen H100/GB10 inference uses identical checkpoints and teacher particles;
+maximum PID-probability difference is $8.94\times10^{-7}$. Independently trained
+gates reproduce the same transfer pattern. GPU/software replication is not
+additional independent MC statistics.
+
+## 4. Raw and corrected response
+
+Let $p_0$ be original COATJAVA momentum. Alex's species-specific XGBoost map is
+
+$$
+f_s:(p_0,\theta_r,\phi_r)\mapsto\widehat{p-p_0},\qquad
+p_c=p_0+f_s,\qquad \mathbf p_c=(p_c/p_0)\mathbf p_0.
+$$
+
+Application requires mutual FD reconstruction, $-5.5<z_r<0.5$ cm,
+$|p-p_0|<0.15$ GeV, finite valid inputs and positive momenta; electrons also
+require $p_0>2$ GeV. Generated PID routes the model. PID, direction and
+$\beta_r$ remain unchanged. All rows survive; `was_corrected` records application.
+The 4 model hashes match the manifest; 10,788 sampled corrected momenta were
+reproduced exactly at stored float32 precision.
+
+Frozen FM predictions target **raw** response. Corrected MC is shown as a
+separate reference on the same particles. In the 5,934 common fully matched FD
+events below, the pion-pair median moves 0.7516→0.7538 GeV; the same-event
+generated median is 0.7830 GeV. Broad tails remain.
+
+$$
+M_{\pi\pi}^2=(p_++p_-)^2,\qquad
+M_X^2=(k+P-k'-P'-p_+-p_-)^2.
+$$
+
+![Same-event invariant-mass and missing-mass correction checks](runs/rho_transfer/physics/exclusive_event_correction.png)
+
+These are unweighted correction diagnostics with truth-species masses.
+Correlated FM event closure remains untested; gates and the additional response
+selection $F$ must also be reconciled.
+
+## Appendix: reproduction and scope
+
+Base: `main` at `56c5e19`; gate machinery: `4674686`. Implemented protocol:
+[TRANSFER_PROTOCOL.md](docs/TRANSFER_PROTOCOL.md). New native processing uses
+`forwardfm_transfer/data.py`, without changing the original training paths.
+
+- Whole-event inputs: 1,990,439 rho and 1,980,434 September events (10% samples).
+  August: 500,438 held-out events → 158,985 selected response particles.
+- Gates: 300,000/50,000/100,000 train/validation/test rows per species;
+  100,000 external rho rows. Response: up to 100,000 rho particles/species.
+  Raw/corrected views use identical raw-selected particles; bins require 200 rows.
+- Physics plots: 100,000 complete events/source; $T_e$, all 4 mutual FD matches,
+  finite positive momenta, and per-track $|p_0-p|\leq10$ GeV leave 5,934 rho events.
+- H100/PyTorch 2.13 and GB10/PyTorch 2.14; CUDA 13.0; DuckDB 1.5.6.
+  Seeds, architecture, selection $F$ and fitting settings are in the protocol appendix.
+
+Inverse-asinh draws remain unbounded; negative momenta/extreme tails are counted
+without clipping. Core fits do not establish tail closure. No electron network
+is fitted here.
 
 ```bash
-conda create -n QuantumMC python=3.11 -y
-conda activate QuantumMC
-python -m pip install -r requirements.txt
-python -m unittest discover -s tests -v
+python -m pip install -r requirements.txt pytest
+python -m pip install duckdb==1.5.6
+python -m pytest -q
 
-# 5 inputs; append --raw-momentum for 6 inputs and a separate run directory.
-python train.py --config configs/gpu_split_dp_asinh.yaml \
-  --parquet-glob '/path/to/particle_responses/*.parquet' \
-  --run-dir runs/split_dp_5 --device cuda:0
-
-python sample.py --checkpoint runs/split_dp_5/model.pt \
-  --input example_generated_hadrons.csv --output artifacts/response.csv \
-  --seed 20261003 --device cpu
+python experiments/prepare_transfer_data.py --rho RHO.parquet \
+  --phase SEPTEMBER.parquet --august-glob 'AUGUST/*.parquet' --output INPUTS
+python experiments/audit_transfer_data.py --inputs INPUTS --output audit.json
+python experiments/run_transfer_study.py --inputs INPUTS \
+  --output runs/rho_transfer/PLATFORM --device cuda:0
+python experiments/plot_transfer_physics.py --rho INPUTS/rho.parquet \
+  --phase INPUTS/phase.parquet --output runs/rho_transfer/physics
+python experiments/analyze_transfer_study.py --runs runs/rho_transfer \
+  --output runs/rho_transfer/summary
 ```
 
-`train_split_dp_asinh.py` and `sample_split_dp_asinh.py` are explicit equivalents.
-Format-2 checkpoints store the transform scale, masses, feature/target order,
-scalers, selection, data seeds, and source hashes. Legacy configurations and
-format-1 checkpoints retain their original training/sampling path.
+[Tables and seed summaries](runs/rho_transfer/summary/summary.json),
+[common-bin comparisons](runs/rho_transfer/summary/response_common_bins_summary.csv),
+[calibration curves](runs/rho_transfer/summary/hadron_efficiency_calibration.png),
+[central response and tails](runs/rho_transfer/summary/central_momentum_response.png),
+and [physics cutflow](runs/rho_transfer/physics/physics_summary.json) accompany
+the figures. New gate checkpoints and event predictions remain on both
+experiment hosts; aggregate tables, figures and logs are versioned.
 
-## Appendix: implementation and experiment provenance
-
-The shared backbone has 4 layers of width 256, SiLU/LayerNorm, dropout 0.03,
-and a species embedding of dimension 16. Each response head has 8 components.
-The reference recipe uses AdamW, learning rate 0.001, weight decay 0.00001,
-batch size 8192, and 30 epochs. Checkpoint selection uses validation loss only.
-
-Model seeds are `20260822, 20260823, 20260824`; event split and particle order
-remain fixed at `20260822`. The preloaded GPU path preserves the reference
-DataLoader batch order. Sampling uses the author's CPU seed `20261003`.
-
-For each condition, run one worker; use different GPUs for concurrent workers:
-
-```bash
-python experiments/run_raw_momentum_ablation.py --condition baseline \
-  --parquet-glob '/path/to/particle_responses/*.parquet' --device cuda:0
-python experiments/run_raw_momentum_ablation.py --condition raw \
-  --parquet-glob '/path/to/particle_responses/*.parquet' --device cuda:1
-
-python experiments/analyze_raw_momentum_ablation.py
-python experiments/audit_split_dp_tails.py
-```
-
-Training used commit `444fae0`; each checkpoint records its source hashes.
-All 6 primary `model.pt` files, logs, resolved configurations, audits, and
-evaluations are included under `runs/raw_momentum_ablation/seed_<seed>/`.
-The fixed representative seed is `20260822`; its
-[5-input checkpoint](runs/raw_momentum_ablation/seed_20260822/baseline/model.pt)
-and [6-input checkpoint](runs/raw_momentum_ablation/seed_20260822/raw/model.pt)
-can be used directly with `sample.py` after cloning.
-
-This branch models 3-species conditional hadron response. Trigger efficiency
-and generated-electron response remain in
-[`feature/trigger-electron-efficiency-four-species`](https://github.com/HHTseng/QuantumMC_Forward_Foundation_Model/tree/feature/trigger-electron-efficiency-four-species).
-Its electron efficiency imports the legacy `data.py` utilities, which are
-unchanged here. Porting the new response to 4 species requires electron mass,
-species vocabulary, input scaling, model dimensions, and fresh validation.
-Existing 4-species checkpoints cannot be loaded into the split model.
-The legacy sampling path was tested against the existing 4-species checkpoint,
-including a generated electron; the branch itself was not modified.
-
-Current limitations: diagonal covariance within each mixture component,
-conditional independence introduced by the split head, unconstrained physical
-draws, no event correlations, and simulation-only validation.
+Exclusive observables follow the usual 4-vector definitions; see the
+[CLAS rho analysis](https://arxiv.org/abs/0807.3834) and
+[CLAS12 double-pion note](https://misportal.jlab.org/mis/physics/clas12/viewFile.cfm/2017-014.pdf?documentId=50).

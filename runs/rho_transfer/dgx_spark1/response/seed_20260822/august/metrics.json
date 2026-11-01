@@ -1,0 +1,72 @@
+{
+  "dataset": "august_heldout",
+  "native_parquet": null,
+  "parquet_glob": "/home/htseng/QuantumMC_Simulations/transfer_inputs/august_test.parquet",
+  "trigger_definition": "saved_August_trigger_proxy",
+  "raw_momentum_source": "August_original_export",
+  "split": "test",
+  "selection_sql_raw_momentum": "rec_detector_region = 'FD'\n      AND rec_theta < radians(33.0)\n      AND gen_vz > -5.5\n      AND gen_vz < -0.5\n      AND usable_for_hadron_response_training\n      AND gen_pid IN (-211, 211, 2212)\n      AND delta_p IS NOT NULL AND delta_theta IS NOT NULL AND delta_phi IS NOT NULL\n      AND isfinite(delta_p) AND isfinite(delta_theta) AND isfinite(delta_phi)\n      AND match_reciprocal\n      AND rec_pid <> 0\n      AND rec_beta > -99\n      AND abs(delta_p) <= 10.0",
+  "partition_sql": "hash(source_file_id, event_id, 20260822) % 10000 >= 9000",
+  "sample_seed": 20261101,
+  "max_rows_per_species": 100000,
+  "particle_order_sha256": "45dafe682ed9cbc5133b675e99472d979cd19ba742d61536f6fd736b651a236c",
+  "inference_seconds": 0.4117896412499249,
+  "particles_per_second": 386083.0484162379,
+  "species": {
+    "pi-": {
+      "n": 45981,
+      "eligible_momentum_bins": 9,
+      "correct_id_mae_pp": 1.0871646558918036,
+      "pid_tv_particle_weighted": 0.02604474060191687,
+      "outside_coarse_aug_generated_box_fraction": 0.0,
+      "fm_nonfinite_response_fraction": 0.0,
+      "fm_abs_delta_p_gt_10_fraction": 0.0005871990604815032,
+      "fm_negative_reconstructed_p_fraction": 0.009351688741001719
+    },
+    "pi+": {
+      "n": 56999,
+      "eligible_momentum_bins": 9,
+      "correct_id_mae_pp": 1.5991898450479447,
+      "pid_tv_particle_weighted": 0.03472662065494192,
+      "outside_coarse_aug_generated_box_fraction": 0.0,
+      "fm_nonfinite_response_fraction": 0.0,
+      "fm_abs_delta_p_gt_10_fraction": 0.00024561834418147685,
+      "fm_negative_reconstructed_p_fraction": 0.0042807768557343116
+    },
+    "proton": {
+      "n": 56005,
+      "eligible_momentum_bins": 7,
+      "correct_id_mae_pp": 1.5787332925858735,
+      "pid_tv_particle_weighted": 0.019880631657047003,
+      "outside_coarse_aug_generated_box_fraction": 0.0,
+      "fm_nonfinite_response_fraction": 0.0,
+      "fm_abs_delta_p_gt_10_fraction": 0.00010713329167038658,
+      "fm_negative_reconstructed_p_fraction": 0.004803142576555665
+    }
+  },
+  "checkpoint_sha256": "76b773f66b9505f792be16f30637c3fbe5efc731d13d524cad5b723434dd1531",
+  "feature_names": [
+    "log1p_gen_p",
+    "gen_theta",
+    "sin_gen_phi",
+    "cos_gen_phi",
+    "beta_gen"
+  ],
+  "target_names": [
+    "delta_p",
+    "delta_theta",
+    "delta_phi",
+    "delta_beta"
+  ],
+  "min_bin_count": 200,
+  "weighting": "unweighted particle counts",
+  "sampling": "1 draw/particle; CPU RNG, float64 physical inverse; no tail clipping",
+  "selection_note": "Both teacher views use the same raw-selected particles; PID and beta are unchanged by XGBoost",
+  "environment": {
+    "platform": "Linux-6.17.0-1031-nvidia-aarch64-with-glibc2.39",
+    "torch": "2.14.0+cu130",
+    "numpy": "2.5.3",
+    "device": "cuda:0",
+    "gpu": "NVIDIA GB10"
+  }
+}

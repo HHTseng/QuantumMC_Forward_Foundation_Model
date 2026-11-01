@@ -1,0 +1,16 @@
+{
+  "arguments": [
+    "/home/htseng/QuantumMC_Simulations/environments/QuantumMC_transfer/bin/python",
+    "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/experiments/evaluate_transfer_response.py",
+    "--checkpoint",
+    "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/runs/raw_momentum_ablation/seed_20260824/baseline/model.pt",
+    "--parquet-glob",
+    "/home/htseng/QuantumMC_Simulations/transfer_inputs/august_test.parquet",
+    "--output",
+    "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/runs/rho_transfer/tara/response/seed_20260824/august",
+    "--device",
+    "cuda:0"
+  ],
+  "seconds": 5.545611658133566,
+  "returncode": 0
+}

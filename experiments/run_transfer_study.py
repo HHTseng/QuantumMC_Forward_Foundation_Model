@@ -51,27 +51,35 @@ def main():
                 "--phase-parquet", str(inputs / "phase.parquet"), "--rho-parquet", str(inputs / "rho.parquet"),
                 "--output", str(target), "--device", args.device, "--seed", str(seed),
                 "--epochs", str(args.gate_epochs)]))
-    record = {"commands": [], "protocol": "frozen August response; phase-only gate fitting; external rho test",
-              "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+    execution_path = output / "execution.json"
+    record = (json.loads(execution_path.read_text()) if execution_path.exists() else
+              {"commands": [], "protocol": "frozen August response; phase-only gate fitting; external rho test",
+               "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())})
+    ran_command = False
     for target, command in commands:
         target.mkdir(parents=True, exist_ok=True)
         if (target / "complete.json").exists():
+            previous = json.loads((target / "complete.json").read_text())
+            if previous["arguments"] != command:
+                raise ValueError(f"Completed output has different arguments: {target}; choose a new output directory")
             print(f"Already completed: {target}", flush=True)
             continue
         print("RUN", " ".join(command), flush=True)
         started = time.monotonic()
         with (target / "run.log").open("w") as log:
             process = subprocess.run(command, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
+        ran_command = True
         item = {"arguments": command, "seconds": time.monotonic()-started,
                 "returncode": process.returncode}
         record["commands"].append(item)
-        (output / "execution.json").write_text(json.dumps(record, indent=2) + "\n")
+        execution_path.write_text(json.dumps(record, indent=2) + "\n")
         if process.returncode:
             raise RuntimeError(f"Experiment failed; inspect {target / 'run.log'}")
         (target / "complete.json").write_text(json.dumps(item, indent=2) + "\n")
         print(f"DONE {target} {item['seconds']:.1f}s", flush=True)
-    record["finished_utc"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    (output / "execution.json").write_text(json.dumps(record, indent=2) + "\n")
+    if ran_command:
+        record["finished_utc"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        execution_path.write_text(json.dumps(record, indent=2) + "\n")
 
 
 if __name__ == "__main__":

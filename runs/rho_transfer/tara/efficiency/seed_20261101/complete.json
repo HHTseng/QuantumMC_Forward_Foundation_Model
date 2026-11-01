@@ -1,0 +1,20 @@
+{
+  "arguments": [
+    "/home/htseng/QuantumMC_Simulations/environments/QuantumMC_transfer/bin/python",
+    "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/experiments/run_transfer_efficiency.py",
+    "--phase-parquet",
+    "/home/htseng/QuantumMC_Simulations/transfer_inputs/phase.parquet",
+    "--rho-parquet",
+    "/home/htseng/QuantumMC_Simulations/transfer_inputs/rho.parquet",
+    "--output",
+    "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/runs/rho_transfer/tara/efficiency/seed_20261101",
+    "--device",
+    "cuda:0",
+    "--seed",
+    "20261101",
+    "--epochs",
+    "30"
+  ],
+  "seconds": 24.30292969942093,
+  "returncode": 0
+}

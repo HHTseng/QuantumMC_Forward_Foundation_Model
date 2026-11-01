@@ -10,3 +10,5 @@ runs/*/model.pt
 inputs/
 runs/rho_transfer/**/model.pt
 runs/rho_transfer/**/*.npz
+runs/rho_transfer/*/efficiency/**/*.png
+runs/rho_transfer/*/efficiency/**/*.pdf

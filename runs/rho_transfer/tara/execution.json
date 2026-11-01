@@ -1,0 +1,163 @@
+{
+  "commands": [
+    {
+      "arguments": [
+        "/home/htseng/QuantumMC_Simulations/environments/QuantumMC_transfer/bin/python",
+        "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/experiments/evaluate_transfer_response.py",
+        "--checkpoint",
+        "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/runs/raw_momentum_ablation/seed_20260822/baseline/model.pt",
+        "--parquet-glob",
+        "/home/htseng/QuantumMC_Simulations/transfer_inputs/august_test.parquet",
+        "--output",
+        "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/runs/rho_transfer/tara/response/seed_20260822/august",
+        "--device",
+        "cuda:0"
+      ],
+      "seconds": 5.624292369000614,
+      "returncode": 0
+    },
+    {
+      "arguments": [
+        "/home/htseng/QuantumMC_Simulations/environments/QuantumMC_transfer/bin/python",
+        "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/experiments/evaluate_transfer_response.py",
+        "--checkpoint",
+        "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/runs/raw_momentum_ablation/seed_20260822/baseline/model.pt",
+        "--native-parquet",
+        "/home/htseng/QuantumMC_Simulations/transfer_inputs/rho.parquet",
+        "--output",
+        "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/runs/rho_transfer/tara/response/seed_20260822/rho",
+        "--device",
+        "cuda:0"
+      ],
+      "seconds": 7.870202234946191,
+      "returncode": 0
+    },
+    {
+      "arguments": [
+        "/home/htseng/QuantumMC_Simulations/environments/QuantumMC_transfer/bin/python",
+        "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/experiments/evaluate_transfer_response.py",
+        "--checkpoint",
+        "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/runs/raw_momentum_ablation/seed_20260823/baseline/model.pt",
+        "--parquet-glob",
+        "/home/htseng/QuantumMC_Simulations/transfer_inputs/august_test.parquet",
+        "--output",
+        "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/runs/rho_transfer/tara/response/seed_20260823/august",
+        "--device",
+        "cuda:0"
+      ],
+      "seconds": 5.508548627141863,
+      "returncode": 0
+    },
+    {
+      "arguments": [
+        "/home/htseng/QuantumMC_Simulations/environments/QuantumMC_transfer/bin/python",
+        "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/experiments/evaluate_transfer_response.py",
+        "--checkpoint",
+        "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/runs/raw_momentum_ablation/seed_20260823/baseline/model.pt",
+        "--native-parquet",
+        "/home/htseng/QuantumMC_Simulations/transfer_inputs/rho.parquet",
+        "--output",
+        "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/runs/rho_transfer/tara/response/seed_20260823/rho",
+        "--device",
+        "cuda:0"
+      ],
+      "seconds": 7.828706298023462,
+      "returncode": 0
+    },
+    {
+      "arguments": [
+        "/home/htseng/QuantumMC_Simulations/environments/QuantumMC_transfer/bin/python",
+        "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/experiments/evaluate_transfer_response.py",
+        "--checkpoint",
+        "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/runs/raw_momentum_ablation/seed_20260824/baseline/model.pt",
+        "--parquet-glob",
+        "/home/htseng/QuantumMC_Simulations/transfer_inputs/august_test.parquet",
+        "--output",
+        "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/runs/rho_transfer/tara/response/seed_20260824/august",
+        "--device",
+        "cuda:0"
+      ],
+      "seconds": 5.545611658133566,
+      "returncode": 0
+    },
+    {
+      "arguments": [
+        "/home/htseng/QuantumMC_Simulations/environments/QuantumMC_transfer/bin/python",
+        "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/experiments/evaluate_transfer_response.py",
+        "--checkpoint",
+        "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/runs/raw_momentum_ablation/seed_20260824/baseline/model.pt",
+        "--native-parquet",
+        "/home/htseng/QuantumMC_Simulations/transfer_inputs/rho.parquet",
+        "--output",
+        "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/runs/rho_transfer/tara/response/seed_20260824/rho",
+        "--device",
+        "cuda:0"
+      ],
+      "seconds": 7.824973690323532,
+      "returncode": 0
+    },
+    {
+      "arguments": [
+        "/home/htseng/QuantumMC_Simulations/environments/QuantumMC_transfer/bin/python",
+        "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/experiments/run_transfer_efficiency.py",
+        "--phase-parquet",
+        "/home/htseng/QuantumMC_Simulations/transfer_inputs/phase.parquet",
+        "--rho-parquet",
+        "/home/htseng/QuantumMC_Simulations/transfer_inputs/rho.parquet",
+        "--output",
+        "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/runs/rho_transfer/tara/efficiency/seed_20261101",
+        "--device",
+        "cuda:0",
+        "--seed",
+        "20261101",
+        "--epochs",
+        "30"
+      ],
+      "seconds": 24.30292969942093,
+      "returncode": 0
+    },
+    {
+      "arguments": [
+        "/home/htseng/QuantumMC_Simulations/environments/QuantumMC_transfer/bin/python",
+        "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/experiments/run_transfer_efficiency.py",
+        "--phase-parquet",
+        "/home/htseng/QuantumMC_Simulations/transfer_inputs/phase.parquet",
+        "--rho-parquet",
+        "/home/htseng/QuantumMC_Simulations/transfer_inputs/rho.parquet",
+        "--output",
+        "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/runs/rho_transfer/tara/efficiency/seed_20261102",
+        "--device",
+        "cuda:0",
+        "--seed",
+        "20261102",
+        "--epochs",
+        "30"
+      ],
+      "seconds": 23.634833960793912,
+      "returncode": 0
+    },
+    {
+      "arguments": [
+        "/home/htseng/QuantumMC_Simulations/environments/QuantumMC_transfer/bin/python",
+        "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/experiments/run_transfer_efficiency.py",
+        "--phase-parquet",
+        "/home/htseng/QuantumMC_Simulations/transfer_inputs/phase.parquet",
+        "--rho-parquet",
+        "/home/htseng/QuantumMC_Simulations/transfer_inputs/rho.parquet",
+        "--output",
+        "/home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/runs/rho_transfer/tara/efficiency/seed_20261103",
+        "--device",
+        "cuda:0",
+        "--seed",
+        "20261103",
+        "--epochs",
+        "30"
+      ],
+      "seconds": 23.80577366007492,
+      "returncode": 0
+    }
+  ],
+  "protocol": "frozen August response; phase-only gate fitting; external rho test",
+  "started_utc": "2026-11-01T18:47:37Z",
+  "finished_utc": "2026-11-01T18:49:29Z"
+}

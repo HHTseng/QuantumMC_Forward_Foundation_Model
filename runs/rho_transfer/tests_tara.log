@@ -1,0 +1,12 @@
+..............................                                           [100%]
+=============================== warnings summary ===============================
+tests/test_transfer_analysis.py::TransferAnalysisTests::test_common_bins_intersect_pid_and_valid_fit_support_separately
+  /home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/experiments/analyze_transfer_study.py:220: UserWarning: No artists with labels found to put in legend.  Note that artists whose label start with an underscore are ignored when legend() is called with no argument.
+    axes[1].legend(fontsize=7, loc="best")
+
+tests/test_transfer_analysis.py::TransferAnalysisTests::test_common_bins_intersect_pid_and_valid_fit_support_separately
+  /home/htseng/QuantumMC_Simulations/QuantumMC_FFM_rho_transfer/experiments/analyze_transfer_study.py:304: UserWarning: No artists with labels found to put in legend.  Note that artists whose label start with an underscore are ignored when legend() is called with no argument.
+    axes[0,1].legend(fontsize=7, ncol=2)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+30 passed, 2 warnings in 4.72s

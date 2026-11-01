@@ -1,0 +1,32 @@
+{
+  "duckdb_version": "1.5.6",
+  "native_selection": "hash(file_id,event)%10=0",
+  "august_selection": "hash(source_file_id,event_id,20260822)%10000>=9000",
+  "weights": "Native exports omit HEPGen event weights; unweighted MC study.",
+  "datasets": {
+    "rho": {
+      "file": "rho.parquet",
+      "source": "/Users/huan-hsintseng/Downloads/QuantumMC_Simulations/Data_processing/Alex_rho_0_production_data/hepgen_uni_z_exclusive_rho_production_corrected.parquet",
+      "rows": 7961756,
+      "events": 1990439,
+      "bytes": 558023802,
+      "sha256": "0bfb4e2dd1f21f71637e3ecdfee350517763ba6d76a5fc07f470ca13d5507a08"
+    },
+    "phase": {
+      "file": "phase.parquet",
+      "source": "/Users/huan-hsintseng/Downloads/QuantumMC_Simulations/phase-space_parquet-Sep3-26/el_pip_pim_proton_phasepspace_allgen_20M_electron_hadron_exact_sample_energy_loss_corrected.parquet",
+      "rows": 7921736,
+      "events": 1980434,
+      "bytes": 535154328,
+      "sha256": "46acf3c9424a17aa5aa26ada42c67830b53768ccd28eac4b7716ba48aeeae13c"
+    },
+    "august_test": {
+      "file": "august_test.parquet",
+      "source": "/Users/huan-hsintseng/Downloads/QuantumMC_Simulations/phase-space_parquet-Aug17-26/particle_responses/*.parquet",
+      "rows": 2001752,
+      "events": 500438,
+      "bytes": 166200614,
+      "sha256": "74078e6332b24bfe10a38a9f54739c46fd5dc511b5f493bb035ac15522ee9dba"
+    }
+  }
+}
