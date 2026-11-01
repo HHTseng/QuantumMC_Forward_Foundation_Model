@@ -5,3 +5,8 @@ runs/*/model.pt
 !runs/smoke/model.pt
 !runs/fd_response_seed/model.pt
 !runs/tara_gpu_full/model.pt
+
+# New transfer-study data and fitted artifacts stay on the experiment hosts.
+inputs/
+runs/rho_transfer/**/model.pt
+runs/rho_transfer/**/*.npz
